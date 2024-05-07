@@ -37,5 +37,5 @@ jobs:
 
       - name: Run Foundry tests
         run: |
-          export PROVIDER_URI_11155111=${{ secrets.PROVIDER_URI_11155111 }}
+          export PROVIDER_URI_1=${{ secrets.PROVIDER_URI_1 }}
           RUST_BACKTRACE=1 forge test -vvv
