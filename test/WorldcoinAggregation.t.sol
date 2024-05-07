@@ -9,20 +9,35 @@ contract WorldcoinAggregationTest is AxiomTest {
     using Axiom for Query;
 
     struct AxiomInput {
-        uint64 blockNumber;
-        address addr;
+        uint256 grantId;
+        uint256 root;
+        address[] receivers;
+        uint256[] claimedNullifierHashes;
     }
 
     WorldcoinAggregation public aggregation;
     AxiomInput public input;
     bytes32 public querySchema;
+    uint256 public numClaims;
 
     function setUp() public {
         _createSelectForkAndSetupAxiom("provider");
 
-        input = AxiomInput({ blockNumber: 4_205_938, addr: address(0x8018fe32fCFd3d166E8b4c4E37105318A84BA11b) });
-        querySchema = axiomVm.readCircuit("app/axiom/average.circuit.ts");
-        aggregation = new WorldcoinAggregation(axiomV2QueryAddress, uint64(block.chainid), querySchema);
+        address[] memory receivers = new address[](1);
+        receivers[0] = address(0x787878);
+
+        uint256[] memory claimedNullifierHashes = new uint256[](1);
+        claimedNullifierHashes[0] = 0x4b7790813c37c910b41236334ce9b1841d430e3b4874e89778e1afd0fd3a7b6;
+
+        input = AxiomInput({
+            grantId: 31,
+            root: 0x1d0372864732dfcd91c18414fd4126e1e38293be237aad4315a026bf23d02717,
+            receivers: receivers,
+            claimedNullifierHashes: claimedNullifierHashes
+        });
+        querySchema = axiomVm.readCircuit("app/axiom/worldcoin.circuit.ts");
+        numClaims = 1;
+        aggregation = new WorldcoinAggregation(axiomV2QueryAddress, uint64(block.chainid), querySchema, numClaims);
     }
 
     /// @dev Simple demonstration of testing an Axiom client contract using Axiom cheatcodes
