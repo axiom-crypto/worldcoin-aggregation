@@ -1,0 +1,20 @@
+{
+  "name": "axiom-quickstart",
+  "version": "0.2.9",
+  "description": "Axiom Quickstart",
+  "main": "index.js",
+  "scripts": {
+    "start": "tsx app/index.ts"
+  },
+  "keywords": [],
+  "author": "Intrinsic Technologies",
+  "license": "MIT",
+  "dependencies": {
+    "@axiom-crypto/client": "2.0.9",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
