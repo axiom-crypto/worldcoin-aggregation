@@ -1,0 +1,12 @@
+[package]
+name = "client-circuit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.83"
+axiom-circuit = { git = "https://github.com/axiom-crypto/axiom-sdk-rs.git", branch = "feat/groth16" }
+axiom-sdk = { git = "https://github.com/axiom-crypto/axiom-sdk-rs.git", branch = "feat/groth16" }
+ethers = "2.0.14"
+serde = "1.0.200"
+serde_json = "1.0.116"
