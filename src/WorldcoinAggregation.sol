@@ -10,6 +10,9 @@ contract WorldcoinAggregation is AxiomV2Client {
     /// @dev The chain ID of the chain whose data the callback is expected to be called from.
     uint64 immutable SOURCE_CHAIN_ID;
 
+    /// @dev The verification key hash of the Groth16 circuit.
+    bytes32 immutable VKEY_HASH;
+
     /// @dev The maximum number of claims that can be made in a single call.
     uint256 immutable MAX_NUM_CLAIMS;
 
@@ -24,12 +27,18 @@ contract WorldcoinAggregation is AxiomV2Client {
     /// @param  axiomV2QueryAddress The address of the AxiomV2Query contract.
     /// @param  callbackSourceChainId The ID of the chain the query reads from.
     /// @param  querySchema The schema of the query.
+    /// @param  vkeyHash The verification key hash of the Groth16 circuit.
     /// @param  maxNumClaims The number of claims that can be made in a single call.
-    constructor(address axiomV2QueryAddress, uint64 callbackSourceChainId, bytes32 querySchema, uint256 maxNumClaims)
-        AxiomV2Client(axiomV2QueryAddress)
-    {
+    constructor(
+        address axiomV2QueryAddress,
+        uint64 callbackSourceChainId,
+        bytes32 querySchema,
+        bytes32 vkeyHash,
+        uint256 maxNumClaims
+    ) AxiomV2Client(axiomV2QueryAddress) {
         QUERY_SCHEMA = querySchema;
         SOURCE_CHAIN_ID = callbackSourceChainId;
+        VKEY_HASH = vkeyHash;
         MAX_NUM_CLAIMS = maxNumClaims;
     }
 
@@ -98,27 +107,30 @@ contract WorldcoinAggregation is AxiomV2Client {
         bytes32[] calldata axiomResults,
         bytes calldata // extraData
     ) internal override {
-        require(axiomResults.length == 3 + 2 * MAX_NUM_CLAIMS, "Invalid number of results");
+        require(axiomResults.length == 4 + 2 * MAX_NUM_CLAIMS, "Invalid number of results");
         // We expect the results returned from the Axiom query to be:
-        // axiomResults[0]: grantId
-        // axiomResults[1]: root
-        // axiomResults[2]: numClaims
-        // axiomResults[idx] for idx in [3, 3 + numClaims): receivers
-        // axiomResults[idx] for idx in [3 + MAX_NUM_CLAIMS, 3 + MAX_NUM_CLAIMS + numClaims): claimedNullifierHashes
+        // axiomResults[0]: vkeyHash
+        // axiomResults[1]: grantId
+        // axiomResults[2]: root
+        // axiomResults[3]: numClaims
+        // axiomResults[idx] for idx in [4, 4 + numClaims): receivers
+        // axiomResults[idx] for idx in [4 + MAX_NUM_CLAIMS, 4 + MAX_NUM_CLAIMS + numClaims): claimedNullifierHashes
 
-        uint256 grantId = uint256(axiomResults[0]);
-        uint256 root = uint256(axiomResults[1]);
-        uint256 numClaims = uint256(axiomResults[2]);
+        bytes32 vkeyHash = axiomResults[0];
+        uint256 grantId = uint256(axiomResults[1]);
+        uint256 root = uint256(axiomResults[2]);
+        uint256 numClaims = uint256(axiomResults[3]);
 
+        require(vkeyHash == VKEY_HASH, "Invalid vkey hash");
         require(numClaims <= MAX_NUM_CLAIMS, "Too many claims");
 
         address[] memory receivers = new address[](numClaims);
         uint256[] memory claimedNullifierHashes = new uint256[](numClaims);
         for (uint256 idx; idx < numClaims; idx++) {
-            receivers[idx] = address(uint160(uint256(axiomResults[3 + idx])));
+            receivers[idx] = address(uint160(uint256(axiomResults[4 + idx])));
         }
         for (uint256 idx; idx < numClaims; idx++) {
-            claimedNullifierHashes[idx] = uint256(axiomResults[3 + MAX_NUM_CLAIMS + idx]);
+            claimedNullifierHashes[idx] = uint256(axiomResults[4 + MAX_NUM_CLAIMS + idx]);
         }
 
         _batchClaim(numClaims, grantId, receivers, root, claimedNullifierHashes);
