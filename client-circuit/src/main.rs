@@ -1,11 +1,12 @@
 use std::{fmt::Debug, vec};
 
-use axiom_circuit::subquery::groth16::{parse_groth16_input, Groth16Input};
+use axiom_circuit::subquery::groth16::{
+    assign_groth16_input_with_known_vk, parse_groth16_input, Groth16Input,
+};
 use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomComputeInput, AxiomResult},
     cmd::run_cli,
     halo2_base::{gates::RangeInstructions, AssignedValue},
-    subquery::groth16::assign_groth16_input_with_known_vk,
     Fr,
 };
 use ethers::utils::keccak256;
@@ -63,14 +64,16 @@ pub fn parse_worldcoin_input() -> Groth16Input<Fr> {
 
     let pf_string = json!({
         "pi_a": [proof[0], proof[1], "1"],
-        "pi_b": [[proof[2], proof[3]], [proof[4], proof[5]], ["1", "0"]],
+        // Note proof[2] and proof[3] are swapped
+        // https://github.com/worldcoin/world-id-contracts/blob/4efbd67ed28753bb13985bc2312a450b18f50e1b/src/SemaphoreVerifier.sol#L474
+        // https://github.com/axiom-crypto/semaphore-rs/blob/496bf21829fbc4e22ef5f2d566ae88a2b586a17f/src/protocol/mod.rs#L75
+        "pi_b": [[proof[3], proof[2]], [proof[5], proof[4]], ["1", "0"]],
         "pi_c": [proof[6], proof[7], "1"],
         "protocol": "groth16",
         "curve": "bn128"
     })
     .to_string();
-    let input = parse_groth16_input(vk_string, pf_string, pub_string, MAX_GROTH16_PI);
-    input
+    parse_groth16_input(vk_string, pf_string, pub_string, MAX_GROTH16_PI)
 }
 
 impl AxiomComputeFn for Groth16ClientInput {
@@ -80,8 +83,7 @@ impl AxiomComputeFn for Groth16ClientInput {
     ) -> Vec<AxiomResult> {
         let zero = api.ctx().load_zero();
 
-        let mut return_vec: Vec<AxiomResult> = Vec::new();
-        return_vec.reserve(MAX_PROOFS);
+        let mut return_vec: Vec<AxiomResult> = Vec::with_capacity(MAX_PROOFS);
         let input = parse_worldcoin_input();
 
         let assigned_vkey = input
@@ -93,7 +95,7 @@ impl AxiomComputeFn for Groth16ClientInput {
         for _i in 1..=MAX_PROOFS {
             // let assigned_input = assign_groth16_input(api, input);
             let assigned_input = assign_groth16_input_with_known_vk(
-                api,
+                api.ctx(),
                 assigned_vkey.clone(),
                 input.proof_bytes.clone(),
                 input.public_inputs.clone(),
