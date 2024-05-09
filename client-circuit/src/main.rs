@@ -78,7 +78,7 @@ impl AxiomComputeFn for Groth16ClientInput {
         api.range
             .check_less_than(api.ctx(), zero, assigned_num_proofs, 64);
 
-        let max_proofs = api.ctx().load_constant(Fr::from(MAX_PROOFS as u64));
+        let max_proofs = api.ctx().load_constant(Fr::from((MAX_PROOFS + 1) as u64));
         api.range
             .check_less_than(api.ctx(), assigned_num_proofs, max_proofs, 64);
 
@@ -152,8 +152,8 @@ impl AxiomComputeFn for Groth16ClientInput {
             let verify = api.from_hi_lo(verify);
             api.ctx().constrain_equal(&verify, &one);
 
-            return_vec.push(public_inputs[1].into());
             return_vec.push(public_inputs[2].into());
+            return_vec.push(public_inputs[1].into());
         }
 
         return_vec
