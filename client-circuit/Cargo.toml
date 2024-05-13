@@ -18,6 +18,3 @@ serde_json = "1.0.116"
 halo2curves = "0.6.1"
 axiom-query = "2.0.17"
 
-[[test]]
-name = "integration_tests"
-path = "src/tests/circuit.rs"
