@@ -47,8 +47,12 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
         let max_proofs_plus_one = ctx.load_constant(F::from((MAX_PROOFS + 1) as u64));
         range.check_less_than(ctx, assigned_inputs.num_proofs, max_proofs_plus_one, 64);
 
-        assigned_inputs.groth16_inputs[0]
-            .vkey_bytes
+        let vkey_bytes = &assigned_inputs.groth16_inputs[0].vkey_bytes;
+        let vkey_len = ctx.load_witness(F::from(vkey_bytes.len() as u64));
+        let num_fe_vk = ctx.load_constant(F::from(NUM_FE_VKEY as u64));
+        ctx.constrain_equal(&vkey_len, &num_fe_vk);
+
+        vkey_bytes
             .iter()
             .for_each(|v| callback.push(to_hi_lo(ctx, range, *v)));
 
@@ -56,10 +60,21 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
         callback.push(to_hi_lo(ctx, range, assigned_inputs.root));
         callback.push(to_hi_lo(ctx, range, assigned_inputs.num_proofs));
 
+        let mut signal_hash_vec: Vec<HiLo<AssignedValue<F>>> = Vec::new();
+        let mut nullifier_hash_vec: Vec<HiLo<AssignedValue<F>>> = Vec::new();
+
         for i in 0..MAX_PROOFS {
             let assigned_groth16_input = &assigned_inputs.groth16_inputs[i];
             let public_inputs = &assigned_groth16_input.public_inputs;
 
+            if i != 0 {
+                let curr_vkey_bytes = &assigned_groth16_input.vkey_bytes;
+                let curr_vkey_len = ctx.load_witness(F::from(curr_vkey_bytes.len() as u64));
+                ctx.constrain_equal(&curr_vkey_len, &vkey_len);
+                for _vkey_idx in 0..NUM_FE_VKEY {
+                    ctx.constrain_equal(&curr_vkey_bytes[_vkey_idx], &vkey_bytes[_vkey_idx]);
+                }
+            }
             ctx.constrain_equal(&public_inputs[3], &assigned_inputs.grant_id);
             ctx.constrain_equal(&public_inputs[0], &assigned_inputs.root);
 
@@ -75,8 +90,11 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
             let verify = from_hi_lo(ctx, range, verify);
             ctx.constrain_equal(&verify, &one);
 
-            callback.push(to_hi_lo(ctx, range, public_inputs[2]));
-            callback.push(to_hi_lo(ctx, range, public_inputs[1]));
+            signal_hash_vec.push(to_hi_lo(ctx, range, public_inputs[2]));
+            nullifier_hash_vec.push(to_hi_lo(ctx, range, public_inputs[1]));
         }
+
+        callback.append(&mut signal_hash_vec);
+        callback.append(&mut nullifier_hash_vec);
     }
 }
