@@ -16,6 +16,7 @@ use serde_json::json;
 use std::str::FromStr;
 
 use crate::constants::*;
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ClaimNative {
     pub receiver: Address,
