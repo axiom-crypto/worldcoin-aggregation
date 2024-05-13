@@ -108,6 +108,8 @@ impl<const MAX_PROOFS: usize> WorldcoinInput<Fr, MAX_PROOFS> {
         claims: Vec<ClaimNative>,
     ) -> Self {
         assert!(claims.len() == num_proofs);
+        assert!(num_proofs > 0);
+        assert!(num_proofs <= MAX_PROOFS);
 
         let mut pf_strings: Vec<String> = Vec::new();
         let mut pub_strings: Vec<String> = Vec::new();

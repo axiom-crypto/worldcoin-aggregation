@@ -26,9 +26,19 @@ pub fn parse_input_from_path(path: String) -> WorldcoinInput<Fr, MAX_PROOFS> {
 
 pub fn mock_test(input: WorldcoinInput<Fr, MAX_PROOFS>, should_fail: bool) {
     let client = get_provider();
-    // let input = parse_input(path);
-    let output =
-        mock_with_output::<_, WorldcoinCircuit>(client, AxiomCircuitParams::default(), Some(input));
+    let circuit_params: BaseCircuitParams = BaseCircuitParams {
+        k: 14,
+        num_advice_per_phase: vec![4],
+        num_lookup_advice_per_phase: vec![1],
+        num_fixed: 1,
+        num_instance_columns: 1,
+        lookup_bits: Some(13),
+    };
+    let output = mock_with_output::<_, WorldcoinCircuit>(
+        client,
+        AxiomCircuitParams::Base(circuit_params),
+        Some(input),
+    );
     assert_eq!((output == None), should_fail);
     if output != None {
         // vk (25) + 3 + 2 * MAX_PROOFS
@@ -46,7 +56,14 @@ pub fn mock_with_output<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>
     raw_circuit_params: AxiomCircuitParams,
     inputs: Option<S::InputValue>,
 ) -> Option<Vec<Vec<Fr>>> {
-    let circuit_params: BaseCircuitParams = BaseCircuitParams::default();
+    let circuit_params: BaseCircuitParams = BaseCircuitParams {
+        k: 14,
+        num_advice_per_phase: vec![4],
+        num_lookup_advice_per_phase: vec![1],
+        num_fixed: 1,
+        num_instance_columns: 1,
+        lookup_bits: Some(13),
+    };
     let k = circuit_params.k;
     let mut runner = AxiomCircuit::<_, _, S>::new(provider, raw_circuit_params).use_inputs(inputs);
 
