@@ -1,0 +1,35 @@
+name: Test Circuit
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+      - staging
+
+jobs:
+  rust-circuit:
+    runs-on: ubuntu-latest
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: true
+    steps:
+      - uses: actions/checkout@v3
+
+      # Even with deploy key this is needed on the first checkout to tell git to use ssh (??)
+      - name: Give GitHub Actions access to axiom-crypto/axiom-eth-working
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.AXIOM_ETH_DEPLOY_PRIVATE_KEY }}
+            ${{ secrets.AXIOM_TOOLS_DEPLOY_PRIVATE_KEY }}
+
+      - name: Build circuit
+        working-directory: ./client-circuit
+        run: |
+          cargo build --verbose
+      - name: Test circuit
+        working-directory: ./client-circuit
+        run: |
+          export PROVIDER_URI=${{ secrets.PROVIDER_URI_1 }}
+          cargo test
