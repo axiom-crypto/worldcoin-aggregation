@@ -48,9 +48,7 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
         range.check_less_than(ctx, assigned_inputs.num_proofs, max_proofs_plus_one, 64);
 
         let vkey_bytes = &assigned_inputs.groth16_inputs[0].vkey_bytes;
-        let vkey_len = ctx.load_witness(F::from(vkey_bytes.len() as u64));
-        let num_fe_vk = ctx.load_constant(F::from(NUM_FE_VKEY as u64));
-        ctx.constrain_equal(&vkey_len, &num_fe_vk);
+        assert!(vkey_bytes.len() == NUM_FE_VKEY);
 
         vkey_bytes
             .iter()
@@ -69,8 +67,8 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
 
             if i != 0 {
                 let curr_vkey_bytes = &assigned_groth16_input.vkey_bytes;
-                let curr_vkey_len = ctx.load_witness(F::from(curr_vkey_bytes.len() as u64));
-                ctx.constrain_equal(&curr_vkey_len, &vkey_len);
+                assert!(curr_vkey_bytes.len() == NUM_FE_VKEY);
+
                 for _vkey_idx in 0..NUM_FE_VKEY {
                     ctx.constrain_equal(&curr_vkey_bytes[_vkey_idx], &vkey_bytes[_vkey_idx]);
                 }
