@@ -2,11 +2,11 @@ name: Test Circuit
 
 on:
   workflow_dispatch:
-    pull_request:
-    push:
-      branches:
-        - main
-        - staging
+  pull_request:
+  push:
+    branches:
+      - main
+      - staging
 
 jobs:
   rust-circuit:
