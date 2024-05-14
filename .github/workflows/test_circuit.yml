@@ -1,0 +1,26 @@
+name: Test Circuit
+
+on:
+  workflow_dispatch:
+    pull_request:
+    push:
+      branches:
+        - main
+        - staging
+
+jobs:
+  rust-circuit:
+    runs-on: ubuntu-latest
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: true
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build circuit
+        working-directory: ./client-circuit
+        run: |
+          cargo build --verbose
+      - name: Test circuit
+        working-directory: ./client-circuit
+        run: |
+          export PROVIDER_URI=${{ secrets.PROVIDER_URI_SEPOLIA }}
+          cargo test
