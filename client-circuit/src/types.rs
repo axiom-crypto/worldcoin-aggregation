@@ -1,4 +1,5 @@
 use axiom_components::groth16::NUM_FE_PROOF;
+use axiom_eth::utils::encode_addr_to_field;
 use ethers::utils::keccak256;
 use serde::Deserialize;
 use std::{fmt::Debug, vec};
@@ -96,6 +97,7 @@ pub struct WorldcoinInput<T: Copy, const MAX_PROOFS: usize> {
     pub root: T,
     pub grant_id: T,
     pub num_proofs: T,
+    pub receivers: Vec<T>,
     pub groth16_inputs: Vec<WorldcoinGroth16Input<T>>,
 }
 
@@ -113,16 +115,20 @@ impl<const MAX_PROOFS: usize> WorldcoinInput<Fr, MAX_PROOFS> {
 
         let mut pf_strings: Vec<String> = Vec::new();
         let mut pub_strings: Vec<String> = Vec::new();
+        let mut receivers: Vec<Fr> = Vec::new();
+        let mut receivers_native: Vec<Address> = Vec::new();
 
         for _i in 0..num_proofs {
             let pf_string = get_pf_string(&claims[_i].proof);
             let pub_string = get_pub_string(&root, &grant_id, &claims[_i]);
             pf_strings.push(pf_string);
             pub_strings.push(pub_string);
+            receivers_native.push(claims[_i].receiver);
         }
 
         pf_strings.resize(MAX_PROOFS, pf_strings[0].clone());
         pub_strings.resize(MAX_PROOFS, pub_strings[0].clone());
+        receivers_native.resize(MAX_PROOFS, receivers_native[0].clone());
 
         let mut groth16_inputs = Vec::new();
 
@@ -141,6 +147,9 @@ impl<const MAX_PROOFS: usize> WorldcoinInput<Fr, MAX_PROOFS> {
                 proof_bytes: groth16_input.proof_bytes,
                 public_inputs: groth16_input.public_inputs,
             });
+
+            let receiver_fe = encode_addr_to_field(&receivers_native[_i]);
+            receivers.push(receiver_fe);
         }
 
         let root_fe = biguint_to_fe(&BigUint::from_str(root.as_str()).unwrap());
@@ -150,6 +159,7 @@ impl<const MAX_PROOFS: usize> WorldcoinInput<Fr, MAX_PROOFS> {
         Self {
             root: root_fe,
             grant_id: grant_id_fe,
+            receivers,
             num_proofs: Fr::from(num_proofs as u64),
             groth16_inputs,
         }
@@ -157,16 +167,14 @@ impl<const MAX_PROOFS: usize> WorldcoinInput<Fr, MAX_PROOFS> {
 }
 
 impl<T: Copy, const MAX_PROOFS: usize> InputFlatten<T> for WorldcoinInput<T, MAX_PROOFS> {
-    // for each proof:
-    // let constants = get_groth16_consts_from_max_pi(4);
-    // constants.num_fe_vkey + NUM_FE_PROOF + 4;
-    const NUM_FE: usize = 3 + MAX_PROOFS * NUM_FE_GROTH16_INPUT;
+    const NUM_FE: usize = 3 + MAX_PROOFS + MAX_PROOFS * NUM_FE_GROTH16_INPUT;
 
     fn flatten_vec(&self) -> Vec<T> {
         let mut flattened_vec = Vec::with_capacity(Self::NUM_FE);
         flattened_vec.push(self.root);
         flattened_vec.push(self.grant_id);
         flattened_vec.push(self.num_proofs);
+        flattened_vec.append(&mut self.receivers.clone());
 
         for groth16_input in &self.groth16_inputs {
             flattened_vec.append(&mut groth16_input.vkey_bytes.clone());
@@ -183,6 +191,9 @@ impl<T: Copy, const MAX_PROOFS: usize> InputFlatten<T> for WorldcoinInput<T, MAX
         let grant_id = vec[index + 1];
         let num_proofs = vec[index + 2];
         index += 3;
+
+        let receivers = vec[index..index + MAX_PROOFS].to_vec();
+        index += MAX_PROOFS;
 
         let mut groth16_inputs = Vec::with_capacity(MAX_PROOFS);
         for _ in 0..MAX_PROOFS {
@@ -202,6 +213,7 @@ impl<T: Copy, const MAX_PROOFS: usize> InputFlatten<T> for WorldcoinInput<T, MAX
         Ok(WorldcoinInput {
             root,
             grant_id,
+            receivers,
             num_proofs,
             groth16_inputs,
         })
