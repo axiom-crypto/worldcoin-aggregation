@@ -11,10 +11,13 @@ use axiom_circuit::{
     subquery::{caller::SubqueryCaller, groth16::Groth16AssignedInput},
     utils::{from_hi_lo, to_hi_lo},
 };
-use axiom_eth::Field;
+use axiom_eth::{keccak::promise::KeccakFixLenCall, utils::uint_to_bytes_be, Field};
+
 use axiom_sdk::{
     halo2_base::{
         gates::{RangeChip, RangeInstructions},
+        safe_types::FixLenBytesVec,
+        safe_types::SafeTypeChip,
         AssignedValue,
     },
     HiLo,
@@ -50,10 +53,17 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
         let vkey_bytes = &assigned_inputs.groth16_inputs[0].vkey_bytes;
         assert!(vkey_bytes.len() == NUM_FE_VKEY);
 
-        vkey_bytes
-            .iter()
-            .for_each(|v| callback.push(to_hi_lo(ctx, range, *v)));
+        // vkey_bytes
+        //     .iter()
+        //     .for_each(|v| callback.push(to_hi_lo(ctx, range, *v)));
 
+        let safe = SafeTypeChip::new(range);
+
+        let input = safe.raw_to_fix_len_bytes_vec(ctx, vkey_bytes.clone(), NUM_FE_VKEY);
+        let keccak_subquery = KeccakFixLenCall::new(input);
+        let vkey_hash = subquery_caller.lock().unwrap().keccak(ctx, keccak_subquery);
+
+        callback.push(vkey_hash);
         callback.push(to_hi_lo(ctx, range, assigned_inputs.grant_id));
         callback.push(to_hi_lo(ctx, range, assigned_inputs.root));
         callback.push(to_hi_lo(ctx, range, assigned_inputs.num_proofs));
