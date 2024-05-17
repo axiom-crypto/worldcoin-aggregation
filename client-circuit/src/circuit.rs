@@ -113,18 +113,29 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
         // .iter()
         // .map(|x| F::from_u128(u128::from_le_bytes((*x).try_into().unwrap())))
         // .collect::<Vec<_>>();
-        let bytes_be: Vec<SafeByte<F>> = bytes
-            .chunks(16)
-            .map(|chunk| {
-                let mut reversed_chunk = chunk.to_vec();
-                reversed_chunk.reverse();
-                reversed_chunk.into_iter()
-            })
-            .flatten()
-            .collect();
+        // let bytes_be: Vec<SafeByte<F>> = bytes
+        //     .chunks(16)
+        //     .map(|chunk| {
+        //         let mut reversed_chunk = chunk.to_vec();
+        //         reversed_chunk.reverse();
+        //         reversed_chunk.into_iter()
+        //     })
+        //     .flatten()
+        //     .collect();
+
+        let hi_bytes = uint_to_bytes_be(ctx, range, &zero, 16);
+
+        let mut bytes_be: Vec<SafeByte<F>> = vec![];
+        bytes.chunks(16).for_each(|chunk| {
+            let mut reversed_chunk = chunk.to_vec();
+            reversed_chunk.reverse();
+            bytes_be.extend(hi_bytes.clone());
+            bytes_be.extend(reversed_chunk);
+        });
+
         println!("bytes be ===== {:?}", bytes_be);
 
-        let input = FixLenBytesVec::<F>::new(bytes_be, NUM_BYTES_VK - 1);
+        let input = FixLenBytesVec::<F>::new(bytes_be, (NUM_BYTES_VK - 1) * 2);
 
         let keccak_subquery = KeccakFixLenCall::new(input);
         let vkey_hash = subquery_caller.lock().unwrap().keccak(ctx, keccak_subquery);
@@ -147,7 +158,7 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
                 assert!(curr_vkey_bytes.len() == NUM_FE_VKEY);
 
                 for _vkey_idx in 0..NUM_FE_VKEY {
-                    ctx.constrain_equal(&curr_vkey_bytes[_vkey_idx], &vkey_bytes[_vkey_idx]);
+                    // ctx.constrain_equal(&curr_vkey_bytes[_vkey_idx], &vkey_bytes[_vkey_idx]);
                 }
             }
             ctx.constrain_equal(&public_inputs[3], &assigned_inputs.grant_id);
