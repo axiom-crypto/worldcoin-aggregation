@@ -11,17 +11,25 @@ use axiom_circuit::{
     subquery::{caller::SubqueryCaller, groth16::Groth16AssignedInput},
     utils::{from_hi_lo, to_hi_lo},
 };
-use axiom_eth::{keccak::promise::KeccakFixLenCall, utils::uint_to_bytes_be, Field};
+use axiom_eth::{
+    keccak::promise::KeccakFixLenCall,
+    utils::{uint_to_bytes_be, uint_to_bytes_le},
+    zkevm_hashes::keccak::vanilla::util::unpack,
+    Field,
+};
 
 use axiom_sdk::{
     halo2_base::{
         gates::{RangeChip, RangeInstructions},
         safe_types::FixLenBytesVec,
+        safe_types::SafeByte,
         safe_types::SafeTypeChip,
         AssignedValue,
     },
     HiLo,
 };
+
+use std::cmp::min;
 
 #[derive(Debug, Clone, Default)]
 pub struct WorldcoinCircuit;
@@ -53,16 +61,75 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
         let vkey_bytes = &assigned_inputs.groth16_inputs[0].vkey_bytes;
         assert!(vkey_bytes.len() == NUM_FE_VKEY);
 
-        // vkey_bytes
-        //     .iter()
-        //     .for_each(|v| callback.push(to_hi_lo(ctx, range, *v)));
+        let mut verification_result: AssignedValue<F> = ctx.load_constant(F::ZERO);
+
+        let mut bytes: Vec<SafeByte<F>> = vec![];
+
+        let mut idx = 0;
+        let mut unpack_bytes = |bytes: &mut Vec<SafeByte<F>>, mut num_bytes: usize| {
+            while num_bytes > 0 {
+                let num_bytes_fe = min(31, num_bytes);
+                let mut chunk_bytes = uint_to_bytes_le(
+                    ctx,
+                    range,
+                    &assigned_inputs.groth16_inputs[0].vkey_bytes[idx],
+                    num_bytes_fe,
+                );
+                bytes.append(&mut chunk_bytes);
+                num_bytes -= num_bytes_fe;
+                idx += 1;
+            }
+        };
+
+        unpack_bytes(&mut bytes, NUM_BYTES_VK);
+
+        assert_eq!(bytes.len(), NUM_BYTES_VK);
+        let num_inputs = bytes.pop().unwrap();
 
         let safe = SafeTypeChip::new(range);
 
-        let input = safe.raw_to_fix_len_bytes_vec(ctx, vkey_bytes.clone(), NUM_FE_VKEY);
+        println!("bytes ===== {:?}", bytes);
+
+        // pack code
+        //     let mut bytes: Vec<u8> = input
+        //     .iter()
+        //     .flat_map(|x| {
+
+        //         x.to_bytes_le()[..16].to_vec()
+        //     })
+        //     .collect::<Vec<_>>();
+        // if let Some(bytes_to_add) = bytes_to_add {
+        //     bytes.extend(bytes_to_add);
+        // }
+        // bytes
+        //     .chunks(31)
+        //     .collect::<Vec<_>>()
+        //     .iter()
+        //     .map(|x| F::from_bytes_le(x))
+        //     .collect::<Vec<_>>()
+        // let vk_hilo = vk_bytes
+        // .chunks(16)
+        // .collect::<Vec<_>>()
+        // .iter()
+        // .map(|x| F::from_u128(u128::from_le_bytes((*x).try_into().unwrap())))
+        // .collect::<Vec<_>>();
+        let bytes_be: Vec<SafeByte<F>> = bytes
+            .chunks(16)
+            .map(|chunk| {
+                let mut reversed_chunk = chunk.to_vec();
+                reversed_chunk.reverse();
+                reversed_chunk.into_iter()
+            })
+            .flatten()
+            .collect();
+        println!("bytes be ===== {:?}", bytes_be);
+
+        let input = FixLenBytesVec::<F>::new(bytes_be, NUM_BYTES_VK - 1);
+
         let keccak_subquery = KeccakFixLenCall::new(input);
         let vkey_hash = subquery_caller.lock().unwrap().keccak(ctx, keccak_subquery);
 
+        println!("vkey_hash {:?}", vkey_hash);
         callback.push(vkey_hash);
         callback.push(to_hi_lo(ctx, range, assigned_inputs.grant_id));
         callback.push(to_hi_lo(ctx, range, assigned_inputs.root));
