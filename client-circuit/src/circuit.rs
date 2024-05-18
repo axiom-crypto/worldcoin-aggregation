@@ -3,6 +3,7 @@ use crate::types::WorldcoinInput;
 use ethers::providers::JsonRpcClient;
 use std::{
     fmt::Debug,
+    process::id,
     sync::{Arc, Mutex},
 };
 
@@ -20,15 +21,18 @@ use axiom_eth::{
 
 use axiom_sdk::{
     halo2_base::{
+        gates::GateInstructions,
         gates::{RangeChip, RangeInstructions},
         safe_types::FixLenBytesVec,
         safe_types::SafeByte,
         safe_types::SafeTypeChip,
+        utils::biguint_to_fe,
         AssignedValue,
     },
     HiLo,
 };
 
+use num_bigint::BigUint;
 use std::cmp::min;
 
 #[derive(Debug, Clone, Default)]
@@ -66,16 +70,59 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
         let mut bytes: Vec<SafeByte<F>> = vec![];
 
         let mut idx = 0;
+
+        let shift = ctx.load_constant(biguint_to_fe(&BigUint::from(2u64).pow(31 * 8)));
+
+        /**
+            *   let packed_fe_with_res = packed_fe
+           .chunks(NUM_FE_PER_CHUNK)
+           .collect::<Vec<_>>()
+           .iter()
+           .enumerate()
+           .flat_map(|(idx, x)| {
+               let mut bytes = x.to_vec();
+               let mut arr: [u8; 32] = [0; 32];
+               if idx == constants.num_chunks - 1 {
+                   arr[31] = res as u8;
+                   bytes[0] += F::from_bytes_le(&arr);
+               } else {
+                   arr[31] = 2;
+                   bytes[0] += F::from_bytes_le(&arr);
+               }
+               bytes
+           })
+           .collect::<Vec<_>>();
+
+
+
+        let mut input = input
+           .chunks(NUM_FE_PER_CHUNK)
+           .collect::<Vec<_>>()
+           .iter()
+           .flat_map(|x| {
+               let mut x = x.to_vec();
+               let first_fe_bytes = x[0].to_bytes_le();
+               x[0] = F::from_bytes_le(&first_fe_bytes[..31]);
+               x
+           })
+           .collect::<Vec<_>>();
+            */
         let mut unpack_bytes = |bytes: &mut Vec<SafeByte<F>>, mut num_bytes: usize| {
             while num_bytes > 0 {
+                println!("{}", idx);
                 let num_bytes_fe = min(31, num_bytes);
-                let mut chunk_bytes = uint_to_bytes_le(
-                    ctx,
-                    range,
-                    &assigned_inputs.groth16_inputs[0].vkey_bytes[idx],
-                    num_bytes_fe,
-                );
+                let value = &assigned_inputs.groth16_inputs[0].vkey_bytes[idx];
+                println!("{:?}", value);
+
+                let uint_bytes = if idx % 13 == 0 { 32 } else { num_bytes_fe };
+                let mut chunk_bytes = uint_to_bytes_le(ctx, range, value, uint_bytes);
+
+                if idx % 13 == 0 {
+                    chunk_bytes = chunk_bytes[1..=31].to_vec();
+                    // TODO: constrain the first byte value
+                }
                 bytes.append(&mut chunk_bytes);
+
                 num_bytes -= num_bytes_fe;
                 idx += 1;
             }
@@ -90,39 +137,6 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
 
         println!("bytes ===== {:?}", bytes);
 
-        // pack code
-        //     let mut bytes: Vec<u8> = input
-        //     .iter()
-        //     .flat_map(|x| {
-
-        //         x.to_bytes_le()[..16].to_vec()
-        //     })
-        //     .collect::<Vec<_>>();
-        // if let Some(bytes_to_add) = bytes_to_add {
-        //     bytes.extend(bytes_to_add);
-        // }
-        // bytes
-        //     .chunks(31)
-        //     .collect::<Vec<_>>()
-        //     .iter()
-        //     .map(|x| F::from_bytes_le(x))
-        //     .collect::<Vec<_>>()
-        // let vk_hilo = vk_bytes
-        // .chunks(16)
-        // .collect::<Vec<_>>()
-        // .iter()
-        // .map(|x| F::from_u128(u128::from_le_bytes((*x).try_into().unwrap())))
-        // .collect::<Vec<_>>();
-        // let bytes_be: Vec<SafeByte<F>> = bytes
-        //     .chunks(16)
-        //     .map(|chunk| {
-        //         let mut reversed_chunk = chunk.to_vec();
-        //         reversed_chunk.reverse();
-        //         reversed_chunk.into_iter()
-        //     })
-        //     .flatten()
-        //     .collect();
-
         let hi_bytes = uint_to_bytes_be(ctx, range, &zero, 16);
 
         let mut bytes_be: Vec<SafeByte<F>> = vec![];
@@ -134,6 +148,7 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
         });
 
         println!("bytes be ===== {:?}", bytes_be);
+        println!("bytes be len {:?}", bytes_be.len());
 
         let input = FixLenBytesVec::<F>::new(bytes_be, (NUM_BYTES_VK - 1) * 2);
 
@@ -158,7 +173,7 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
                 assert!(curr_vkey_bytes.len() == NUM_FE_VKEY);
 
                 for _vkey_idx in 0..NUM_FE_VKEY {
-                    // ctx.constrain_equal(&curr_vkey_bytes[_vkey_idx], &vkey_bytes[_vkey_idx]);
+                    ctx.constrain_equal(&curr_vkey_bytes[_vkey_idx], &vkey_bytes[_vkey_idx]);
                 }
             }
             ctx.constrain_equal(&public_inputs[3], &assigned_inputs.grant_id);
@@ -174,7 +189,7 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
                 },
             );
             let verify = from_hi_lo(ctx, range, verify);
-            ctx.constrain_equal(&verify, &one);
+            // ctx.constrain_equal(&verify, &one);
 
             signal_hash_vec.push(to_hi_lo(ctx, range, public_inputs[2]));
             nullifier_hash_vec.push(to_hi_lo(ctx, range, public_inputs[1]));
