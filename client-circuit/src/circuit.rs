@@ -190,9 +190,7 @@ pub fn get_signal_hash<P: JsonRpcClient, F: Field>(
     subquery_caller: &Arc<Mutex<SubqueryCaller<P, F>>>,
     receiver: &AssignedValue<F>,
 ) -> HiLo<AssignedValue<F>> {
-    let mut receiver_safe_bytes = uint_to_bytes_le(ctx, range, receiver, 20);
-    receiver_safe_bytes.reverse();
-
+    let receiver_safe_bytes = uint_to_bytes_be(ctx, range, receiver, 20);
     let receiver_keccak_input = FixLenBytesVec::<F>::new(receiver_safe_bytes, 20);
     let receiver_keccak_subquery = KeccakFixLenCall::new(receiver_keccak_input);
     let receiver_keccak = subquery_caller
