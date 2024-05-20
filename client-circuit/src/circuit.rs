@@ -26,7 +26,7 @@ use axiom_sdk::{
         utils::biguint_to_fe,
         AssignedValue, Context,
     },
-    subquery, HiLo,
+    HiLo,
 };
 
 use std::cmp::min;
@@ -64,6 +64,7 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
         assert!(vkey_bytes.len() == NUM_FE_VKEY);
 
         let vkey_hash = get_vk_hash(ctx, range, &subquery_caller, vkey_bytes);
+
         callback.push(vkey_hash);
         callback.push(to_hi_lo(ctx, range, assigned_inputs.grant_id));
         callback.push(to_hi_lo(ctx, range, assigned_inputs.root));
@@ -101,11 +102,10 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
             ctx.constrain_equal(&verify, &one);
 
             let receiver = assigned_inputs.receivers[i];
-
             let signal_hash_hilo = get_signal_hash(ctx, range, &subquery_caller, &receiver);
             let signal_hash = &from_hi_lo(ctx, range, signal_hash_hilo);
-
             ctx.constrain_equal(signal_hash, &public_inputs[2]);
+
             receiver_vec.push(to_hi_lo(ctx, range, receiver));
             nullifier_hash_vec.push(to_hi_lo(ctx, range, public_inputs[1]));
         }
