@@ -102,9 +102,9 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinCircuit
             ctx.constrain_equal(&verify, &one);
 
             let receiver = assigned_inputs.receivers[i];
-            let signal_hash_hilo = get_signal_hash(ctx, range, &subquery_caller, &receiver);
-            let signal_hash = &from_hi_lo(ctx, range, signal_hash_hilo);
-            ctx.constrain_equal(signal_hash, &public_inputs[2]);
+            let signal_hash = get_signal_hash(ctx, range, &subquery_caller, &receiver);
+
+            ctx.constrain_equal(&signal_hash, &public_inputs[2]);
 
             receiver_vec.push(to_hi_lo(ctx, range, receiver));
             nullifier_hash_vec.push(to_hi_lo(ctx, range, public_inputs[1]));
@@ -121,45 +121,7 @@ pub fn get_vk_hash<P: JsonRpcClient, F: Field>(
     subquery_caller: &Arc<Mutex<SubqueryCaller<P, F>>>,
     vk_bytes: &Vec<AssignedValue<F>>,
 ) -> HiLo<AssignedValue<F>> {
-    let mut idx = 0;
-    let mut vk_safe_bytes = vec![];
-
-    let mut unpack_vk_bytes = |bytes: &mut Vec<SafeByte<F>>, mut num_bytes: usize| {
-        while num_bytes > 0 {
-            let num_bytes_fe = min(NUM_BYTES_PER_FE, num_bytes);
-            let fe = vk_bytes[idx];
-            let num_bytes_uint = if idx % NUM_FE_PER_CHUNK == 0 {
-                // For the first fe of each chunk (13 FE), the most significant byte contains null_chunk flag
-                32
-            } else {
-                num_bytes_fe
-            };
-            let mut chunk_bytes = uint_to_bytes_le(ctx, range, &fe, num_bytes_uint);
-
-            if idx % NUM_FE_PER_CHUNK == 0 {
-                let res = chunk_bytes[31];
-
-                range
-                    .gate()
-                    .assert_is_const(ctx, &res, &F::from(NULL_CHUNK_VAL as u64));
-                chunk_bytes = chunk_bytes[0..31].to_vec();
-            }
-
-            bytes.append(&mut chunk_bytes);
-            num_bytes -= num_bytes_fe;
-            idx += 1;
-        }
-    };
-
-    unpack_vk_bytes(&mut vk_safe_bytes, NUM_BYTES_VK);
-
-    assert_eq!(vk_safe_bytes.len(), NUM_BYTES_VK);
-
-    let num_inputs = vk_safe_bytes.pop().unwrap();
-
-    range
-        .gate()
-        .assert_is_const(ctx, &num_inputs, &F::from((MAX_GROTH16_PI + 1) as u64));
+    let vk_safe_bytes = unpack_vk_bytes(ctx, range, vk_bytes);
 
     let zero = ctx.load_zero();
 
@@ -184,12 +146,61 @@ pub fn get_vk_hash<P: JsonRpcClient, F: Field>(
         .keccak(ctx, vk_keccak_subquery)
 }
 
+// unpack vk_bytes to flattened SafeBytes, where every 16 SafeBytes being the little endian of one vk point lo
+// the vk_bytes is in chunks (13 vk_bytes per chunk), for the first vk_byte of each chunk, the most significant
+// byte of the bytes32 contains null_chunk flag, which is not part of the vk
+// each of the vk_byte is from 31 (or NUM_BYTES_VK % 31) little endian bytes
+// the bytes array was appended with num_inputs at the end, which is not part of vk
+pub fn unpack_vk_bytes<F: Field>(
+    ctx: &mut Context<F>,
+    range: &RangeChip<F>,
+    vk_bytes: &Vec<AssignedValue<F>>,
+) -> Vec<SafeByte<F>> {
+    let mut idx = 0;
+    let mut num_bytes: usize = NUM_BYTES_VK;
+    let mut vk_safe_bytes: Vec<SafeByte<F>> = vec![];
+
+    while num_bytes > 0 {
+        let num_bytes_fe = min(NUM_BYTES_PER_FE, num_bytes);
+        let vk_byte: AssignedValue<F> = vk_bytes[idx];
+        let num_bytes_uint = if idx % NUM_FE_PER_CHUNK == 0 {
+            // For the first fe of each chunk (13 FE), the most significant byte contains null_chunk flag
+            32
+        } else {
+            num_bytes_fe
+        };
+        let mut chunk_bytes = uint_to_bytes_le(ctx, range, &vk_byte, num_bytes_uint);
+
+        if idx % NUM_FE_PER_CHUNK == 0 {
+            let res = chunk_bytes[31];
+
+            range
+                .gate()
+                .assert_is_const(ctx, &res, &F::from(NULL_CHUNK_VAL as u64));
+            chunk_bytes = chunk_bytes[0..31].to_vec();
+        }
+
+        vk_safe_bytes.append(&mut chunk_bytes);
+        num_bytes -= num_bytes_fe;
+        idx += 1;
+    }
+
+    assert_eq!(vk_safe_bytes.len(), NUM_BYTES_VK);
+
+    let num_inputs = vk_safe_bytes.pop().unwrap();
+    range
+        .gate()
+        .assert_is_const(ctx, &num_inputs, &F::from((MAX_GROTH16_PI + 1) as u64));
+
+    vk_safe_bytes
+}
+
 pub fn get_signal_hash<P: JsonRpcClient, F: Field>(
     ctx: &mut Context<F>,
     range: &RangeChip<F>,
     subquery_caller: &Arc<Mutex<SubqueryCaller<P, F>>>,
     receiver: &AssignedValue<F>,
-) -> HiLo<AssignedValue<F>> {
+) -> AssignedValue<F> {
     let receiver_safe_bytes = uint_to_bytes_be(ctx, range, receiver, 20);
     let receiver_keccak_input = FixLenBytesVec::<F>::new(receiver_safe_bytes, 20);
     let receiver_keccak_subquery = KeccakFixLenCall::new(receiver_keccak_input);
@@ -198,6 +209,9 @@ pub fn get_signal_hash<P: JsonRpcClient, F: Field>(
         .unwrap()
         .keccak(ctx, receiver_keccak_subquery);
 
+    // signal_hash is keccak(receiver) >> 8. since keccak(receiver) result is hilo
+    // signal_hash_hi = keccak_result_hi >> 8
+    // signal_hash_lo = keccak_result_lo >> 8 + (keccak_result_hi_remainder << 16 * 8) >> 8
     let shift = ctx.load_constant(biguint_to_fe(&BigUint::from(2u64).pow((16 - 1) * 8)));
     let (signal_hash_hi, signal_hash_hi_res) =
         range.div_mod(ctx, receiver_keccak.hi(), 256u64, 128);
@@ -206,5 +220,9 @@ pub fn get_signal_hash<P: JsonRpcClient, F: Field>(
     let signal_hash_lo = range
         .gate()
         .mul_add(ctx, signal_hash_hi_res, shift, signal_hash_lo_div);
-    HiLo::from_hi_lo([signal_hash_hi, signal_hash_lo])
+    from_hi_lo(
+        ctx,
+        range,
+        HiLo::from_hi_lo([signal_hash_hi, signal_hash_lo]),
+    )
 }
