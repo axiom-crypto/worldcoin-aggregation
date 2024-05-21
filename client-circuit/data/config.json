@@ -1,0 +1,20 @@
+{
+    "k": 15,
+    "num_advice_per_phase": [
+        1,1
+    ],
+    "num_fixed": 1,
+    "num_lookup_advice_per_phase": [
+        1,1
+    ],
+    "lookup_bits": 14,
+    "num_rlc_columns": 0,
+    "keccak_rows_per_round": 20,
+    "agg_params": {
+        "degree": 16,
+        "num_advice": 11,
+        "num_lookup_advice": 1,
+        "num_fixed": 1,
+        "lookup_bits": 15
+    }
+}

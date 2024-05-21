@@ -5,11 +5,11 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.83"
-axiom-circuit = { git = "https://github.com/axiom-crypto/axiom-sdk-rs.git", branch = "feat/groth16" }
-axiom-sdk = { git = "https://github.com/axiom-crypto/axiom-sdk-rs.git", branch = "feat/groth16" }
-axiom-components = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "feat/groth16" }
-axiom-codec = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "feat/groth16", package = "axiom-codec", default-features = false }
-axiom-eth = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "feat/groth16", package = "axiom-eth" }
+axiom-circuit = { git = "https://github.com/axiom-crypto/axiom-sdk-rs.git", branch = "develop" }
+axiom-sdk = { git = "https://github.com/axiom-crypto/axiom-sdk-rs.git", branch = "develop" }
+axiom-components = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop" }
+axiom-codec = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop", package = "axiom-codec", default-features = false }
+axiom-eth = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop", package = "axiom-eth" }
 ethers = "2.0.14"
 hex = "0.4.3"
 num-bigint = "0.4.5"
@@ -17,4 +17,5 @@ serde = "1.0.200"
 serde_json = "1.0.116"
 halo2curves = "0.6.1"
 axiom-query = "2.0.17"
+env_logger = "0.11.3"
 

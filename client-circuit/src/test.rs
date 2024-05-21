@@ -1,8 +1,17 @@
 use crate::mock_test::mock_test_from_path;
+use axiom_sdk::Fr;
+
+use ethers::types::U256;
 
 #[test]
 fn mock_test_worldcoin_circuit() {
-    mock_test_from_path("data/worldcoin_input.json".to_string(), false);
+    let output = mock_test_from_path("data/worldcoin_input.json".to_string(), false);
+    let values: Vec<axiom_sdk::Fr> = output.unwrap();
+    let vk_hash_hi = "0x0000000000000000000000000000000046e72119ce99272ddff09e0780b472fd";
+    let vk_hash_lo = "0x00000000000000000000000000000000c612ca799c245eea223b27e57a5f9cec";
+
+    assert_eq!(values[0], Fr::from_raw(hex_to_u256(vk_hash_hi).0));
+    assert_eq!(values[1], Fr::from_raw(hex_to_u256(vk_hash_lo).0));
 }
 
 #[test]
@@ -27,4 +36,8 @@ fn mock_test_zero_proof() {
 #[should_panic]
 fn mock_test_wrong_proof() {
     mock_test_from_path("data/wrong_proof.json".to_string(), true);
+}
+
+fn hex_to_u256(hex: &str) -> U256 {
+    U256::from_str_radix(&hex[2..], 16).unwrap()
 }
