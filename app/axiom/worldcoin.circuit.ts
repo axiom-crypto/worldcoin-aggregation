@@ -37,7 +37,6 @@ export const defaultInputs = {
 export const circuit = async (inputs: CircuitInputs) => {
   const maxNumClaims = 1;
 
-  // Validate that the block number is greater than the number of samples times the spacing
   if (inputs.receivers.length != maxNumClaims || inputs.claimedNullifierHashes.length != maxNumClaims) {
     throw new Error("Incorrect input lengths");
   }
