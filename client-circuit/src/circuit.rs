@@ -121,23 +121,8 @@ pub fn get_vk_hash<P: JsonRpcClient, F: Field>(
     subquery_caller: &Arc<Mutex<SubqueryCaller<P, F>>>,
     vk_bytes: &Vec<AssignedValue<F>>,
 ) -> HiLo<AssignedValue<F>> {
-    let vk_safe_bytes = unpack_vk_bytes(ctx, range, vk_bytes);
-
-    let zero = ctx.load_zero();
-
-    let hi_bytes = uint_to_bytes_be(ctx, range, &zero, 16);
-
-    let mut vk_keccak_safe_bytes: Vec<SafeByte<F>> = vec![];
-
-    // convert back to hilo be bytes
-    vk_safe_bytes.chunks(16).for_each(|chunk| {
-        let mut reversed_chunk = chunk.to_vec();
-        reversed_chunk.reverse();
-        vk_keccak_safe_bytes.extend(hi_bytes.clone());
-        vk_keccak_safe_bytes.extend(reversed_chunk);
-    });
-
-    let vk_keccak_input = FixLenBytesVec::<F>::new(vk_keccak_safe_bytes, (NUM_BYTES_VK - 1) * 2);
+    let vk_hilo_be_bytes: Vec<SafeByte<F>> = unpack_vk_bytes(ctx, range, vk_bytes);
+    let vk_keccak_input = FixLenBytesVec::<F>::new(vk_hilo_be_bytes, (NUM_BYTES_VK - 1) * 2);
     let vk_keccak_subquery: KeccakFixLenCall<F> = KeccakFixLenCall::new(vk_keccak_input);
 
     subquery_caller
@@ -146,7 +131,7 @@ pub fn get_vk_hash<P: JsonRpcClient, F: Field>(
         .keccak(ctx, vk_keccak_subquery)
 }
 
-// unpack vk_bytes to flattened SafeBytes, where every 16 SafeBytes being the little endian of one vk point lo
+// unpack vk_bytes to flattened SafeBytes, where every 32 SafeBytes represents the big endian of one HiLo point
 // the vk_bytes is in chunks (13 vk_bytes per chunk), for the first vk_byte of each chunk, the most significant
 // byte of the bytes32 contains null_chunk flag, which is not part of the vk
 // each of the vk_byte is from 31 (or NUM_BYTES_VK % 31) little endian bytes
@@ -192,7 +177,19 @@ pub fn unpack_vk_bytes<F: Field>(
         .gate()
         .assert_is_const(ctx, &num_inputs, &F::from((MAX_GROTH16_PI + 1) as u64));
 
-    vk_safe_bytes
+    let zero = ctx.load_zero();
+    let hi_bytes: Vec<SafeByte<F>> = uint_to_bytes_be(ctx, range, &zero, 16);
+
+    let mut vk_hilo_be_bytes: Vec<SafeByte<F>> = vec![];
+
+    // convert back to hilo be bytes
+    vk_safe_bytes.chunks(16).for_each(|chunk| {
+        let mut reversed_chunk = chunk.to_vec();
+        reversed_chunk.reverse();
+        vk_hilo_be_bytes.extend(hi_bytes.clone());
+        vk_hilo_be_bytes.extend(reversed_chunk);
+    });
+    vk_hilo_be_bytes
 }
 
 pub fn get_signal_hash<P: JsonRpcClient, F: Field>(
