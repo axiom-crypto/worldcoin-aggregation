@@ -10,7 +10,7 @@ use std::{
 use axiom_circuit::{
     scaffold::AxiomCircuitScaffold,
     subquery::{caller::SubqueryCaller, groth16::Groth16AssignedInput},
-    utils::{check_hi_lo, from_hi_lo, to_hi_lo},
+    utils::{from_hi_lo, to_hi_lo},
 };
 
 use axiom_eth::{
@@ -25,6 +25,7 @@ use axiom_sdk::{
         safe_types::{FixLenBytesVec, SafeByte},
         utils::biguint_to_fe,
         AssignedValue, Context,
+        QuantumCell::Constant,
     },
     HiLo,
 };
@@ -218,5 +219,10 @@ pub fn get_signal_hash<P: JsonRpcClient, F: Field>(
         .gate()
         .mul_add(ctx, signal_hash_hi_res, shift, signal_hash_lo_div);
 
-    check_hi_lo(ctx, range, signal_hash_hi, signal_hash_lo)
+    range.gate.mul_add(
+        ctx,
+        signal_hash_hi,
+        Constant(range.gate.pow_of_two()[128]),
+        signal_hash_lo,
+    )
 }
