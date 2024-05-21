@@ -10,7 +10,7 @@ use std::{
 use axiom_circuit::{
     scaffold::AxiomCircuitScaffold,
     subquery::{caller::SubqueryCaller, groth16::Groth16AssignedInput},
-    utils::{from_hi_lo, to_hi_lo},
+    utils::{check_hi_lo, from_hi_lo, to_hi_lo},
 };
 
 use axiom_eth::{
@@ -217,9 +217,6 @@ pub fn get_signal_hash<P: JsonRpcClient, F: Field>(
     let signal_hash_lo = range
         .gate()
         .mul_add(ctx, signal_hash_hi_res, shift, signal_hash_lo_div);
-    from_hi_lo(
-        ctx,
-        range,
-        HiLo::from_hi_lo([signal_hash_hi, signal_hash_lo]),
-    )
+
+    check_hi_lo(ctx, range, signal_hash_hi, signal_hash_lo)
 }
