@@ -109,6 +109,7 @@ impl<const MAX_PROOFS: usize> WorldcoinInput<Fr, MAX_PROOFS> {
         num_proofs: usize,
         claims: Vec<ClaimNative>,
     ) -> Self {
+        assert!(MAX_PROOFS.is_power_of_two());
         assert!(claims.len() == num_proofs);
         assert!(num_proofs > 0);
         assert!(num_proofs <= MAX_PROOFS);

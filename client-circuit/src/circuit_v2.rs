@@ -13,11 +13,14 @@ use axiom_circuit::{
     utils::{from_hi_lo, to_hi_lo},
 };
 
-use axiom_eth::{keccak::promise::KeccakFixLenCall, utils::uint_to_bytes_be, Field};
+use axiom_eth::{
+    keccak::promise::KeccakFixLenCall, utils::circuit_utils::unsafe_lt_mask,
+    utils::uint_to_bytes_be, Field,
+};
 
 use axiom_sdk::{
     halo2_base::{
-        gates::{RangeChip, RangeInstructions},
+        gates::{GateInstructions, RangeChip, RangeInstructions},
         safe_types::{FixLenBytesVec, SafeByte},
         AssignedValue, Context,
     },
@@ -44,12 +47,11 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinV2Circu
         _: Self::CoreParams,
     ) -> Self::FirstPhasePayload {
         let ctx = builder.base.main(0);
-
+        let gate = range.gate();
         let zero = ctx.load_zero();
         let one = ctx.load_constant(F::ONE);
 
         range.check_less_than(ctx, zero, assigned_inputs.num_proofs, 64);
-
         let max_proofs_plus_one = ctx.load_constant(F::from((MAX_PROOFS + 1) as u64));
         range.check_less_than(ctx, assigned_inputs.num_proofs, max_proofs_plus_one, 64);
 
@@ -62,16 +64,12 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinV2Circu
         callback.push(to_hi_lo(ctx, range, assigned_inputs.grant_id));
         callback.push(to_hi_lo(ctx, range, assigned_inputs.root));
 
-        let mut leaves: Vec<HiLo<AssignedValue<F>>> = Vec::new();
+        // mask to only take first num_proofs, set all else equal 0
+        let masks = unsafe_lt_mask(ctx, gate, assigned_inputs.num_proofs, MAX_PROOFS);
 
-        let num_proofs: usize = usize::from_le_bytes(
-            // 8 bytes as usize
-            assigned_inputs.num_proofs.value().to_bytes_le()[0..8]
-                .try_into()
-                .unwrap(),
-        );
+        let mut leaves = Vec::with_capacity(MAX_PROOFS);
 
-        for i in 0..num_proofs {
+        for i in 0..MAX_PROOFS {
             let assigned_groth16_input = &assigned_inputs.groth16_inputs[i];
             let public_inputs = &assigned_groth16_input.public_inputs;
 
@@ -101,34 +99,24 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinV2Circu
 
             let receiver = assigned_inputs.receivers[i];
             let signal_hash = get_signal_hash(ctx, range, &subquery_caller, &receiver);
-
             ctx.constrain_equal(&signal_hash, &public_inputs[2]);
 
+            let mask = masks[i];
             let mut bytes = Vec::new();
-            let receiver_bytes = uint_to_bytes_be(ctx, range, &receiver, 20);
-            let nullifier_hash_bytes = uint_to_bytes_be(ctx, range, &public_inputs[1], 32);
+
+            // with mask, when i >= num_proofs, the leave is keccak([address(0), bytes32(0)])
+            let masked_receiver = gate.mul(ctx, receiver, mask);
+            let receiver_bytes = uint_to_bytes_be(ctx, range, &masked_receiver, 20);
+            let masked_nullifier_hash = gate.mul(ctx, public_inputs[1], mask);
+            let nullifier_hash_bytes = uint_to_bytes_be(ctx, range, &masked_nullifier_hash, 32);
+
             bytes.extend(receiver_bytes);
             bytes.extend(nullifier_hash_bytes);
 
             let keccak_input = FixLenBytesVec::<F>::new(bytes, 52);
             let keccak_subquery: KeccakFixLenCall<F> = KeccakFixLenCall::new(keccak_input);
-
             let keccak_result = subquery_caller.lock().unwrap().keccak(ctx, keccak_subquery);
             leaves.push(keccak_result);
-        }
-
-        // Pad the leaves to MAX_PROOFs
-        let mut pad_bytes: Vec<SafeByte<F>> = Vec::new();
-        pad_bytes.append(&mut uint_to_bytes_be(ctx, range, &zero, 20));
-        pad_bytes.append(&mut uint_to_bytes_be(ctx, range, &zero, 32));
-        let pad_keccak_input = FixLenBytesVec::<F>::new(pad_bytes, 52);
-        let pad_keccak_subquery: KeccakFixLenCall<F> = KeccakFixLenCall::new(pad_keccak_input);
-        let pad_leave = subquery_caller
-            .lock()
-            .unwrap()
-            .keccak(ctx, pad_keccak_subquery);
-        for i in num_proofs..MAX_PROOFS {
-            leaves.push(pad_leave);
         }
 
         let merkle_tree = compute_keccak_merkle_tree(ctx, range, &subquery_caller, leaves);
