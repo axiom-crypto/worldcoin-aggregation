@@ -18,9 +18,7 @@ export interface CircuitInputs {
   vkeyHash: CircuitValue256;
   grantId: CircuitValue256;
   root: CircuitValue256;
-  numClaims: CircuitValue256;
-  receivers: CircuitValue[];
-  claimedNullifierHashes: CircuitValue256[];
+  claimsRoot: CircuitValue256;
 }
 
 // Default inputs to use for compiling the circuit. These values should be different than the inputs fed into
@@ -29,28 +27,16 @@ export const defaultInputs = {
   "vkeyHash": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
   "grantId": "0xfd3a1e9736c12a5d4a31f26362b577ccafbd523d358daf40cdc04d90e17f77",
   "root": "0x1d0372864732dfcd91c18414fd4126e1e38293be237aad4315a026bf23d02717",
-  "numClaims": 1,
-  "receivers": ["0x0000000000000000000000000000000000787878"],
-  "claimedNullifierHashes": ["0x4b7790813c37c910b41236334ce9b1841d430e3b4874e89778e1afd0fd3a7b6"]
+  "claimsRoot": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 };
 
 export const circuit = async (inputs: CircuitInputs) => {
-  const maxNumClaims = 1;
-
-  if (inputs.receivers.length != maxNumClaims || inputs.claimedNullifierHashes.length != maxNumClaims) {
-    throw new Error("Incorrect input lengths");
-  }
+  const logMaxNumClaims = 1;
 
   // TODO: We make the circuit a pure pass-through for now.
 
   addToCallback(inputs.vkeyHash);
   addToCallback(inputs.grantId);
   addToCallback(inputs.root);
-  addToCallback(inputs.numClaims);
-  for (const receiver of inputs.receivers) {
-    addToCallback(receiver);
-  }
-  for (const claimedNullifierHash of inputs.claimedNullifierHashes) {
-    addToCallback(claimedNullifierHash);
-  }
+  addToCallback(inputs.claimsRoot);
 };
