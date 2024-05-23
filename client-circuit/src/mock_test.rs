@@ -14,7 +14,8 @@ use ethers::providers::{JsonRpcClient, Provider};
 use halo2curves::bn256::Fr;
 
 use crate::{
-    circuit::WorldcoinCircuit,
+    circuit_v1::WorldcoinV1Circuit,
+    circuit_v2::WorldcoinV2Circuit,
     constants::MAX_PROOFS,
     types::{WorldcoinInput, WorldcoinNativeInput},
 };
@@ -25,7 +26,11 @@ pub fn parse_input_from_path(path: String) -> WorldcoinInput<Fr, MAX_PROOFS> {
     worldcoin_input.into()
 }
 
-pub fn mock_test(input: WorldcoinInput<Fr, MAX_PROOFS>, should_fail: bool) -> Option<Vec<Fr>> {
+pub fn mock_test(
+    input: WorldcoinInput<Fr, MAX_PROOFS>,
+    should_fail: bool,
+    version: &str,
+) -> Option<Vec<Fr>> {
     let params = RlcKeccakCircuitParams {
         rlc: RlcCircuitParams {
             base: BaseCircuitParams {
@@ -42,25 +47,31 @@ pub fn mock_test(input: WorldcoinInput<Fr, MAX_PROOFS>, should_fail: bool) -> Op
     };
     let client = get_provider();
 
-    let output = mock_with_output::<_, WorldcoinCircuit>(
-        client,
-        AxiomCircuitParams::Keccak(params),
-        Some(input),
-    );
+    let output = if version == "v1" {
+        mock_with_output::<_, WorldcoinV1Circuit>(
+            client,
+            AxiomCircuitParams::Keccak(params),
+            Some(input),
+        )
+    } else {
+        mock_with_output::<_, WorldcoinV2Circuit>(
+            client,
+            AxiomCircuitParams::Keccak(params),
+            Some(input),
+        )
+    };
     assert_eq!((output == None), should_fail);
 
+    let output_size = if version == "v1" { 72 } else { 8 };
     match output {
-        Some(value) => {
-            // (1 vk_hash  + 3 + 2 * MAX_PROOFS) * 2
-            Some(value[0][0..72].to_vec())
-        }
+        Some(value) => Some(value[0][0..output_size].to_vec()),
         None => None,
     }
 }
 
-pub fn mock_test_from_path(path: String, should_fail: bool) -> Option<Vec<Fr>> {
+pub fn mock_test_from_path(path: String, should_fail: bool, version: &str) -> Option<Vec<Fr>> {
     let input = parse_input_from_path(path);
-    mock_test(input, should_fail)
+    mock_test(input, should_fail, version)
 }
 
 pub fn mock_with_output<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
