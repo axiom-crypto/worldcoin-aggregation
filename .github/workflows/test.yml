@@ -21,6 +21,12 @@ jobs:
         with:
           node-version: 18
 
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2024-01-01
+          override: true
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
