@@ -26,7 +26,7 @@ contract WorldcoinAggregationV2Test is AxiomTest {
             "run_v2_circuit"
         );
         vkeyHash = bytes32(0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec);
-        logMaxNumClaims = 1;
+        logMaxNumClaims = 4;
         aggregation = new WorldcoinAggregationV2(
             axiomV2QueryAddress, uint64(block.chainid), querySchema, vkeyHash, logMaxNumClaims
         );
