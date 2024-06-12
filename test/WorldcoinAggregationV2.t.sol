@@ -31,9 +31,9 @@ contract WorldcoinAggregationV2Test is AxiomTest {
             axiomV2QueryAddress, uint64(block.chainid), querySchema, vkeyHash, logMaxNumClaims
         );
     }
-    /// @dev Simple demonstration of testing an Axiom client contract using Axiom cheatcodes
 
-    function test_simple_example() public {
+    /// @dev Simple demonstration of testing an Axiom client contract using Axiom cheatcodes
+    function test_simpleExample() public {
         // create a query into Axiom with default parameters
         Query memory q = query(querySchema, "", address(aggregation));
 
