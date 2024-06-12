@@ -1,0 +1,6 @@
+@axiom-crypto/axiom-std/=lib/axiom-std/src/
+@axiom-crypto/v2-periphery/=lib/axiom-std/lib/axiom-v2-periphery/src/
+axiom-std/=lib/axiom-std/src/
+axiom-v2-periphery/=lib/axiom-std/lib/axiom-v2-periphery/src/
+ds-test/=lib/axiom-std/lib/forge-std/lib/ds-test/src/
+forge-std/=lib/axiom-std/lib/forge-std/src/
