@@ -145,7 +145,7 @@ pub fn compute_keccak_merkle_tree<P: JsonRpcClient, F: Field>(
             bytes.extend(uint_to_bytes_be(ctx, range, &c[0].hi(), 16));
             bytes.extend(uint_to_bytes_be(ctx, range, &c[0].lo(), 16));
             bytes.extend(uint_to_bytes_be(ctx, range, &c[1].hi(), 16));
-            bytes.extend(uint_to_bytes_be(ctx, range, &c[1].hi(), 16));
+            bytes.extend(uint_to_bytes_be(ctx, range, &c[1].lo(), 16));
             let keccak_input = FixLenBytesVec::<F>::new(bytes, 64);
             let keccak_subquery: KeccakFixLenCall<F> = KeccakFixLenCall::new(keccak_input);
             subquery_caller.lock().unwrap().keccak(ctx, keccak_subquery)
