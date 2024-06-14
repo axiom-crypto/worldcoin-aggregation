@@ -24,8 +24,8 @@ fn mock_test_worldcoin_circuit_v2() {
     assert_eq!(values[0], Fr::from_raw(hex_to_u256(vk_hash_hi).0));
     assert_eq!(values[1], Fr::from_raw(hex_to_u256(vk_hash_lo).0));
 
-    let claim_root_hi = "0x00000000000000000000000000000000fc0c0e40f4f84f6d71d1941301705d75";
-    let claim_root_lo = "0x000000000000000000000000000000006824a512fa75dae50bfd02e4c45e9c7d";
+    let claim_root_hi = "0x00000000000000000000000000000000015796a37659e8fd40c2056568853b57";
+    let claim_root_lo = "0x00000000000000000000000000000000d0ce874dd54385dbc1e0c65256fe8058";
     assert_eq!(values[6], Fr::from_raw(hex_to_u256(claim_root_hi).0));
     assert_eq!(values[7], Fr::from_raw(hex_to_u256(claim_root_lo).0));
 }
