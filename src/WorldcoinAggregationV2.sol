@@ -2,15 +2,12 @@
 pragma solidity 0.8.19;
 
 import { AxiomV2Client } from "@axiom-crypto/v2-periphery/client/AxiomV2Client.sol";
+
 import { IERC20 } from "./interfaces/IERC20.sol";
 import { IRootValidator } from "./interfaces/IRootValidator.sol";
+import { IGrant } from "./interfaces/IGrant.sol";
 
 contract WorldcoinAggregationV2 is AxiomV2Client {
-    struct ProofElement {
-        bytes32 leaf;
-        bool isLeft;
-    }
-
     /// @dev The unique identifier of the circuit accepted by this contract.
     bytes32 immutable QUERY_SCHEMA;
 
@@ -20,7 +17,8 @@ contract WorldcoinAggregationV2 is AxiomV2Client {
     /// @dev The verification key hash of the Groth16 circuit.
     bytes32 immutable VKEY_HASH;
 
-    /// @dev The base-2 logarithm of the maximum number of claims that can be made in a single call.
+    /// @dev The base-2 logarithm of the maximum number of claims that can be
+    /// made in a single call.
     uint256 immutable LOG_MAX_NUM_CLAIMS;
 
     /// @dev The WLD token contract
@@ -29,7 +27,11 @@ contract WorldcoinAggregationV2 is AxiomV2Client {
     /// @dev The contract which can validate World ID roots
     IRootValidator public immutable ROOT_VALIDATOR;
 
-    /// @dev Whether a nullifier hash has been used already. Used to prevent double-signaling
+    /// @dev The grant contract
+    IGrant public immutable GRANT;
+
+    /// @dev Whether a nullifier hash has been used already. Used to prevent
+    /// double-signaling
     mapping(bytes32 nullifierHash => bool) public nullifierHashes;
 
     /// @dev Valid Merkle roots of claims, indexed by grantId and root
@@ -39,11 +41,11 @@ contract WorldcoinAggregationV2 is AxiomV2Client {
     /// @param receiver The address that received the tokens
     event GrantClaimed(uint256 grantId, address receiver);
 
+    /// @dev `logMaxNumClaims` cannot be greater than 32
+    error InvalidLogMaxNumClaims();
+
     /// @dev Root validation failed
     error InvalidRoot();
-
-    /// @dev Grant id cannot be zero
-    error InvalidGrantId();
 
     /// @dev Nullifier hash already used
     error NullifierHashAlreadyUsed();
@@ -74,7 +76,8 @@ contract WorldcoinAggregationV2 is AxiomV2Client {
     /// @param  callbackSourceChainId The ID of the chain the query reads from.
     /// @param  querySchema The schema of the query.
     /// @param  vkeyHash The verification key hash of the Groth16 circuit.
-    /// @param  logMaxNumClaims The number of claims that can be made in a single call.
+    /// @param  logMaxNumClaims The number of claims that can be made in a
+    /// single call.
     constructor(
         address axiomV2QueryAddress,
         uint64 callbackSourceChainId,
@@ -82,40 +85,60 @@ contract WorldcoinAggregationV2 is AxiomV2Client {
         bytes32 vkeyHash,
         uint256 logMaxNumClaims,
         address wldToken,
-        address rootValidator
+        address rootValidator,
+        address grant
     ) AxiomV2Client(axiomV2QueryAddress) {
+        if (logMaxNumClaims > 32) revert InvalidLogMaxNumClaims();
+
         QUERY_SCHEMA = querySchema;
         SOURCE_CHAIN_ID = callbackSourceChainId;
         VKEY_HASH = vkeyHash;
         LOG_MAX_NUM_CLAIMS = logMaxNumClaims;
         WLD = IERC20(wldToken);
         ROOT_VALIDATOR = IRootValidator(rootValidator);
+        GRANT = IGrant(grant);
     }
 
     /// @notice Claim a grant
     /// @param grantId The grant ID to claim
-    /// @param root The root of the Merkle tree (signup-sequencer or world-id-contracts provides this)
-    /// @param receiver The address that will receive the tokens (this is also the signal of the ZKP)
-    /// @param nullifierHash The nullifier for the proof, preventing double signaling
-    /// @param merkleProof The Merkle proof of the claim
+    /// @param root The root of the Merkle tree (signup-sequencer or
+    /// world-id-contracts provides this)
+    /// @param receiver The address that will receive the tokens (this is also
+    /// the signal of the ZKP)
+    /// @param nullifierHash The nullifier for the proof, preventing double
+    /// signaling
+    /// @param leaves The Merkle proof of the claim
+    /// @param isLeftBytes The isLeft bytes of the Merkle proof. This is more
+    /// efficient than a bool[] in calldata since it will only occupy one slot.
+    /// The bytes should really just be zero or one, but anything non-zero will
+    /// get coerced to true. The first index should map to the MSB. For example,
+    /// a proof of length 4 with all `isLeft = true` would look like:
+    /// index | 00 01 02 03 04 .. 31
+    /// value | 01 01 01 01 00 00 00
     function claim(
         uint256 grantId,
         uint256 root,
         address receiver,
         bytes32 nullifierHash,
-        ProofElement[] calldata merkleProof
+        bytes32[] calldata leaves,
+        bytes32 isLeftBytes
     ) external {
-        if (grantId == 0) revert InvalidGrantId();
         if (nullifierHashes[nullifierHash]) revert NullifierHashAlreadyUsed();
         if (receiver == address(0)) revert InvalidReceiver();
+        GRANT.checkValidity(grantId);
 
-        uint256 length = merkleProof.length;
-        if (merkleProof.length != LOG_MAX_NUM_CLAIMS) revert InvalidMerkleProofLength();
+        uint256 length = leaves.length;
+        if (length != LOG_MAX_NUM_CLAIMS) revert InvalidMerkleProofLength();
 
         bytes32 runningHash = _efficientPackedHash(receiver, nullifierHash);
         for (uint256 i = 0; i != length;) {
             // Unsafe access OK here since we know i is bounded by the length
-            (bytes32 node, bool isLeft) = _unsafeProofAccess(merkleProof, i);
+            bytes32 node = _unsafeBytes32Access(leaves, i);
+
+            // Access the byte without an overflow check (safe because length is
+            // bounded by logMaxNumClaims which is bounded by 32 in the
+            // constructor). Then coerce to bool.
+            bool isLeft = _toBool(_unsafeByteAccess(isLeftBytes, i));
 
             if (isLeft) runningHash = _efficientHash(node, runningHash);
             else runningHash = _efficientHash(runningHash, node);
@@ -128,7 +151,9 @@ contract WorldcoinAggregationV2 is AxiomV2Client {
 
         nullifierHashes[nullifierHash] = true;
 
-        WLD.transfer(receiver, 3e18);
+        uint256 grantAmount = GRANT.getAmount(grantId);
+
+        WLD.transfer(receiver, grantAmount);
 
         emit GrantClaimed(grantId, receiver);
     }
@@ -169,7 +194,7 @@ contract WorldcoinAggregationV2 is AxiomV2Client {
         if (vkeyHash != VKEY_HASH) revert InvalidVkeyHash();
 
         uint256 grantId = uint256(_unsafeBytes32Access(axiomResults, 1));
-        if (grantId == 0) revert InvalidGrantId();
+        GRANT.checkValidity(grantId);
 
         uint256 root = uint256(_unsafeBytes32Access(axiomResults, 2));
         ROOT_VALIDATOR.requireValidRoot(root);
@@ -179,8 +204,9 @@ contract WorldcoinAggregationV2 is AxiomV2Client {
         validClaimsRoots[grantId][root][claimsRoot] = true;
     }
 
-    /// @dev Hashes an address and a uint256 without trigger memory expansion.
-    /// This is done packed -- equivalent to keccak256(abi.encodePacked(a, b))
+    /// @dev Hashes an address and a uint256 without triggering memory
+    /// expansion. This is done packed -- equivalent to
+    /// keccak256(abi.encodePacked(a, b))
     ///
     /// @param a The address to hash
     /// @param b The bytes32 to hash
@@ -193,7 +219,7 @@ contract WorldcoinAggregationV2 is AxiomV2Client {
         }
     }
 
-    /// @dev Hashes two bytes32 words without trigger memory expansion
+    /// @dev Hashes two bytes32 words without triggering memory expansion
     /// @param a The first word
     /// @param b The second word
     function _efficientHash(bytes32 a, bytes32 b) internal pure returns (bytes32 out) {
@@ -202,26 +228,6 @@ contract WorldcoinAggregationV2 is AxiomV2Client {
             mstore(0x00, a)
             mstore(0x20, b)
             out := keccak256(0x00, 0x40)
-        }
-    }
-
-    /// @dev Access a calldata `ProofElement` array without the overhead of an out of
-    /// bounds check. Should only be used when `index` is known to be within
-    /// bounds.
-    /// @param arr The array to access
-    /// @param i The index to access
-    /// @return leaf The leaf at the given index
-    /// @return isLeft The isLeft at the given index
-    function _unsafeProofAccess(ProofElement[] calldata arr, uint256 i)
-        internal
-        pure
-        returns (bytes32 leaf, bool isLeft)
-    {
-        /// @solidity memory-safe-assembly
-        assembly {
-            let _structSize := 0x40
-            leaf := calldataload(add(arr.offset, mul(i, _structSize)))
-            isLeft := calldataload(add(add(arr.offset, 0x20), mul(i, _structSize)))
         }
     }
 
@@ -235,6 +241,29 @@ contract WorldcoinAggregationV2 is AxiomV2Client {
         /// @solidity memory-safe-assembly
         assembly {
             out := calldataload(add(array.offset, mul(index, 0x20)))
+        }
+    }
+
+    /// @dev Access a single byte of a bytes32 without an overflow check. Should
+    /// only be used when `index` is known to be less than 32.
+    /// @param value The bytes32 to access
+    /// @param index The index to access
+    /// @return out The value at the given index
+    function _unsafeByteAccess(bytes32 value, uint256 index) internal pure returns (bytes32 out) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            out := byte(index, value)
+        }
+    }
+
+    /// @dev Coerce a bytes32 to a bool. Anything non-zero will be coerced to
+    /// true.
+    /// @param input The bytes32 to coerce
+    /// @return out The coerced bool
+    function _toBool(bytes32 input) internal pure returns (bool out) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            out := input
         }
     }
 }

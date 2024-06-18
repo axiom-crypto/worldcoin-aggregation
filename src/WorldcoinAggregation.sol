@@ -2,8 +2,10 @@
 pragma solidity 0.8.19;
 
 import { AxiomV2Client } from "@axiom-crypto/v2-periphery/client/AxiomV2Client.sol";
+
 import { IERC20 } from "./interfaces/IERC20.sol";
 import { IRootValidator } from "./interfaces/IRootValidator.sol";
+import { IGrant } from "./interfaces/IGrant.sol";
 
 contract WorldcoinAggregation is AxiomV2Client {
     /// @dev The unique identifier of the circuit accepted by this contract.
@@ -24,8 +26,11 @@ contract WorldcoinAggregation is AxiomV2Client {
     /// @dev The contract which can validate World ID roots
     IRootValidator public immutable ROOT_VALIDATOR;
 
+    /// @dev The grant contract
+    IGrant public immutable GRANT;
+
     /// @dev Whether a nullifier hash has been used already. Used to prevent double-signaling
-    mapping(bytes32 nullifierHash => bool) public nullifierHashes;
+    mapping(uint256 nullifierHash => bool) public nullifierHashes;
 
     /// @notice Emitted when a grant is successfully claimed
     /// @param receiver The address that received the tokens
@@ -37,8 +42,8 @@ contract WorldcoinAggregation is AxiomV2Client {
     /// @dev `numClaims` must be less than or equal to `MAX_NUM_CLAIMS`
     error TooManyClaims();
 
-    /// @dev Grant id cannot be zero
-    error InvalidGrantId();
+    /// @dev Insufficient balance WLD tokens to fulfill the claim(s)
+    error InsufficientBalance();
 
     /// @dev Source chain ID does not match
     error SourceChainIdNotMatching();
@@ -65,7 +70,8 @@ contract WorldcoinAggregation is AxiomV2Client {
         bytes32 vkeyHash,
         uint256 maxNumClaims,
         address wldToken,
-        address rootValidator
+        address rootValidator,
+        address grant
     ) AxiomV2Client(axiomV2QueryAddress) {
         QUERY_SCHEMA = querySchema;
         SOURCE_CHAIN_ID = callbackSourceChainId;
@@ -73,6 +79,7 @@ contract WorldcoinAggregation is AxiomV2Client {
         MAX_NUM_CLAIMS = maxNumClaims;
         WLD = IERC20(wldToken);
         ROOT_VALIDATOR = IRootValidator(rootValidator);
+        GRANT = IGrant(grant);
     }
 
     /// @inheritdoc AxiomV2Client
@@ -112,7 +119,7 @@ contract WorldcoinAggregation is AxiomV2Client {
         if (vkeyHash != VKEY_HASH) revert InvalidVkeyHash();
 
         uint256 grantId = uint256(_unsafeCalldataAccess(axiomResults, 1));
-        if (grantId == 0) revert InvalidGrantId();
+        GRANT.checkValidity(grantId);
 
         uint256 root = uint256(_unsafeCalldataAccess(axiomResults, 2));
         ROOT_VALIDATOR.requireValidRoot(root);
@@ -120,14 +127,18 @@ contract WorldcoinAggregation is AxiomV2Client {
         uint256 numClaims = uint256(_unsafeCalldataAccess(axiomResults, 3));
         if (numClaims > MAX_NUM_CLAIMS) revert TooManyClaims();
 
+        // If the entire claim cannot be fulfilled, we fail the entire batch
+        uint256 grantAmount = GRANT.getAmount(grantId);
+        if (grantAmount * numClaims > WLD.balanceOf(address(this))) revert InsufficientBalance();
+
         for (uint256 i = 0; i != numClaims;) {
             address receiver = _toAddress(_unsafeCalldataAccess(axiomResults, 4 + i));
-            bytes32 claimedNullifierHash = _unsafeCalldataAccess(axiomResults, 4 + MAX_NUM_CLAIMS + i);
+            uint256 claimedNullifierHash = uint256(_unsafeCalldataAccess(axiomResults, 4 + MAX_NUM_CLAIMS + i));
 
             if (!nullifierHashes[claimedNullifierHash] && receiver != address(0)) {
                 nullifierHashes[claimedNullifierHash] = true;
 
-                WLD.transfer(receiver, 3e18);
+                WLD.transfer(receiver, grantAmount);
 
                 emit GrantClaimed(grantId, receiver);
             }
