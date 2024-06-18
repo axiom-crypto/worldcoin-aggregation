@@ -5,11 +5,16 @@ solc = "0.8.19"
 libs = ["node_modules", "lib"]
 remappings = ["@axiom-crypto/axiom-std/=lib/axiom-std/src/"]
 ffi = true
+fs_permissions = [{ access = "read", path = "./client-circuit"}]
 ast = true
+verbosity = 2
+
+[fuzz]
+runs = 10000
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
 [rpc_endpoints]
-provider = "${PROVIDER_URI_1}"
+provider = "${PROVIDER_URI_11155111}"
 
 [fmt]
   bracket_spacing = true
@@ -18,6 +23,6 @@ provider = "${PROVIDER_URI_1}"
   multiline_func_header = "attributes_first"
   number_underscore = "thousands"
   quote_style = "double"
-  single_line_statement_blocks = "multi"
+  single_line_statement_blocks = "single"
   tab_width = 4
   wrap_comments = false

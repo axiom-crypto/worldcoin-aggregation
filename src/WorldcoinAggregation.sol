@@ -1,27 +1,61 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.19;
 
 import { AxiomV2Client } from "@axiom-crypto/v2-periphery/client/AxiomV2Client.sol";
 
+import { IERC20 } from "./interfaces/IERC20.sol";
+import { IRootValidator } from "./interfaces/IRootValidator.sol";
+import { IGrant } from "./interfaces/IGrant.sol";
+
 contract WorldcoinAggregation is AxiomV2Client {
     /// @dev The unique identifier of the circuit accepted by this contract.
-    bytes32 immutable QUERY_SCHEMA;
+    bytes32 public immutable QUERY_SCHEMA;
 
     /// @dev The chain ID of the chain whose data the callback is expected to be called from.
-    uint64 immutable SOURCE_CHAIN_ID;
+    uint64 public immutable SOURCE_CHAIN_ID;
 
     /// @dev The verification key hash of the Groth16 circuit.
-    bytes32 immutable VKEY_HASH;
+    bytes32 public immutable VKEY_HASH;
 
     /// @dev The maximum number of claims that can be made in a single call.
-    uint256 immutable MAX_NUM_CLAIMS;
+    uint256 public immutable MAX_NUM_CLAIMS;
+
+    /// @dev The WLD token contract
+    IERC20 public immutable WLD;
+
+    /// @dev The contract which can validate World ID roots
+    IRootValidator public immutable ROOT_VALIDATOR;
+
+    /// @dev The grant contract
+    IGrant public immutable GRANT;
 
     /// @dev Whether a nullifier hash has been used already. Used to prevent double-signaling
-    mapping(uint256 => bool) public nullifierHashes;
+    mapping(uint256 nullifierHash => bool) public nullifierHashes;
 
     /// @notice Emitted when a grant is successfully claimed
     /// @param receiver The address that received the tokens
     event GrantClaimed(uint256 grantId, address receiver);
+
+    /// @dev Root validation failed
+    error InvalidRoot();
+
+    /// @dev `numClaims` must be less than or equal to `MAX_NUM_CLAIMS`
+    error TooManyClaims();
+
+    /// @dev Insufficient balance WLD tokens to fulfill the claim(s)
+    error InsufficientBalance();
+
+    /// @dev Source chain ID does not match
+    error SourceChainIdNotMatching();
+
+    /// @dev Invalid query schema
+    error InvalidQuerySchema();
+
+    /// @dev The verification key of the query must match the contract's
+    error InvalidVkeyHash();
+
+    /// @dev Axiom result array must have `4 + 2 * MAX_NUM_CLAIMS` items.
+    error InvalidNumberOfResults();
 
     /// @notice Construct a new AverageBalance contract.
     /// @param  axiomV2QueryAddress The address of the AxiomV2Query contract.
@@ -34,57 +68,18 @@ contract WorldcoinAggregation is AxiomV2Client {
         uint64 callbackSourceChainId,
         bytes32 querySchema,
         bytes32 vkeyHash,
-        uint256 maxNumClaims
+        uint256 maxNumClaims,
+        address wldToken,
+        address rootValidator,
+        address grant
     ) AxiomV2Client(axiomV2QueryAddress) {
         QUERY_SCHEMA = querySchema;
         SOURCE_CHAIN_ID = callbackSourceChainId;
         VKEY_HASH = vkeyHash;
         MAX_NUM_CLAIMS = maxNumClaims;
-    }
-
-    /// @notice Claim multiple airdrops
-    /// @param numClaims The number of claims to make
-    /// @param grantId The grant ID to claim
-    /// @param receivers The addresses that will receive the tokens (this is also the signal of the ZKP)
-    /// @param root The root of the Merkle tree (signup-sequencer or world-id-contracts provides this)
-    /// @param claimedNullifierHashes The nullifiers for the proofs, preventing double signaling
-    function _batchClaim(
-        uint256 numClaims,
-        uint256 grantId,
-        address[] memory receivers,
-        uint256 root,
-        uint256[] memory claimedNullifierHashes
-    ) internal {
-        _requireValidRoot(root);
-
-        _requireValidGrant(grantId);
-
-        require(receivers.length == numClaims, "Invalid number of receivers");
-        require(claimedNullifierHashes.length == numClaims, "Invalid number of nullifiers");
-
-        for (uint256 i = 0; i < numClaims; i++) {
-            if (!nullifierHashes[claimedNullifierHashes[i]] && receivers[i] != address(0)) {
-                nullifierHashes[claimedNullifierHashes[i]] = true;
-
-                // TODO: actually transfer the grant funds
-
-                emit GrantClaimed(grantId, receivers[i]);
-            }
-        }
-    }
-
-    /// @notice Reverts if the root is not valid
-    /// @param root The root to validate
-    function _requireValidRoot(uint256 root) internal view {
-        require(root != 0, "Invalid root");
-
-        // TODO: Add validation logic
-    }
-
-    /// @notice Reverts if the grant is not valid
-    /// @param grantId The grant ID to validate
-    function _requireValidGrant(uint256 grantId) internal view {
-        // TODO: Add validation logic
+        WLD = IERC20(wldToken);
+        ROOT_VALIDATOR = IRootValidator(rootValidator);
+        GRANT = IGrant(grant);
     }
 
     /// @inheritdoc AxiomV2Client
@@ -96,9 +91,8 @@ contract WorldcoinAggregation is AxiomV2Client {
         uint256, // queryId,
         bytes calldata // extraData
     ) internal view override {
-        // Add your validation logic here for checking the callback responses
-        require(sourceChainId == SOURCE_CHAIN_ID, "Source chain ID does not match");
-        require(querySchema == QUERY_SCHEMA, "Invalid query schema");
+        if (sourceChainId != SOURCE_CHAIN_ID) revert SourceChainIdNotMatching();
+        if (querySchema != QUERY_SCHEMA) revert InvalidQuerySchema();
     }
 
     /// @inheritdoc AxiomV2Client
@@ -110,32 +104,70 @@ contract WorldcoinAggregation is AxiomV2Client {
         bytes32[] calldata axiomResults,
         bytes calldata // extraData
     ) internal override {
-        require(axiomResults.length == 4 + 2 * MAX_NUM_CLAIMS, "Invalid number of results");
+        // Axiom result array must have `4 + 2 * MAX_NUM_CLAIMS` items.
         // We expect the results returned from the Axiom query to be:
+        //
         // axiomResults[0]: vkeyHash
         // axiomResults[1]: grantId
         // axiomResults[2]: root
         // axiomResults[3]: numClaims
         // axiomResults[idx] for idx in [4, 4 + numClaims): receivers
         // axiomResults[idx] for idx in [4 + MAX_NUM_CLAIMS, 4 + MAX_NUM_CLAIMS + numClaims): claimedNullifierHashes
+        if (axiomResults.length != 4 + 2 * MAX_NUM_CLAIMS) revert InvalidNumberOfResults();
 
-        bytes32 vkeyHash = axiomResults[0];
-        uint256 grantId = uint256(axiomResults[1]);
-        uint256 root = uint256(axiomResults[2]);
-        uint256 numClaims = uint256(axiomResults[3]);
+        bytes32 vkeyHash = _unsafeCalldataAccess(axiomResults, 0);
+        if (vkeyHash != VKEY_HASH) revert InvalidVkeyHash();
 
-        require(vkeyHash == VKEY_HASH, "Invalid vkey hash");
-        require(numClaims <= MAX_NUM_CLAIMS, "Too many claims");
+        uint256 grantId = uint256(_unsafeCalldataAccess(axiomResults, 1));
+        GRANT.checkValidity(grantId);
 
-        address[] memory receivers = new address[](numClaims);
-        uint256[] memory claimedNullifierHashes = new uint256[](numClaims);
-        for (uint256 idx; idx < numClaims; idx++) {
-            receivers[idx] = address(uint160(uint256(axiomResults[4 + idx])));
+        uint256 root = uint256(_unsafeCalldataAccess(axiomResults, 2));
+        ROOT_VALIDATOR.requireValidRoot(root);
+
+        uint256 numClaims = uint256(_unsafeCalldataAccess(axiomResults, 3));
+        if (numClaims > MAX_NUM_CLAIMS) revert TooManyClaims();
+
+        // If the entire claim cannot be fulfilled, we fail the entire batch
+        uint256 grantAmount = GRANT.getAmount(grantId);
+        if (grantAmount * numClaims > WLD.balanceOf(address(this))) revert InsufficientBalance();
+
+        for (uint256 i = 0; i != numClaims;) {
+            address receiver = _toAddress(_unsafeCalldataAccess(axiomResults, 4 + i));
+            uint256 claimedNullifierHash = uint256(_unsafeCalldataAccess(axiomResults, 4 + MAX_NUM_CLAIMS + i));
+
+            if (!nullifierHashes[claimedNullifierHash] && receiver != address(0)) {
+                nullifierHashes[claimedNullifierHash] = true;
+
+                WLD.transfer(receiver, grantAmount);
+
+                emit GrantClaimed(grantId, receiver);
+            }
+
+            // Claimed nullifier hashes are skipped
+
+            // forgefmt: disable-next-line
+            unchecked { ++i; }
         }
-        for (uint256 idx; idx < numClaims; idx++) {
-            claimedNullifierHashes[idx] = uint256(axiomResults[4 + MAX_NUM_CLAIMS + idx]);
-        }
+    }
 
-        _batchClaim(numClaims, grantId, receivers, root, claimedNullifierHashes);
+    /// @notice Cast a bytes32 to an address
+    /// @dev The assembly cast avoid solidity verbosity
+    /// @param input The bytes32 to cast
+    /// @return out The address casted from the input
+    function _toAddress(bytes32 input) internal pure returns (address out) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            out := input
+        }
+    }
+
+    /// @dev Access a calldata array without the overhead of an out of bounds
+    /// check. Should only be used when `index` is known to be within bounds.
+    /// @param array The array to access
+    function _unsafeCalldataAccess(bytes32[] calldata array, uint256 index) internal pure returns (bytes32 out) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            out := calldataload(add(array.offset, mul(index, 0x20)))
+        }
     }
 }
