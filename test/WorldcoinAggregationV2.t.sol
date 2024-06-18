@@ -8,25 +8,10 @@ import { WorldcoinAggregationV2Helper } from "./helpers/WorldcoinAggregationV2He
 
 import { IERC20 } from "../src/interfaces/IERC20.sol";
 import { WorldcoinAggregationV2 } from "../src/WorldcoinAggregationV2.sol";
+import { IGrant } from "../src/interfaces/IGrant.sol";
 
 using Axiom for Query;
 
-/// @dev For the V2 test, the claiming process involves submitting a merkle
-/// proof. The leaves for this merkle tree are determined by
-/// `abi.encodePacked(address(reciever), bytes32(nullifierHash))`. All leaves of
-/// the tree must be filled to `maxNumClaims`. Empty leaves will be filled with
-/// `abi.encodePacked(address(0), bytes32(0))`. This test will use the
-/// `client-circuit/data/worldcoin_input.json` that has two receivers. So the
-/// leaves array will look something like:
-/// [
-///  abi.encodePacked(address(reciever1), bytes32(nullifierHash1)),
-///  abi.encodePacked(address(reciever2), bytes32(nullifierHash2)),
-///  abi.encodePacked(address(0), bytes32(0)),
-///  ...,
-///  abi.encodePacked(address(0), bytes32(0))
-/// ]
-/// with a total 16 elements in the array. For the sake of simplicity, the
-/// proofs for the two users will be hardcoded within this contract.
 contract WorldcoinAggregationV2_Test is WorldcoinAggregationV2Helper {
     function test_simpleExample() public {
         // create a query into Axiom with default parameters
@@ -44,9 +29,15 @@ contract WorldcoinAggregationV2_Test is WorldcoinAggregationV2Helper {
         assertEq(_claimsRoot, claimsRoot, "claimsRoot mismatch");
 
         for (uint256 i = 0; i != numClaims; ++i) {
-            aggregation.claim(grantId, root, receivers[i], nullifierHashes[i], receiverProofs[i]);
+            aggregation.claim(
+                grantId, root, receivers[i], nullifierHashes[i], receiverProofs[i].leaves, receiverProofs[i].isLeftBytes
+            );
 
-            assertEq(IERC20(wldToken).balanceOf(receivers[i]), 3e18, "Unexpected balance");
+            assertEq(
+                IERC20(wldToken).balanceOf(receivers[i]),
+                mockGrant.getAmount(mockGrant.calculateId(block.timestamp)),
+                "Unexpected balance"
+            );
         }
     }
 
@@ -62,19 +53,6 @@ contract WorldcoinAggregationV2_Test is WorldcoinAggregationV2Helper {
         assertEq(result, expected, "efficientHash mismatch");
     }
 
-    function testFuzz_unsafeProofAccess(WorldcoinAggregationV2.ProofElement[] calldata array, uint256 index) public {
-        vm.assume(array.length != 0);
-        index = bound(index, 0, array.length - 1);
-
-        (bytes32 resultLeaf, bool resultIsLeft) = aggregation.unsafeProofAccess(array, index);
-
-        bytes32 expectedLeaf = array[index].leaf;
-        bool expectedIsLeft = array[index].isLeft;
-
-        assertEq(resultLeaf, expectedLeaf, "unsafeProofAccess leaf mismatch");
-        assertEq(resultIsLeft, expectedIsLeft, "unsafeProofAccess isLeft mismatch");
-    }
-
     function testFuzz_unsafeBytes32Access(bytes32[] calldata array, uint256 index) public {
         vm.assume(array.length != 0);
         index = bound(index, 0, array.length - 1);
@@ -82,6 +60,47 @@ contract WorldcoinAggregationV2_Test is WorldcoinAggregationV2Helper {
         bytes32 result = aggregation.unsafeBytes32Access(array, index);
         bytes32 expected = array[index];
         assertEq(result, expected, "unsafeBytes32Access mismatch");
+    }
+
+    function testFuzz_unsafeByteAccess(bytes32 value, uint256 index) public {
+        index = bound(index, 0, 31);
+
+        bytes32 result = aggregation.unsafeByteAccess(value, index);
+        uint256 expected = uint8(value[index]);
+        assertEq(uint256(result), expected, "unsafeByteAccess mismatch");
+    }
+
+    function testFuzz_toBool(bytes32 value) public {
+        bool result = aggregation.toBool(value);
+        bool expected = value != 0;
+        assertEq(result, expected, "toBool mismatch");
+    }
+}
+
+contract WorldcoinAggregationV2_ConstructionTest is WorldcoinAggregationV2Helper {
+    function test_construction() public {
+        vm.expectRevert(WorldcoinAggregationV2.InvalidLogMaxNumClaims.selector);
+        new WorldcoinAggregationV2({
+            axiomV2QueryAddress: axiomV2QueryAddress,
+            callbackSourceChainId: uint64(block.chainid),
+            querySchema: querySchema,
+            vkeyHash: vkeyHash,
+            logMaxNumClaims: 100,
+            wldToken: wldToken,
+            rootValidator: rootValidator,
+            grant: address(mockGrant)
+        });
+
+        new WorldcoinAggregationV2({
+            axiomV2QueryAddress: axiomV2QueryAddress,
+            callbackSourceChainId: uint64(block.chainid),
+            querySchema: querySchema,
+            vkeyHash: vkeyHash,
+            logMaxNumClaims: logMaxNumClaims,
+            wldToken: wldToken,
+            rootValidator: rootValidator,
+            grant: address(mockGrant)
+        });
     }
 }
 
@@ -168,7 +187,7 @@ contract WorldcoinAggregationV2_RevertTest is WorldcoinAggregationV2Helper {
 
         args.axiomResults[1] = 0;
 
-        vm.expectRevert(WorldcoinAggregationV2.InvalidGrantId.selector);
+        vm.expectRevert(IGrant.InvalidGrant.selector);
         IAxiomV2Client(aggregation).axiomV2Callback({
             sourceChainId: args.sourceChainId,
             caller: args.caller,
@@ -198,39 +217,46 @@ contract WorldcoinAggregationV2_RevertTest is WorldcoinAggregationV2Helper {
     function test_RevertWhen_claimingWithInvalidGrantId() public {
         q.prankFulfill();
 
-        vm.expectRevert(WorldcoinAggregationV2.InvalidGrantId.selector);
-        aggregation.claim(0, root, receivers[0], nullifierHashes[0], receiverProofs[0]);
+        vm.expectRevert(IGrant.InvalidGrant.selector);
+        aggregation.claim(
+            0, root, receivers[0], nullifierHashes[0], receiverProofs[0].leaves, receiverProofs[0].isLeftBytes
+        );
     }
 
     function test_RevertWhen_doubleClaiming() public {
         q.prankFulfill();
-        aggregation.claim(grantId, root, receivers[0], nullifierHashes[0], receiverProofs[0]);
+        aggregation.claim(
+            grantId, root, receivers[0], nullifierHashes[0], receiverProofs[0].leaves, receiverProofs[0].isLeftBytes
+        );
 
         vm.expectRevert(WorldcoinAggregationV2.NullifierHashAlreadyUsed.selector);
-        aggregation.claim(grantId, root, receivers[0], nullifierHashes[0], receiverProofs[0]);
+        aggregation.claim(
+            grantId, root, receivers[0], nullifierHashes[0], receiverProofs[0].leaves, receiverProofs[0].isLeftBytes
+        );
     }
 
     function test_RevertWhen_invalidReceiverClaiming() public {
         q.prankFulfill();
 
         vm.expectRevert(WorldcoinAggregationV2.InvalidReceiver.selector);
-        aggregation.claim(grantId, root, address(0), nullifierHashes[0], receiverProofs[0]);
+        aggregation.claim(
+            grantId, root, address(0), nullifierHashes[0], receiverProofs[0].leaves, receiverProofs[0].isLeftBytes
+        );
     }
 
     function test_RevertWhen_invalidMerkleProofLength() public {
         q.prankFulfill();
 
         vm.expectRevert(WorldcoinAggregationV2.InvalidMerkleProofLength.selector);
-        aggregation.claim(grantId, root, receivers[0], nullifierHashes[0], new WorldcoinAggregationV2.ProofElement[](0));
+        aggregation.claim(grantId, root, receivers[0], nullifierHashes[0], new bytes32[](0), bytes32(0));
     }
 
     function test_RevertWhen_invalidMerkleProof() public {
         q.prankFulfill();
 
-        WorldcoinAggregationV2.ProofElement[] memory invalidProof =
-            new WorldcoinAggregationV2.ProofElement[](logMaxNumClaims);
+        bytes32[] memory invalidProof = new bytes32[](logMaxNumClaims);
 
         vm.expectRevert(WorldcoinAggregationV2.InvalidMerkleProof.selector);
-        aggregation.claim(grantId, root, receivers[0], nullifierHashes[0], invalidProof);
+        aggregation.claim(grantId, root, receivers[0], nullifierHashes[0], invalidProof, bytes32(0));
     }
 }

@@ -5,6 +5,7 @@ import { AxiomTest } from "@axiom-crypto/axiom-std/AxiomTest.sol";
 
 import { toString } from "./Utils.sol";
 import { WorldcoinAggregation } from "../../src/WorldcoinAggregation.sol";
+import { WLDGrant } from "./WLDGrant.sol";
 
 import { stdJson as StdJson } from "forge-std/Test.sol";
 
@@ -16,7 +17,8 @@ contract WorldcoinAggregationExposed is WorldcoinAggregation {
         bytes32 vkeyHash,
         uint256 maxNumClaims,
         address wldToken,
-        address rootValidator
+        address rootValidator,
+        address grant
     )
         WorldcoinAggregation(
             axiomV2QueryAddress,
@@ -25,7 +27,8 @@ contract WorldcoinAggregationExposed is WorldcoinAggregation {
             vkeyHash,
             maxNumClaims,
             wldToken,
-            rootValidator
+            rootValidator,
+            grant
         )
     { }
 
@@ -33,9 +36,6 @@ contract WorldcoinAggregationExposed is WorldcoinAggregation {
         return _toAddress(input);
     }
 
-    /// @dev Access a calldata array without the overhead of an out of bounds
-    /// check. Should only be used when `index` is known to be within bounds.
-    /// @param array The array to access
     function unsafeCalldataAccess(bytes32[] calldata array, uint256 index) external pure returns (bytes32) {
         return _unsafeCalldataAccess(array, index);
     }
@@ -49,6 +49,7 @@ contract WorldcoinAggregationHelper is AxiomTest {
     }
 
     WorldcoinAggregationExposed aggregation;
+    WLDGrant mockGrant;
     bytes32 querySchema;
 
     bytes32 vkeyHash;
@@ -68,11 +69,15 @@ contract WorldcoinAggregationHelper is AxiomTest {
 
     function setUp() public virtual {
         _createSelectForkAndSetupAxiom("provider");
+        // Sets block.timestamp to a time that would derive into grantId 30
+        vm.warp(1_712_275_644);
 
         querySchema =
             axiomVm.readRustCircuit("client-circuit/Cargo.toml", inputPath, "client-circuit/data", "run_v1_circuit");
         vkeyHash = bytes32(0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec);
         maxNumClaims = 16;
+
+        mockGrant = new WLDGrant();
         aggregation = new WorldcoinAggregationExposed({
             axiomV2QueryAddress: axiomV2QueryAddress,
             callbackSourceChainId: uint64(block.chainid),
@@ -81,7 +86,8 @@ contract WorldcoinAggregationHelper is AxiomTest {
             maxNumClaims: maxNumClaims,
             wldToken: wldToken,
             // Identity Manager
-            rootValidator: rootValidator
+            rootValidator: rootValidator,
+            grant: address(mockGrant)
         });
 
         // Fund the grant
