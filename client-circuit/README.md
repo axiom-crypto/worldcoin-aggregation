@@ -31,7 +31,7 @@ Note that if the number of claims is fewer than max_proof_size, the claims will 
 ```
 cargo run --release --features max_proofs_16 --bin run_v1_circuit -- --input data/worldcoin_input.json -p http://dummy --aggregate --auto-config-aggregation -c configs/config_16.json keygen
 ```
-Generate proof, and creates output.json and output.snark under data/
+Generate proof, and creates output.json and output.snark under data/, output.json is the input for backend system
 ```
 cargo run --release --features max_proofs_16 --bin run_v1_circuit -- --input data/worldcoin_input.json -p http://dummy --aggregate --auto-config-aggregation -c configs/config_16.json run
 ```
