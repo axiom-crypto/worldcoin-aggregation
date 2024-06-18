@@ -7,6 +7,13 @@ import { IERC20 } from "./interfaces/IERC20.sol";
 import { IRootValidator } from "./interfaces/IRootValidator.sol";
 import { IGrant } from "./interfaces/IGrant.sol";
 
+/// @notice This version of the aggregation contract automatically transfers the
+/// grant amount to each of the users in the batch in the same tx as the
+/// verification. From a UX perspective, this requires no action on the part of
+/// the user to receive the grant.
+///
+/// @dev If there is not enough WLD balance in the contract to service the
+/// entire batch being verified, the entire batch will be reverted.
 contract WorldcoinAggregation is AxiomV2Client {
     /// @dev The unique identifier of the circuit accepted by this contract.
     bytes32 public immutable QUERY_SCHEMA;
