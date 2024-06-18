@@ -10,6 +10,7 @@ use axiom_eth::{
     halo2_base::gates::circuit::BaseCircuitParams, halo2_proofs::dev::MockProver, halo2curves,
     rlc::circuit::RlcCircuitParams, utils::keccak::decorator::RlcKeccakCircuitParams,
 };
+use ethers::prelude::Http;
 use ethers::providers::{JsonRpcClient, Provider};
 use halo2curves::bn256::Fr;
 
@@ -45,7 +46,7 @@ pub fn mock_test(
         },
         keccak_rows_per_round: 10,
     };
-    let client = get_provider();
+    let client = Provider::<Http>::try_from("http://dummy").unwrap();
 
     let output = if version == "v1" {
         mock_with_output::<_, WorldcoinV1Circuit>(
