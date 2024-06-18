@@ -7,7 +7,7 @@ pub const MAX_PROOFS: usize = 16;
 pub const MAX_PROOFS: usize = 128;
 
 #[cfg(feature = "max_proofs_512")]
-pub const MAX_PROOFS: usize = 128;
+pub const MAX_PROOFS: usize = 512;
 
 #[cfg(feature = "max_proofs_1024")]
 pub const MAX_PROOFS: usize = 1024;

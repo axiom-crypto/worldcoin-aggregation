@@ -1,6 +1,6 @@
 # Worldcoin Aggregation
 
-Client circuits for worldcoin groth16 verficiation aggregation.
+Client circuits for Worldcoin Groth16 verification aggregation.
 
 ## Folder structure
 ```
@@ -12,8 +12,8 @@ Client circuits for worldcoin groth16 verficiation aggregation.
 │   └──  <others>.json            input jsons for testing
 ├── src
 |   ├── bin
-|   ├── circuit_v1.rs             v1 circuit which implements AxiomCircuitScaffold
-|   ├── circuit_v2.rs             v2 circuit which implements AxiomCircuitScaffold
+|   ├── circuit_v1.rs             V1 circuit which implements AxiomCircuitScaffold
+|   ├── circuit_v2.rs             V2 circuit which implements AxiomCircuitScaffold
 |   ├── constants.rs              constant values for the circuit
 |   ├── lib.rs                    define pub mods
 |   ├── mock_test.rs              utils for unit test with mock proofs
