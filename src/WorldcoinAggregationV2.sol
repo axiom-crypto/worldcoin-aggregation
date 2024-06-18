@@ -111,10 +111,14 @@ contract WorldcoinAggregationV2 is AxiomV2Client {
     /// @param isLeftBytes The isLeft bytes of the Merkle proof. This is more
     /// efficient than a bool[] in calldata since it will only occupy one slot.
     /// The bytes should really just be zero or one, but anything non-zero will
-    /// get coerced to true. The first index should map to the MSB. For example,
-    /// a proof of length 4 with all `isLeft = true` would look like:
+    /// get coerced to true. The first index (the leaf) should map to the most
+    /// significant byte. For example, a proof of length 4 with all `isLeft =
+    /// true` would look like:
     /// index | 00 01 02 03 04 .. 31
     /// value | 01 01 01 01 00 00 00
+    ///
+    /// The resulting `isLeftBytes` would be
+    /// 0x0101010100000000000000000000000000000000000000000000000000000000
     function claim(
         uint256 grantId,
         uint256 root,
