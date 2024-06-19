@@ -2,7 +2,6 @@ use crate::constants::*;
 use crate::types::WorldcoinInput;
 use ethers::providers::JsonRpcClient;
 use std::{
-    convert::TryInto,
     fmt::Debug,
     sync::{Arc, Mutex},
 };
