@@ -1,6 +1,6 @@
 # Worldcoin Aggregation
 
-This repo contains the implementation of smart contracts and client circuits designed to aggregate multiple Worldcoin grant Groth16 proofs into a single, succinct proof. The circuits are developed in Rust using Halo2. The smart contracts are designed to be called back by AxiomV2Query after it has verified the proofs.
+This repo contains the implementation of smart contracts and client circuits designed to aggregate multiple Worldcoin grant WorldID proofs into a single, succinct proof. The circuits are developed in Rust using Halo2. The smart contracts are designed to be called back by AxiomV2Query after it has verified the proofs.
 
 The proof aggregation enables a more cost-effective distribution of the grant.
 
@@ -46,32 +46,49 @@ The contract has a constant `MAX_NUM_CLAIMS` which is always equal to `MAX_PROOF
 
 The `axiomResults` array must have `4 + 2 * MAX_NUM_CLAIMS` items. The expected results to be returned from the Axiom query are:
 
-axiomResults[0]: vkeyHash
-axiomResults[1]: grantId
-axiomResults[2]: root
-axiomResults[3]: numClaims
-axiomResults[idx] for idx in [4, 4 + numClaims): receivers
-axiomResults[idx] for idx in [4 + MAX_NUM_CLAIMS, 4 + MAX_NUM_CLAIMS + numClaims): claimedNullifierHashes
+```
+- axiomResults[0]: vkeyHash
+- axiomResults[1]: grantId
+- axiomResults[2]: root
+- axiomResults[3]: numClaims
+- axiomResults[idx] for idx in [4, 4 + numClaims): receivers
+- axiomResults[idx] for idx in [4 + MAX_NUM_CLAIMS, 4 + MAX_NUM_CLAIMS + numClaims): claimedNullifierHashes
+```
 
 The SNARK verification proves two statements in zk:
 
 1. The `receiver`s and associated `claimedNullifierHashes` have valid WorldID proofs for the grant (Axiom subquery).
 2. The `vkeyHash`, `grantId`, and `root` are associated with the `receiver`'s specific proof (client circuit).
 
-#### Insufficient WLD Balance on Batch Claims
+#### Insufficient `WLD` Balance on Batch Claims
 
-If during a batch claim, the contract does not contain sufficient WLD to service the entire batch, the tx will be reverted. This was done for the simplicity of a re-execution after a balance top-off (instead of reconstructing a new proof for the unprocessed subset of the batch).
+If during a batch claim, the contract does not contain sufficient `WLD` to service the entire batch, the tx will be reverted. This was done for the simplicity of a re-execution after a balance top-off (instead of reconstructing a new proof for the unprocessed subset of the batch).
 
 ### `WorldcoinAggregationV2.sol`
 
-V2 of the aggregation contract implements a two-step process to distribute the grant. The SNARK verification callback will only commit a root for the receivers the prove against. This root is of a tree with leaves `abi.encodePacked(address(receiver), bytes32(nullifierHash))`. Once the commitment is complete, the burden is on the receiver (or someone their behalf) to prove into the root and transfer the grant to the receiver.
+V2 of the aggregation contract implements a two-step process to distribute the grant. The SNARK verification callback will only commit a root for the receivers to prove against. This root is of a tree with leaves `abi.encodePacked(address(receiver), bytes32(nullifierHash))`. Once the commitment is complete, the burden is on the receiver (or someone their behalf) to prove into the root and transfer the grant to the receiver.
+
+The Axiom callback provides the contract with the public outputs of the SNARK verification through `axiomResults`.
+
+```solidity
+function _axiomV2Callback(
+        uint64, // sourceChainId,
+        address, // caller,
+        bytes32, // querySchema,
+        uint256, // queryId,
+        bytes32[] calldata axiomResults,
+        bytes calldata // extraData
+    ) internal override
+```
 
 The `axiomResults` array must have 4 items. The expected results to be returned from the Axiom query are:
 
-axiomResults[0]: vkeyHash
-axiomResults[1]: grantId
-axiomResults[2]: root
-axiomResults[3]: claimsRoot
+```
+- axiomResults[0]: vkeyHash
+- axiomResults[1]: grantId
+- axiomResults[2]: root
+- axiomResults[3]: claimsRoot
+```
 
 The SNARK verification proves two statements in zk:
 
@@ -117,7 +134,7 @@ cd worldcoin-aggregation
 cp .env.example .env
 ```
 
-To run the tests, fill in .env with your PROVIDER_URI_11155111. This must be a Sepolia RPC.
+To run the tests, fill in `.env` with your `PROVIDER_URI_11155111`. This must be a Sepolia RPC.
 
 Run the tests with
 
