@@ -14,7 +14,7 @@ import { IGrant } from "./interfaces/IGrant.sol";
 ///
 /// @dev If there is not enough WLD balance in the contract to service the
 /// entire batch being verified, the entire batch will be reverted.
-contract WorldcoinAggregation is AxiomV2Client {
+contract WorldcoinAggregationV1 is AxiomV2Client {
     /// @dev The unique identifier of the circuit accepted by this contract.
     bytes32 public immutable QUERY_SCHEMA;
 

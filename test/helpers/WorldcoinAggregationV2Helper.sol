@@ -53,8 +53,8 @@ contract WorldcoinAggregationV2Exposed is WorldcoinAggregationV2 {
     }
 }
 
-/// @dev For the V2 test, the claiming process involves submitting a merkle
-/// proof. The leaves for this merkle tree are determined by
+/// @dev For the V2 test, the claiming process involves submitting a Merkle
+/// proof. The leaves for this Merkle tree are determined by
 /// `abi.encodePacked(address(receiver), bytes32(nullifierHash))`. All leaves of
 /// the tree must be filled to `maxNumClaims`. Empty leaves will be filled with
 /// `abi.encodePacked(address(0), bytes32(0))`. This test will use the

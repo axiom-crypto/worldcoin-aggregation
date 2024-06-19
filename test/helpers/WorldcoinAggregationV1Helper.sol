@@ -4,12 +4,12 @@ pragma solidity ^0.8.19;
 import { AxiomTest } from "@axiom-crypto/axiom-std/AxiomTest.sol";
 
 import { toString } from "./Utils.sol";
-import { WorldcoinAggregation } from "../../src/WorldcoinAggregation.sol";
+import { WorldcoinAggregationV1 } from "../../src/WorldcoinAggregationV1.sol";
 import { WLDGrant } from "./WLDGrant.sol";
 
 import { stdJson as StdJson } from "forge-std/Test.sol";
 
-contract WorldcoinAggregationExposed is WorldcoinAggregation {
+contract WorldcoinAggregationV1Exposed is WorldcoinAggregationV1 {
     constructor(
         address axiomV2QueryAddress,
         uint64 callbackSourceChainId,
@@ -20,7 +20,7 @@ contract WorldcoinAggregationExposed is WorldcoinAggregation {
         address rootValidator,
         address grant
     )
-        WorldcoinAggregation(
+        WorldcoinAggregationV1(
             axiomV2QueryAddress,
             callbackSourceChainId,
             querySchema,
@@ -41,14 +41,14 @@ contract WorldcoinAggregationExposed is WorldcoinAggregation {
     }
 }
 
-contract WorldcoinAggregationHelper is AxiomTest {
+contract WorldcoinAggregationV1Helper is AxiomTest {
     using StdJson for string;
 
     struct AxiomInput {
         bytes32 e;
     }
 
-    WorldcoinAggregationExposed aggregation;
+    WorldcoinAggregationV1Exposed aggregation;
     WLDGrant mockGrant;
     bytes32 querySchema;
 
@@ -78,7 +78,7 @@ contract WorldcoinAggregationHelper is AxiomTest {
         maxNumClaims = 16;
 
         mockGrant = new WLDGrant();
-        aggregation = new WorldcoinAggregationExposed({
+        aggregation = new WorldcoinAggregationV1Exposed({
             axiomV2QueryAddress: axiomV2QueryAddress,
             callbackSourceChainId: uint64(block.chainid),
             querySchema: querySchema,

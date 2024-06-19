@@ -4,14 +4,14 @@ pragma solidity ^0.8.19;
 import { Axiom, Query, FulfillCallbackArgs } from "@axiom-crypto/axiom-std/AxiomVm.sol";
 import { IAxiomV2Client } from "@axiom-crypto/v2-periphery/interfaces/client/IAxiomV2Client.sol";
 
-import { WorldcoinAggregationHelper } from "./helpers/WorldcoinAggregationHelper.sol";
+import { WorldcoinAggregationV1Helper } from "./helpers/WorldcoinAggregationV1Helper.sol";
 import { IERC20 } from "../src/interfaces/IERC20.sol";
-import { WorldcoinAggregation } from "../src/WorldcoinAggregation.sol";
+import { WorldcoinAggregationV1 } from "../src/WorldcoinAggregationV1.sol";
 import { IGrant } from "../src/interfaces/IGrant.sol";
 
 using Axiom for Query;
 
-contract WorldcoinAggregation_Test is WorldcoinAggregationHelper {
+contract WorldcoinAggregationV1_Test is WorldcoinAggregationV1Helper {
     function test_simpleExample() public {
         // create a query into Axiom with default parameters
         Query memory q = query(querySchema, "", address(aggregation));
@@ -98,9 +98,9 @@ contract WorldcoinAggregation_Test is WorldcoinAggregationHelper {
     }
 }
 
-contract WorldcoinAggregation_ConstructionTest is WorldcoinAggregationHelper {
+contract WorldcoinAggregationV1_ConstructionTest is WorldcoinAggregationV1Helper {
     function test_construction() public {
-        new WorldcoinAggregation({
+        new WorldcoinAggregationV1({
             axiomV2QueryAddress: axiomV2QueryAddress,
             callbackSourceChainId: uint64(block.chainid),
             querySchema: querySchema,
@@ -114,7 +114,7 @@ contract WorldcoinAggregation_ConstructionTest is WorldcoinAggregationHelper {
     }
 }
 
-contract WorldcoinAggregation_RevertTest is WorldcoinAggregationHelper {
+contract WorldcoinAggregationV1_RevertTest is WorldcoinAggregationV1Helper {
     FulfillCallbackArgs args;
 
     function setUp() public override {
@@ -134,7 +134,7 @@ contract WorldcoinAggregation_RevertTest is WorldcoinAggregationHelper {
     }
 
     function test_RevertWhen_sourceChainIdNotMatching() public {
-        vm.expectRevert(WorldcoinAggregation.SourceChainIdNotMatching.selector);
+        vm.expectRevert(WorldcoinAggregationV1.SourceChainIdNotMatching.selector);
         IAxiomV2Client(aggregation).axiomV2Callback({
             sourceChainId: args.sourceChainId >> 1,
             caller: args.caller,
@@ -146,7 +146,7 @@ contract WorldcoinAggregation_RevertTest is WorldcoinAggregationHelper {
     }
 
     function test_RevertWhen_invalidQuerySchema() public {
-        vm.expectRevert(WorldcoinAggregation.InvalidQuerySchema.selector);
+        vm.expectRevert(WorldcoinAggregationV1.InvalidQuerySchema.selector);
         IAxiomV2Client(aggregation).axiomV2Callback({
             sourceChainId: args.sourceChainId,
             caller: args.caller,
@@ -160,7 +160,7 @@ contract WorldcoinAggregation_RevertTest is WorldcoinAggregationHelper {
     function test_RevertWhen_invalidNumberOfResults() public {
         bytes32[] memory results = new bytes32[](0);
 
-        vm.expectRevert(WorldcoinAggregation.InvalidNumberOfResults.selector);
+        vm.expectRevert(WorldcoinAggregationV1.InvalidNumberOfResults.selector);
         IAxiomV2Client(aggregation).axiomV2Callback({
             sourceChainId: args.sourceChainId,
             caller: args.caller,
@@ -174,7 +174,7 @@ contract WorldcoinAggregation_RevertTest is WorldcoinAggregationHelper {
     function test_RevertWhen_invalidVkeyHash() public {
         args.axiomResults[0] = bytes32(0);
 
-        vm.expectRevert(WorldcoinAggregation.InvalidVkeyHash.selector);
+        vm.expectRevert(WorldcoinAggregationV1.InvalidVkeyHash.selector);
         IAxiomV2Client(aggregation).axiomV2Callback({
             sourceChainId: args.sourceChainId,
             caller: args.caller,
@@ -222,7 +222,7 @@ contract WorldcoinAggregation_RevertTest is WorldcoinAggregationHelper {
         vm.stopPrank();
 
         vm.prank(axiomV2QueryAddress);
-        vm.expectRevert(WorldcoinAggregation.InsufficientBalance.selector);
+        vm.expectRevert(WorldcoinAggregationV1.InsufficientBalance.selector);
         IAxiomV2Client(aggregation).axiomV2Callback({
             sourceChainId: args.sourceChainId,
             caller: args.caller,
@@ -236,7 +236,7 @@ contract WorldcoinAggregation_RevertTest is WorldcoinAggregationHelper {
     function test_RevertWhen_tooManyClaims() public {
         args.axiomResults[3] = bytes32(maxNumClaims + 1);
 
-        vm.expectRevert(WorldcoinAggregation.TooManyClaims.selector);
+        vm.expectRevert(WorldcoinAggregationV1.TooManyClaims.selector);
         IAxiomV2Client(aggregation).axiomV2Callback({
             sourceChainId: args.sourceChainId,
             caller: args.caller,
