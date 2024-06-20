@@ -61,7 +61,7 @@ V2 circuit verifies the WorldId Groth16 proofs in batch, and exposes the followi
 
 The public output size is constant 4.
 
-Similary to V1, there is a value `max_proofs` to can be configured.
+Similarly to V1, there is a value `max_proofs` to can be configured.
 
 ### CLI
 ```

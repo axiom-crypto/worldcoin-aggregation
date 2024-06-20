@@ -83,7 +83,7 @@ fn get_pub_string(root: &str, grant_id: &str, claim: &ClaimNative) -> String {
 
 fn get_signal_hash(receiver: &Address) -> U256 {
     // solidity:  uint256(keccak256(abi.encodePacked(receiver))) >> 8
-    // NOTE: ethers Address is case in-sensitive and the checksumed address string
+    // NOTE: ethers Address is case in-sensitive and the checksummed address string
     // will be parsed into lowercase. So the signal_hash is always from lowercase
     // address, make sure the proof public input is also from lowercased address
     let receiver_bytes = receiver.as_bytes();
