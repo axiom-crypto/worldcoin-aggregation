@@ -42,20 +42,23 @@ pub struct WorldcoinNativeInput {
     pub root: String,
     pub grant_id: String,
     pub num_proofs: usize,
+    pub max_proofs: usize,
     pub claims: Vec<ClaimNative>,
 }
 
-impl From<WorldcoinNativeInput> for WorldcoinInput<Fr, MAX_PROOFS> {
+impl From<WorldcoinNativeInput> for WorldcoinInput<Fr> {
     fn from(input: WorldcoinNativeInput) -> Self {
         let WorldcoinNativeInput {
             vk,
             root,
             grant_id,
             num_proofs,
+            max_proofs,
             claims,
         } = input;
         let vk_str = serde_json::to_string(&vk).unwrap();
-        WorldcoinInput::new(vk_str, root, grant_id, num_proofs, claims)
+
+        WorldcoinInput::new(vk_str, root, grant_id, num_proofs, max_proofs, claims)
     }
 }
 
@@ -80,6 +83,9 @@ fn get_pub_string(root: &str, grant_id: &str, claim: &ClaimNative) -> String {
 
 fn get_signal_hash(receiver: &Address) -> U256 {
     // solidity:  uint256(keccak256(abi.encodePacked(receiver))) >> 8
+    // NOTE: ethers Address is case in-sensitive and the checksumed address string
+    // will be parsed into lowercase. So the signal_hash is always from lowercase
+    // address, make sure the proof public input is also from lowercased address
     let receiver_bytes = receiver.as_bytes();
     let keccak_hash = keccak256(receiver_bytes);
     U256::from_big_endian(&keccak_hash) >> 8
@@ -93,26 +99,28 @@ pub struct WorldcoinGroth16Input<T: Copy> {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct WorldcoinInput<T: Copy, const MAX_PROOFS: usize> {
+pub struct WorldcoinInput<T: Copy> {
     pub root: T,
     pub grant_id: T,
     pub num_proofs: T,
     pub receivers: Vec<T>,
     pub groth16_inputs: Vec<WorldcoinGroth16Input<T>>,
+    pub max_proofs: usize,
 }
 
-impl<const MAX_PROOFS: usize> WorldcoinInput<Fr, MAX_PROOFS> {
+impl WorldcoinInput<Fr> {
     pub fn new(
         vk_str: String,
         root: String,
         grant_id: String,
         num_proofs: usize,
+        max_proofs: usize,
         claims: Vec<ClaimNative>,
     ) -> Self {
-        assert!(MAX_PROOFS.is_power_of_two());
+        assert!(max_proofs.is_power_of_two());
         assert!(claims.len() == num_proofs);
         assert!(num_proofs > 0);
-        assert!(num_proofs <= MAX_PROOFS);
+        assert!(num_proofs <= max_proofs);
 
         let mut pf_strings: Vec<String> = Vec::new();
         let mut pub_strings: Vec<String> = Vec::new();
@@ -127,15 +135,15 @@ impl<const MAX_PROOFS: usize> WorldcoinInput<Fr, MAX_PROOFS> {
             receivers_native.push(claims[_i].receiver);
         }
 
-        pf_strings.resize(MAX_PROOFS, pf_strings[0].clone());
-        pub_strings.resize(MAX_PROOFS, pub_strings[0].clone());
-        receivers_native.resize(MAX_PROOFS, receivers_native[0].clone());
+        pf_strings.resize(max_proofs, pf_strings[0].clone());
+        pub_strings.resize(max_proofs, pub_strings[0].clone());
+        receivers_native.resize(max_proofs, receivers_native[0].clone());
 
         let mut groth16_inputs = Vec::new();
 
         // Currently vk parsing is coupled with pf and pub, we should refactor
         // to have a separate function for parsing vk
-        for _i in 0..MAX_PROOFS {
+        for _i in 0..max_proofs {
             let groth16_input: Groth16Input<Fr> = parse_groth16_input(
                 vk_str.clone(),
                 pf_strings[_i].clone(),
@@ -162,16 +170,23 @@ impl<const MAX_PROOFS: usize> WorldcoinInput<Fr, MAX_PROOFS> {
             grant_id: grant_id_fe,
             receivers,
             num_proofs: Fr::from(num_proofs as u64),
+            max_proofs,
             groth16_inputs,
         }
     }
 }
 
-impl<T: Copy, const MAX_PROOFS: usize> InputFlatten<T> for WorldcoinInput<T, MAX_PROOFS> {
-    const NUM_FE: usize = 3 + MAX_PROOFS + MAX_PROOFS * NUM_FE_GROTH16_INPUT;
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct WorldcoinInputCoreParams {
+    pub max_proofs: usize,
+}
+
+impl<T: Copy> InputFlatten<T> for WorldcoinInput<T> {
+    type Params = WorldcoinInputCoreParams;
+    const NUM_FE: usize = 0;
 
     fn flatten_vec(&self) -> Vec<T> {
-        let mut flattened_vec = Vec::with_capacity(Self::NUM_FE);
+        let mut flattened_vec = Vec::new();
         flattened_vec.push(self.root);
         flattened_vec.push(self.grant_id);
         flattened_vec.push(self.num_proofs);
@@ -186,18 +201,20 @@ impl<T: Copy, const MAX_PROOFS: usize> InputFlatten<T> for WorldcoinInput<T, MAX
         flattened_vec
     }
 
-    fn unflatten(vec: Vec<T>) -> anyhow::Result<Self> {
+    fn unflatten_with_params(vec: Vec<T>, params: Self::Params) -> anyhow::Result<Self> {
         let mut index = 0;
         let root = vec[index];
         let grant_id = vec[index + 1];
         let num_proofs = vec[index + 2];
         index += 3;
 
-        let receivers = vec[index..index + MAX_PROOFS].to_vec();
-        index += MAX_PROOFS;
+        let max_proofs = params.max_proofs;
 
-        let mut groth16_inputs = Vec::with_capacity(MAX_PROOFS);
-        for _ in 0..MAX_PROOFS {
+        let receivers = vec[index..index + max_proofs].to_vec();
+        index += max_proofs;
+
+        let mut groth16_inputs = Vec::with_capacity(max_proofs);
+        for _ in 0..max_proofs {
             let worldcoin_groth_16_input = WorldcoinGroth16Input {
                 vkey_bytes: vec[index..index + NUM_FE_VKEY].to_vec(),
                 proof_bytes: vec[index + NUM_FE_VKEY..index + NUM_FE_VKEY + NUM_FE_PROOF].to_vec(),
@@ -216,7 +233,12 @@ impl<T: Copy, const MAX_PROOFS: usize> InputFlatten<T> for WorldcoinInput<T, MAX
             grant_id,
             receivers,
             num_proofs,
+            max_proofs,
             groth16_inputs,
         })
+    }
+
+    fn unflatten(vec: Vec<T>) -> anyhow::Result<Self> {
+        unimplemented!()
     }
 }

@@ -14,5 +14,8 @@
     "lookup_bits": 21
   },
   "max_subqueries": 384,
-  "max_outputs": 4
+  "max_outputs": 4,
+  "core_params": {
+    "max_proofs": 128
+  }
 }

@@ -12,5 +12,8 @@
     "num_lookup_advice": 2,
     "num_fixed": 1,
     "lookup_bits": 17
+  },
+  "core_params": {
+    "max_proofs": 16 
   }
 }

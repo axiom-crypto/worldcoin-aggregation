@@ -17,21 +17,16 @@ use halo2curves::bn256::Fr;
 use crate::{
     circuit_v1::WorldcoinV1Circuit,
     circuit_v2::WorldcoinV2Circuit,
-    constants::MAX_PROOFS,
-    types::{WorldcoinInput, WorldcoinNativeInput},
+    types::{WorldcoinInput, WorldcoinInputCoreParams, WorldcoinNativeInput},
 };
 
-pub fn parse_input_from_path(path: String) -> WorldcoinInput<Fr, MAX_PROOFS> {
+pub fn parse_input_from_path(path: String) -> WorldcoinInput<Fr> {
     let worldcoin_input: WorldcoinNativeInput =
         serde_json::from_reader(File::open(path.clone()).expect("path does not exist")).unwrap();
     worldcoin_input.into()
 }
 
-pub fn mock_test(
-    input: WorldcoinInput<Fr, MAX_PROOFS>,
-    should_fail: bool,
-    version: &str,
-) -> Option<Vec<Fr>> {
+pub fn mock_test(input: WorldcoinInput<Fr>, should_fail: bool, version: &str) -> Option<Vec<Fr>> {
     let params = RlcKeccakCircuitParams {
         rlc: RlcCircuitParams {
             base: BaseCircuitParams {
@@ -53,12 +48,14 @@ pub fn mock_test(
             client,
             AxiomCircuitParams::Keccak(params),
             Some(input),
+            WorldcoinInputCoreParams { max_proofs: 16 },
         )
     } else {
         mock_with_output::<_, WorldcoinV2Circuit>(
             client,
             AxiomCircuitParams::Keccak(params),
             Some(input),
+            WorldcoinInputCoreParams { max_proofs: 16 },
         )
     };
     assert_eq!((output == None), should_fail);
@@ -79,8 +76,11 @@ pub fn mock_with_output<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>
     provider: Provider<P>,
     raw_circuit_params: AxiomCircuitParams,
     inputs: Option<S::InputValue>,
+    params: S::CoreParams,
 ) -> Option<Vec<Vec<Fr>>> {
-    let mut runner = AxiomCircuit::<_, _, S>::new(provider, raw_circuit_params).use_inputs(inputs);
+    let mut runner = AxiomCircuit::<_, _, S>::new(provider, raw_circuit_params)
+        .use_inputs(inputs)
+        .use_core_params(params);
     let instances = runner.instances();
 
     runner.calculate_params();
