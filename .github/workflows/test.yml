@@ -48,9 +48,6 @@ jobs:
       - name: Check forge tree
         run: forge tree
 
-      - name: Install NPM packages
-        run: npm install
-
       - name: Run Foundry tests
         run: |
           export PROVIDER_URI_1=${{ secrets.PROVIDER_URI_1 }}

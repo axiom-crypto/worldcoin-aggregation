@@ -2,7 +2,6 @@ use crate::constants::*;
 use crate::types::WorldcoinInput;
 use ethers::providers::JsonRpcClient;
 use std::{
-    convert::TryInto,
     fmt::Debug,
     sync::{Arc, Mutex},
 };
@@ -133,7 +132,7 @@ pub fn compute_keccak_merkle_tree<P: JsonRpcClient, F: Field>(
     leaves: Vec<HiLo<AssignedValue<F>>>,
 ) -> Vec<HiLo<AssignedValue<F>>> {
     let len = leaves.len();
-    // Also implict len > 0
+    // Also implicit len > 0
     assert!(len.is_power_of_two());
     if len == 1 {
         return leaves;

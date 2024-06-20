@@ -7,6 +7,11 @@ import { IERC20 } from "./interfaces/IERC20.sol";
 import { IRootValidator } from "./interfaces/IRootValidator.sol";
 import { IGrant } from "./interfaces/IGrant.sol";
 
+/// @notice V2 of the aggregation contract implements a two-step process to
+/// distribute the grant. The SNARK verification callback will only commit a
+/// root for the receivers the prove against. Once the commitment is complete,
+/// the burden is on the receiver (or someone their behalf) to prove into the
+/// root and transfer the grant to the receiver.
 contract WorldcoinAggregationV2 is AxiomV2Client {
     /// @dev The unique identifier of the circuit accepted by this contract.
     bytes32 immutable QUERY_SCHEMA;
