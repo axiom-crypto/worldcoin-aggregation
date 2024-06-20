@@ -176,9 +176,15 @@ impl WorldcoinInput<Fr> {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorldcoinInputCoreParams {
     pub max_proofs: usize,
+}
+
+impl Default for WorldcoinInputCoreParams {
+    fn default() -> Self {
+        Self { max_proofs: 16 }
+    }
 }
 
 impl<T: Copy> InputFlatten<T> for WorldcoinInput<T> {
