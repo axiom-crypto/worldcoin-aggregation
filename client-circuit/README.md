@@ -39,6 +39,13 @@ The public output size is 4 + 2 * max_proofs
 There is a value `max_proofs` which can be configured.
 The circuit supports up to `max_proofs` claims. As a convenience to the user, fewer than `max_proofs` claims can be submitted to the prover binary and the binary will appropriately pad to satisfy the circuit.
 
+The client circuit constraints
+```
+- num_proofs to be in the range of (0, max_proofs]
+- vkeyHash to be the Keccak hash of the given vkey
+- each WorldID proof to be a valid Groth16 proof with the given vkey, and [root, nullfierHash, signalHash, grantId] as public inputs where signalHash = uint256(keccak256(abi.encodePacked(receiver))) >> 8
+```
+
 ### CLI
 Generate pk and vk for the client circuit
 
@@ -62,6 +69,14 @@ V2 circuit verifies the WorldID Groth16 proofs in batch, and exposes the followi
 The public output size is constant 4.
 
 Similarly to V1, there is a value `max_proofs` which can be configured.
+
+The client circuit constraints
+```
+- num_proofs to be in the range of (0, max_proofs]
+- vkeyHash to be the Keccak hash of the given vkey
+- each WorldID proof to be a valid Groth16 proof with the given vkey, and [root, nullfierHash, signalHash, grantId] as public inputs where signalHash = uint256(keccak256(abi.encodePacked(receiver))) >> 8
+- claiimRoot to be the Keccak Merkle root of the tree whose leaves are keccak256(abi.encodePacked(receiver_i, nullifierHash_i)). Leaves with indices greater than num_proofs - 1 are given by keccak256(abi.encodePacked(address(0), bytes32(0)))
+```
 
 ### CLI
 ```
