@@ -6,3 +6,5 @@ pub mod mock_test;
 pub mod test;
 pub mod types;
 pub mod utils;
+pub mod world_id_balance_circuit;
+pub mod world_id_balance_types;
