@@ -62,7 +62,7 @@ impl From<WorldcoinNativeInput> for WorldcoinInput<Fr> {
     }
 }
 
-fn get_pf_string(proof: &[String]) -> String {
+pub fn get_pf_string(proof: &[String]) -> String {
     json!({
         "pi_a": [proof[0], proof[1], "1"],
         // Note proof[2] and proof[3] are swapped
@@ -76,18 +76,22 @@ fn get_pf_string(proof: &[String]) -> String {
     .to_string()
 }
 
-fn get_pub_string(root: &str, grant_id: &str, claim: &ClaimNative) -> String {
-    let signal_hash = get_signal_hash(&claim.receiver).to_string();
-    json!([root, claim.nullifier_hash, signal_hash, grant_id]).to_string()
+pub fn get_pub_string(
+    root: &str,
+    external_nullifier_hash: &str,
+    nullfiier_hash: &str,
+    signal: &Address,
+) -> String {
+    let signal_hash = get_signal_hash(signal).to_string();
+    json!([root, nullfiier_hash, signal_hash, external_nullifier_hash]).to_string()
 }
 
-fn get_signal_hash(receiver: &Address) -> U256 {
-    // solidity:  uint256(keccak256(abi.encodePacked(receiver))) >> 8
+pub fn get_signal_hash(signal: &Address) -> U256 {
+    // solidity:  uint256(keccak256(abi.encodePacked(signal))) >> 8
     // NOTE: ethers Address is case in-sensitive and the checksummed address string
     // will be parsed into lowercase. So the signal_hash is always from lowercase
     // address, make sure the proof public input is also from lowercased address
-    let receiver_bytes = receiver.as_bytes();
-    let keccak_hash = keccak256(receiver_bytes);
+    let keccak_hash = keccak256(signal.as_bytes());
     U256::from_big_endian(&keccak_hash) >> 8
 }
 
@@ -129,7 +133,12 @@ impl WorldcoinInput<Fr> {
 
         for _i in 0..num_proofs {
             let pf_string = get_pf_string(&claims[_i].proof);
-            let pub_string = get_pub_string(&root, &grant_id, &claims[_i]);
+            let pub_string = get_pub_string(
+                &root,
+                &grant_id,
+                &claims[_i].nullifier_hash,
+                &claims[_i].receiver,
+            );
             pf_strings.push(pf_string);
             pub_strings.push(pub_string);
             receivers_native.push(claims[_i].receiver);
