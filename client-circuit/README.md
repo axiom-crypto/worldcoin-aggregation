@@ -25,7 +25,7 @@ Client circuits for Worldcoin Groth16 verification aggregation.
 ```
 
 ## V1 circuit
-V1 circuit verifies the WorldId Groth16 proofs in batch, and exposes the following public outputs
+V1 circuit verifies the WorldID Groth16 proofs in batch, and exposes the following public outputs
 
 - vkeyHash - the Keccak hash of the flattened vk
 - grantId
@@ -36,7 +36,7 @@ V1 circuit verifies the WorldId Groth16 proofs in batch, and exposes the followi
 
 The public output size is 4 + 2 * max_proofs
 
-There is a value `max_proofs` to can be configured.
+There is a value `max_proofs` which can be configured.
 The circuit supports up to `max_proofs` claims. As a convenience to the user, fewer than `max_proofs` claims can be submitted to the prover binary and the binary will appropriately pad to satisfy the circuit.
 
 ### CLI
@@ -45,13 +45,13 @@ Generate pk and vk for the client circuit
 ```
 cargo run --release --bin run_v1_circuit -- --input data/worldcoin_input.json --aggregate --auto-config-aggregation -c configs/config_16.json keygen
 ```
-Generate proof, and creates output.json and output.snark under data/, output.json is the input for backend system
+Generate proof and create `output.json` and `output.snark` under `data/`. Here `output.json` is the input used for our internal backend.
 ```
 cargo run --release --bin run_v1_circuit -- --input data/worldcoin_input.json --aggregate --auto-config-aggregation -c configs/config_16.json run
 ```
 
 ## V2 circuit
-V2 circuit verifies the WorldId Groth16 proofs in batch, and exposes the following public outputs
+V2 circuit verifies the WorldID Groth16 proofs in batch, and exposes the following public outputs
 
 - vkeyHash – the Keccak hash of the flattened vk
 - grantId
@@ -61,7 +61,7 @@ V2 circuit verifies the WorldId Groth16 proofs in batch, and exposes the followi
 
 The public output size is constant 4.
 
-Similarly to V1, there is a value `max_proofs` to can be configured.
+Similarly to V1, there is a value `max_proofs` which can be configured.
 
 ### CLI
 ```
@@ -72,7 +72,7 @@ cargo run --release --bin run_v2_circuit -- --input data/worldcoin_input.json --
 
 ## Configurations
 ### max proof size
-Configure max proof size (batch size of verifications) by choosing between setting the `max_proofs` value in the input json, check `data/worldcoin_input.json` as an example.
+Configure max proof size (batch size of verifications) by setting the `max_proofs` value in the input json, check `data/worldcoin_input.json` as an example.
 ### config.json
 The config json will need to be adjusted for different batch sizes, mainly `k`, `lookup_bits`, `agg_params.degree`, `agg_params.lookup_bits`, `max_subqueries` (=3*max_proofs), `max_output`, `core_params.max_proofs`. You can find existing configs in `./configs`. The `core_params.max_proofs` value should be consistent with the one in input json.
 

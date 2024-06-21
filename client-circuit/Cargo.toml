@@ -19,12 +19,3 @@ halo2curves = "0.6.1"
 axiom-query = "2.0.17"
 env_logger = "0.11.3"
 
-
-[features]
-default = ["max_proofs_16"]
-max_proofs_16 = []
-max_proofs_128 = []
-max_proofs_512 = []
-max_proofs_1024 = []
-max_proofs_8192 = []
-
