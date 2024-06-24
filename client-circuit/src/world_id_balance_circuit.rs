@@ -60,6 +60,7 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldIdBalanceCi
         let zero = ctx.load_zero();
         let one = ctx.load_constant(F::ONE);
 
+        // constrain num_proofs
         let max_proofs = params.max_proofs;
         range.check_less_than(ctx, zero, assigned_inputs.num_proofs, 64);
         let max_proofs_plus_one = ctx.load_constant(F::from((max_proofs + 1) as u64));
@@ -82,6 +83,7 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldIdBalanceCi
         let mut address_vec: Vec<HiLo<AssignedValue<F>>> = Vec::new();
         let mut nullifier_hash_vec: Vec<HiLo<AssignedValue<F>>> = Vec::new();
 
+        // verify groth 16 proofs
         for i in 0..max_proofs {
             let assigned_groth16_input = &assigned_inputs.groth16_inputs[i];
             let public_inputs = &assigned_groth16_input.public_inputs;
@@ -131,6 +133,7 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldIdBalanceCi
             &assigned_inputs.signatures,
             &assigned_inputs.addresses,
         );
+
         let addrs: Vec<AssignedValue<F>> = assigned_inputs
             .pubkeys
             .iter()
@@ -141,17 +144,28 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldIdBalanceCi
         }
 
         let field_constant = ctx.load_constant(F::from(AccountField::Balance as u64));
-        let subquery = AssignedAccountSubquery {
-            block_number: assigned_inputs.block_number,
-            addr: assigned_inputs.addresses[0],
-            field_idx: field_constant,
-        };
-
-        let balance_at_block = subquery_caller.lock().unwrap().call(ctx, subquery);
-        let balance_at_block = from_hi_lo(ctx, range, balance_at_block);
         let one_ether = F::from(10u64.pow(18));
         let one_ether = ctx.load_constant(one_ether);
-        range.check_less_than(ctx, one_ether, balance_at_block, 87);
+
+        let balances: Vec<AssignedValue<F>> = assigned_inputs
+            .addresses
+            .iter()
+            .map(|addr| {
+                let subquery = AssignedAccountSubquery {
+                    block_number: assigned_inputs.block_number,
+                    addr: *addr,
+                    field_idx: field_constant,
+                };
+
+                let balance_at_block = subquery_caller.lock().unwrap().call(ctx, subquery);
+                from_hi_lo(ctx, range, balance_at_block)
+            })
+            .collect();
+
+        for i in 0..max_proofs {
+            // 87 bits can represent 21 million eth * 10^18
+            range.check_less_than(ctx, one_ether, balances[i], 87);
+        }
     }
 }
 
@@ -216,5 +230,4 @@ pub fn verify_signatures<P: JsonRpcClient, F: Field>(
         let result = subquery_caller.lock().unwrap().call(ctx, subquery);
         ctx.constrain_equal(&result.lo(), &one);
     }
-    // I MUST VERIFY PUBKEY AGAINST ADDRESS
 }

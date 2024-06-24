@@ -39,7 +39,7 @@ The public output size is 4 + 2 * max_proofs
 There is a value `max_proofs` which can be configured.
 The circuit supports up to `max_proofs` claims. As a convenience to the user, fewer than `max_proofs` claims can be submitted to the prover binary and the binary will appropriately pad to satisfy the circuit.
 
-The client circuit constraints
+The client circuit constrains
 ```
 - num_proofs to be in the range of (0, max_proofs]
 - vkeyHash to be the Keccak hash of the given vkey
@@ -70,7 +70,7 @@ The public output size is constant 4.
 
 Similarly to V1, there is a value `max_proofs` which can be configured.
 
-The client circuit constraints
+The client circuit constrains
 ```
 - num_proofs to be in the range of (0, max_proofs]
 - vkeyHash to be the Keccak hash of the given vkey
@@ -84,6 +84,42 @@ cargo run --release --bin run_v2_circuit -- --input data/worldcoin_input.json --
 
 cargo run --release --bin run_v2_circuit -- --input data/worldcoin_input.json --aggregate --auto-config-aggregation -c configs/config_16.json run
 ```
+
+## World ID balance circuit
+World ID balance circuit verifies the following statement in batch: the WorldID user has an Ethereum balance of at least 1 ETH at certain block number, and exposes the following public outputs
+
+- vkeyHash - the Keccak hash of the flattened vk
+- external_nullifier_hash
+- root
+- num_proofs - the number of proofs which we care about the outputs from, should satisfy 1 <= num_proofs <= max_proofs
+- address_i for i = 1, …, max_proofs
+- nullifierHash_i for i = 1, …, max_proofs
+
+The public output size is 4 + 2 * max_proofs
+
+Similarly to V1 & V2, there is a value `max_proofs` which can be configured.
+
+The client circuit constrains
+```
+- num_proofs to be in the range of (0, max_proofs]
+- vkeyHash to be the Keccak hash of the given vkey
+- each WorldID proof to be a valid Groth16 proof with the given vkey, and [root, nullfierHash, signalHash, external_nullifer_hash] as public inputs, where signalHash = uint256(keccak256(abi.encodePacked(address))) >> 8
+- addresses derived from the pubkeys which are recovered from the message_hash and corresponding signatures to match the addresses provided
+- each address has more than 1 ETH balance at the specified block_number
+```
+
+### CLI
+Generate pk and vk for the client circuit
+
+```
+cargo run --release --bin run_world_id_balance -- --input data/world_id_balance.json --aggregate --auto-config-aggregation -c configs/world_id_balance_config_16.json -p <JSON_RPC_URL_SEPOLIA> keygen
+```
+Generate proof and create `output.json` and `output.snark` under `data/`. Here `output.json` is the input used for our internal backend.
+```
+cargo run --release --bin run_world_id_balance -- --input data/world_id_balance.json --aggregate --auto-config-aggregation -c configs/world_id_balance_config_16.json -p <JSON_RPC_URL_SEPOLIA> run
+```
+
+The WorldID proof in `data/world_id_balance.json` is generated using [semaphore-rs](https://github.com/worldcoin/semaphore-rs) with `depth_30` feature flag.
 
 ## Configurations
 ### max proof size
