@@ -1,5 +1,5 @@
 use crate::constants::*;
-use crate::types::WorldcoinInput;
+use crate::types::{WorldcoinInput, WorldcoinInputCoreParams};
 use ethers::providers::JsonRpcClient;
 use std::{
     fmt::Debug,
@@ -32,8 +32,9 @@ use crate::utils::{get_signal_hash, get_vk_hash};
 pub struct WorldcoinV2Circuit;
 
 impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinV2Circuit {
-    type InputValue = WorldcoinInput<F, MAX_PROOFS>;
-    type InputWitness = WorldcoinInput<AssignedValue<F>, MAX_PROOFS>;
+    type InputValue = WorldcoinInput<F>;
+    type InputWitness = WorldcoinInput<AssignedValue<F>>;
+    type CoreParams = WorldcoinInputCoreParams;
 
     type FirstPhasePayload = ();
 
@@ -43,15 +44,16 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinV2Circu
         subquery_caller: Arc<Mutex<SubqueryCaller<P, F>>>,
         callback: &mut Vec<HiLo<AssignedValue<F>>>,
         assigned_inputs: Self::InputWitness,
-        _: Self::CoreParams,
+        params: Self::CoreParams,
     ) -> Self::FirstPhasePayload {
         let ctx = builder.base.main(0);
         let gate = range.gate();
         let zero = ctx.load_zero();
         let one = ctx.load_constant(F::ONE);
 
+        let max_proofs = params.max_proofs;
         range.check_less_than(ctx, zero, assigned_inputs.num_proofs, 64);
-        let max_proofs_plus_one = ctx.load_constant(F::from((MAX_PROOFS + 1) as u64));
+        let max_proofs_plus_one = ctx.load_constant(F::from((max_proofs + 1) as u64));
         range.check_less_than(ctx, assigned_inputs.num_proofs, max_proofs_plus_one, 64);
 
         let vkey_bytes = &assigned_inputs.groth16_inputs[0].vkey_bytes;
@@ -64,11 +66,11 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldcoinV2Circu
         callback.push(to_hi_lo(ctx, range, assigned_inputs.root));
 
         // mask to only take first num_proofs, set all else equal 0
-        let masks = unsafe_lt_mask(ctx, gate, assigned_inputs.num_proofs, MAX_PROOFS);
+        let masks = unsafe_lt_mask(ctx, gate, assigned_inputs.num_proofs, max_proofs);
 
-        let mut leaves = Vec::with_capacity(MAX_PROOFS);
+        let mut leaves = Vec::with_capacity(max_proofs);
 
-        for i in 0..MAX_PROOFS {
+        for i in 0..max_proofs {
             let assigned_groth16_input = &assigned_inputs.groth16_inputs[i];
             let public_inputs = &assigned_groth16_input.public_inputs;
 

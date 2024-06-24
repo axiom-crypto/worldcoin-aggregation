@@ -31,5 +31,4 @@ jobs:
       - name: Test circuit
         working-directory: ./client-circuit
         run: |
-          export PROVIDER_URI=${{ secrets.PROVIDER_URI_11155111 }}
           cargo test
