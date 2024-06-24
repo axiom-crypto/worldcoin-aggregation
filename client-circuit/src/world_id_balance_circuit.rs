@@ -78,7 +78,7 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldIdBalanceCi
         let mut address_vec: Vec<HiLo<AssignedValue<F>>> = Vec::new();
         let mut nullifier_hash_vec: Vec<HiLo<AssignedValue<F>>> = Vec::new();
 
-        // verify groth 16 proofs
+        // verify groth16 proofs
         for i in 0..max_proofs {
             let assigned_groth16_input = &assigned_inputs.groth16_inputs[i];
             let public_inputs = &assigned_groth16_input.public_inputs;
@@ -119,6 +119,7 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldIdBalanceCi
         callback.append(&mut address_vec);
         callback.append(&mut nullifier_hash_vec);
 
+        // constrain the pubkeys to be recovered from message_hash and corresponding signatures
         verify_signatures(
             ctx,
             &assigned_inputs.pubkeys,
@@ -127,11 +128,14 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldIdBalanceCi
             &assigned_inputs.signatures,
         );
 
+        // derive addresses from pubkeys
         let addrs: Vec<AssignedValue<F>> = assigned_inputs
             .pubkeys
             .iter()
             .map(|p| get_addr_from_pubkey(ctx, range, &subquery_caller, *p))
             .collect();
+
+        // constrain the derived addresses to be the same as provided addresses
         for i in 0..addrs.len() {
             ctx.constrain_equal(&addrs[i], &assigned_inputs.addresses[i]);
         }
@@ -155,6 +159,7 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldIdBalanceCi
             })
             .collect();
 
+        // constrain balances to be > 1ETH
         for i in 0..max_proofs {
             // 87 bits can represent 21 million eth * 10^18
             range.check_less_than(ctx, one_ether, balances[i], 87);
@@ -207,7 +212,6 @@ pub fn verify_signatures<P: JsonRpcClient, F: Field>(
     for i in 0..signatures.len() {
         let sig = signatures[i].clone();
         let pubkey = pubkeys[i];
-        // println!("MSG IS {:?}", msg);
         let subquery = ECDSAComponentInput {
             pubkey,
             r: sig.r,
