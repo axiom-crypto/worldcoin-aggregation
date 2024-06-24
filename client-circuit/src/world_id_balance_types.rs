@@ -1,38 +1,30 @@
 use axiom_components::groth16::NUM_FE_PROOF;
 use axiom_eth::utils::encode_addr_to_field;
-use ethers::utils::keccak256;
 use serde::Deserialize;
-use std::{fmt::Debug, vec};
+use std::fmt::Debug;
 
 use axiom_circuit::{
     input::flatten::InputFlatten,
     subquery::groth16::{parse_groth16_input, Groth16Input},
 };
-use axiom_sdk::{
-    halo2_base::{safe_types::FixLenBytesVec, utils::biguint_to_fe, utils::ScalarField},
-    Fr,
-};
+use axiom_sdk::{halo2_base::utils::biguint_to_fe, Fr};
 
-use ethers::{
-    abi::Address,
-    types::{H256, U256},
-};
+use ethers::{abi::Address, types::H256};
 use num_bigint::BigUint;
 use serde::Serialize;
-use serde_json::json;
 use std::str::FromStr;
 
 use crate::constants::*;
-use crate::types::*;
-use crate::utils::*;
+use crate::types::{
+    get_pf_string, get_pub_string, VkNative, WorldcoinGroth16Input, WorldcoinInputCoreParams,
+};
 
 use axiom_eth::halo2curves::{
     ff::{Field as RawField, PrimeField},
     secp256k1::{Fp, Fq, Secp256k1Affine},
 };
 
-use axiom_eth::keccak::promise::KeccakFixLenCall;
-use axiom_eth::utils::{encode_h256_to_hilo, uint_to_bytes_be};
+use axiom_eth::utils::encode_h256_to_hilo;
 use axiom_sdk::HiLo;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -346,7 +338,7 @@ impl<T: Copy> InputFlatten<T> for WorldIdBalanceInput<T> {
         })
     }
 
-    fn unflatten(vec: Vec<T>) -> anyhow::Result<Self> {
+    fn unflatten(_vec: Vec<T>) -> anyhow::Result<Self> {
         unimplemented!()
     }
 }
@@ -414,22 +406,4 @@ pub fn get_pubkey(msghash: &Vec<u8>, sig: &Vec<u8>) -> Secp256k1Affine {
     let Q2 = Secp256k1Affine::from(R * u2);
     let Q = Q1 + Q2;
     Q.into()
-}
-
-pub fn recover_pubkey(message_hash: Vec<u8>, sig: Vec<u8>, receiver: Vec<u8>) {
-    let pubkey = get_pubkey(&message_hash, &sig);
-    let mut bytes = vec![];
-    let mut x_bytes = pubkey.x.to_repr().to_vec();
-    x_bytes.reverse();
-    let mut y_bytes = pubkey.y.to_repr().to_vec();
-    y_bytes.reverse();
-    bytes.append(&mut x_bytes);
-    bytes.append(&mut y_bytes);
-
-    let addr = keccak256(bytes)[12..32].to_vec();
-    println!("The addr is: {:02x?}", addr);
-    println!("Receiver is: {:02x?}", receiver);
-    for i in 0..20 {
-        assert_eq!(addr[i], receiver[i]);
-    }
 }

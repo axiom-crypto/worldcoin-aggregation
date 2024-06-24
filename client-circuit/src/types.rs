@@ -86,7 +86,7 @@ pub fn get_pub_string(
     json!([root, nullfiier_hash, signal_hash, external_nullifier_hash]).to_string()
 }
 
-pub fn get_signal_hash(signal: &Address) -> U256 {
+fn get_signal_hash(signal: &Address) -> U256 {
     // solidity:  uint256(keccak256(abi.encodePacked(signal))) >> 8
     // NOTE: ethers Address is case in-sensitive and the checksummed address string
     // will be parsed into lowercase. So the signal_hash is always from lowercase
@@ -253,7 +253,7 @@ impl<T: Copy> InputFlatten<T> for WorldcoinInput<T> {
         })
     }
 
-    fn unflatten(vec: Vec<T>) -> anyhow::Result<Self> {
+    fn unflatten(_vec: Vec<T>) -> anyhow::Result<Self> {
         unimplemented!()
     }
 }

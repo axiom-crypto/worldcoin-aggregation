@@ -1,4 +1,3 @@
-use crate::types::WorldcoinInput;
 use crate::{constants::*, types::WorldcoinInputCoreParams};
 use ethers::providers::JsonRpcClient;
 use std::{
@@ -17,25 +16,21 @@ use axiom_eth::utils::uint_to_bytes_be;
 use axiom_circuit::subquery::types::ECDSAComponentInput;
 use axiom_eth::keccak::promise::KeccakFixLenCall;
 use axiom_eth::Field;
-use ethers::utils::keccak256;
 
 use axiom_sdk::{
     halo2_base::{
         gates::{GateInstructions, RangeChip, RangeInstructions},
-        safe_types::{FixLenBytesVec, SafeByte, SafeTypeChip},
+        safe_types::FixLenBytesVec,
         utils::ScalarField,
         AssignedValue, Context,
     },
-    subquery::account::Account,
     HiLo,
 };
-
-use halo2curves::ff::PrimeField;
 
 use crate::utils::{get_signal_hash, get_vk_hash};
 use crate::world_id_balance_types::*;
 use axiom_circuit::subquery::types::AssignedAccountSubquery;
-use axiom_sdk::subquery::{self, AccountField};
+use axiom_sdk::subquery::AccountField;
 
 #[derive(Debug, Clone, Default)]
 pub struct WorldIdBalanceCircuit;
@@ -126,12 +121,10 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldIdBalanceCi
 
         verify_signatures(
             ctx,
-            range,
             &assigned_inputs.pubkeys,
             &assigned_inputs.message_hash,
             &subquery_caller,
             &assigned_inputs.signatures,
-            &assigned_inputs.addresses,
         );
 
         let addrs: Vec<AssignedValue<F>> = assigned_inputs
@@ -203,17 +196,12 @@ pub fn get_addr_from_pubkey<F: Field + ScalarField, P: JsonRpcClient>(
 
 pub fn verify_signatures<P: JsonRpcClient, F: Field>(
     ctx: &mut Context<F>,
-    range: &RangeChip<F>,
     pubkeys: &Vec<(HiLo<AssignedValue<F>>, HiLo<AssignedValue<F>>)>,
     message_hash: &HiLo<AssignedValue<F>>,
     subquery_caller: &Arc<Mutex<SubqueryCaller<P, F>>>,
     signatures: &Vec<Signature<AssignedValue<F>>>,
-    addresses: &Vec<AssignedValue<F>>,
 ) {
-    let safe = SafeTypeChip::new(range);
-    let zero = ctx.load_constant(F::ZERO);
     let one = ctx.load_constant(F::ONE);
-    let zero = SafeTypeChip::<'_, F>::unsafe_to_byte(zero);
 
     // verify signatures
     for i in 0..signatures.len() {
