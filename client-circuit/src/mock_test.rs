@@ -3,7 +3,6 @@ use std::fs::File;
 use axiom_circuit::{
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
     types::AxiomCircuitParams,
-    utils::get_provider,
 };
 
 use axiom_eth::{
