@@ -86,12 +86,12 @@ cargo run --release --bin run_v2_circuit -- --input data/worldcoin_input.json --
 ```
 
 ## World ID balance circuit
-World ID balance circuit verifies the following statement in batch: the WorldID user has an Ethereum balance of at least 1 ETH at certain block number, and exposes the following public outputs
+World ID balance circuit verifies the following statement in batch: the WorldID user has an Ethereum balance of at least 1 ETH at a certain block number, and exposes the following public outputs
 
 - vkeyHash - the Keccak hash of the flattened vk
 - external_nullifier_hash
 - root
-- num_proofs - the number of proofs which we care about the outputs from, should satisfy 1 <= num_proofs <= max_proofs
+- num_proofs - the number of proofs which we care about the outputs from, which should satisfy 1 <= num_proofs <= max_proofs
 - address_i for i = 1, …, max_proofs
 - nullifierHash_i for i = 1, …, max_proofs
 

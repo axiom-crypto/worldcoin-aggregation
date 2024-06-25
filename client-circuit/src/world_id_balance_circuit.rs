@@ -78,6 +78,31 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldIdBalanceCi
         let mut address_vec: Vec<HiLo<AssignedValue<F>>> = Vec::new();
         let mut nullifier_hash_vec: Vec<HiLo<AssignedValue<F>>> = Vec::new();
 
+        let field_constant = ctx.load_constant(F::from(AccountField::Balance as u64));
+        let one_ether = F::from(10u64.pow(18));
+        let one_ether = ctx.load_constant(one_ether);
+
+        let balances: Vec<AssignedValue<F>> = assigned_inputs
+            .addresses
+            .iter()
+            .map(|addr| {
+                let subquery = AssignedAccountSubquery {
+                    block_number: assigned_inputs.block_number,
+                    addr: *addr,
+                    field_idx: field_constant,
+                };
+
+                let balance_at_block = subquery_caller.lock().unwrap().call(ctx, subquery);
+                from_hi_lo(ctx, range, balance_at_block)
+            })
+            .collect();
+
+        // constrain balances to be > 1ETH
+        for i in 0..max_proofs {
+            // 90 bits can represent 1billion eth * 10^18
+            range.check_less_than(ctx, one_ether, balances[i], 90);
+        }
+
         // verify groth16 proofs
         for i in 0..max_proofs {
             let assigned_groth16_input = &assigned_inputs.groth16_inputs[i];
@@ -138,31 +163,6 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldIdBalanceCi
         // constrain the derived addresses to be the same as provided addresses
         for i in 0..addrs.len() {
             ctx.constrain_equal(&addrs[i], &assigned_inputs.addresses[i]);
-        }
-
-        let field_constant = ctx.load_constant(F::from(AccountField::Balance as u64));
-        let one_ether = F::from(10u64.pow(18));
-        let one_ether = ctx.load_constant(one_ether);
-
-        let balances: Vec<AssignedValue<F>> = assigned_inputs
-            .addresses
-            .iter()
-            .map(|addr| {
-                let subquery = AssignedAccountSubquery {
-                    block_number: assigned_inputs.block_number,
-                    addr: *addr,
-                    field_idx: field_constant,
-                };
-
-                let balance_at_block = subquery_caller.lock().unwrap().call(ctx, subquery);
-                from_hi_lo(ctx, range, balance_at_block)
-            })
-            .collect();
-
-        // constrain balances to be > 1ETH
-        for i in 0..max_proofs {
-            // 87 bits can represent 21 million eth * 10^18
-            range.check_less_than(ctx, one_ether, balances[i], 87);
         }
     }
 }

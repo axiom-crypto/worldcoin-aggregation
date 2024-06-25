@@ -114,7 +114,6 @@ impl WorldIdBalanceInput<Fr> {
         let mut pub_strings: Vec<String> = Vec::new();
         let mut addresses: Vec<Fr> = Vec::new();
         let mut addresses_native: Vec<Address> = Vec::new();
-        //let mut signatures: Vec<Signature<Fr>> = Vec::new();
         let mut signatures_native: Vec<String> = Vec::new();
 
         for _i in 0..num_proofs {
@@ -218,7 +217,6 @@ impl WorldIdBalanceInput<Fr> {
                     r: encode_h256_to_hilo(&r),
                     s: encode_h256_to_hilo(&s),
                 };
-                // println!("{:02x?}", sig);
                 sig
             })
             .collect();
@@ -361,7 +359,7 @@ pub fn get_pubkey(msghash: &Vec<u8>, sig: &Vec<u8>) -> Secp256k1Affine {
     let n_bytes = n.try_into().unwrap();
 
     let n_field_base = Fp::from_bytes(&n_bytes).unwrap();
-    // println!("{:?}", n_field_base);
+
     let mut z = msghash[0..32].to_vec();
     let mut r = sig[..32].to_vec();
     let mut s = sig[32..64].to_vec();
