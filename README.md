@@ -11,7 +11,7 @@ There are two versions of the smart contracts/circuits:
 
 ## Repository Overview
 
-- `client-circuit/`
+- `circuit/`
   - README.md: The client circuit documentation can be found in its own README.
 - `src/`
   - `WorldcoinAggregationV1.sol`: The smart contract for the `WorldcoinAggregationV1` version.
