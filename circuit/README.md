@@ -39,7 +39,7 @@ The V1 circuit verifies the WorldID Groth16 proofs in batch, and exposes the fol
 - nullifierHash_i for i = 1, ..., max_proofs
 ```
 
-The public output size is `4 + 2 * max_proofs` for a configuration paramter `max_proofs`, which is the maximum number of claims supported at once. As a convenience to the user, fewer than `max_proofs` claims can be submitted to the prover binary and the binary will appropriately pad to satisfy the circuit.
+The public output size is `4 + 2 * max_proofs` for a configuration parameter `max_proofs`, which is the maximum number of claims supported at once. As a convenience to the user, fewer than `max_proofs` claims can be submitted to the prover binary and the binary will appropriately pad to satisfy the circuit.
 
 The client circuit constrains
 
@@ -94,7 +94,7 @@ cargo run --release --bin run_v2_circuit -- --input data/worldcoin_input.json --
 
 ## WorldID balance circuit
 
-The WorldID balance circuit verifies in batch that a set of WorldID users hav an Ethereum balance of at least 1 ETH at a certain block number. It exposes the following public outputs
+The WorldID balance circuit verifies in batch that a set of WorldID users have an Ethereum balance of at least 1 ETH at a certain block number. It exposes the following public outputs
 
 ```
 - vkeyHash - the Keccak hash of the flattened vk
