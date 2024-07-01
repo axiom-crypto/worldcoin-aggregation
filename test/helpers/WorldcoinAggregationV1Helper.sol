@@ -65,7 +65,7 @@ contract WorldcoinAggregationV1Helper is AxiomTest {
     address wldToken = 0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9;
     address rootValidator = 0x928a514350A403e2f5e3288C102f6B1CCABeb37C;
 
-    string inputPath = "client-circuit/data/worldcoin_input.json";
+    string inputPath = "circuit/data/worldcoin_input.json";
 
     function setUp() public virtual {
         _createSelectForkAndSetupAxiom("provider");
@@ -73,7 +73,7 @@ contract WorldcoinAggregationV1Helper is AxiomTest {
         vm.warp(1_712_275_644);
 
         querySchema =
-            axiomVm.readRustCircuit("client-circuit/Cargo.toml", inputPath, "client-circuit/data", "run_v1_circuit");
+            axiomVm.readRustCircuit("circuit/Cargo.toml", inputPath, "circuit/data", "run_v1_circuit");
         vkeyHash = bytes32(0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec);
         maxNumClaims = 16;
 

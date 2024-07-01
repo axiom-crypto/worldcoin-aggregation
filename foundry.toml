@@ -5,7 +5,7 @@ solc = "0.8.19"
 libs = ["node_modules", "lib"]
 remappings = ["@axiom-crypto/axiom-std/=lib/axiom-std/src/"]
 ffi = true
-fs_permissions = [{ access = "read", path = "./client-circuit"}]
+fs_permissions = [{ access = "read", path = "./circuit"}]
 ast = true
 verbosity = 2
 

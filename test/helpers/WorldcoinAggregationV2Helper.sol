@@ -58,7 +58,7 @@ contract WorldcoinAggregationV2Exposed is WorldcoinAggregationV2 {
 /// `abi.encodePacked(address(receiver), bytes32(nullifierHash))`. All leaves of
 /// the tree must be filled to `maxNumClaims`. Empty leaves will be filled with
 /// `abi.encodePacked(address(0), bytes32(0))`. This test will use the
-/// `client-circuit/data/worldcoin_input.json` that has two receivers. So the
+/// `circuit/data/worldcoin_input.json` that has two receivers. So the
 /// leaves array will look something like:
 /// [
 ///  abi.encodePacked(address(reciever1), bytes32(nullifierHash1)),
@@ -99,7 +99,7 @@ contract WorldcoinAggregationV2Helper is AxiomTest {
     address wldToken = 0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9;
     address rootValidator = 0x928a514350A403e2f5e3288C102f6B1CCABeb37C;
 
-    string inputPath = "client-circuit/data/worldcoin_input.json";
+    string inputPath = "circuit/data/worldcoin_input.json";
 
     function setUp() public virtual {
         _createSelectForkAndSetupAxiom("provider");
@@ -128,7 +128,7 @@ contract WorldcoinAggregationV2Helper is AxiomTest {
         receiverProofs[1].isLeftBytes = 0x0100000000000000000000000000000000000000000000000000000000000000;
 
         querySchema =
-            axiomVm.readRustCircuit("client-circuit/Cargo.toml", inputPath, "client-circuit/data", "run_v2_circuit");
+            axiomVm.readRustCircuit("circuit/Cargo.toml", inputPath, "circuit/data", "run_v2_circuit");
         vkeyHash = bytes32(0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec);
         logMaxNumClaims = 4;
 
