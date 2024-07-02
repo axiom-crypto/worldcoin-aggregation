@@ -153,6 +153,11 @@ cargo test
 This will run test cases which use inputs from `data/` for `max_proofs=16`.
 
 ## Request endpoint
+### Setup
+Under `./v1`, the files `circuit.json`, `{v1_inner_circuit_id}.pk`, `{v1_inner_circuit_id}.json` should be present.
+Under `./v2`, the files `circuit.json`, `{v2_inner_circuit_id}.pk`, `{v2_inner_circuit_id}.json` should be present.
+Under `~/.axiom/srs/challenge_0085`, required srs files should be present.
+
 ### Start Server
 ```
 export QM_URL_V1=<internal url for v1 circuit query manager>
@@ -165,4 +170,4 @@ cargo run --release --bin server
 curl -X POST  -H "Content-Type: application/json" -d @data/worldcoin_input.json localhost:8000/v1
 curl -X POST  -H "Content-Type: application/json" -d @data/worldcoin_input.json localhost:8000/v2
 ```
-Requests to /v1 and /v2 endpoints will initiate the proof generation and fulfillment on-chain.
+Requests to `/v1` and `/v2` endpoints will initiate the proof generation and fulfillment on-chain.

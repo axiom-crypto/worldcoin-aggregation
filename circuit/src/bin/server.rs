@@ -39,8 +39,6 @@ use tokio::runtime::Runtime;
 
 use ethers::types::U256;
 
-use serde::de::DeserializeOwned;
-
 use client_circuit::server_types::*;
 use ethers::types::BlockId;
 
@@ -55,16 +53,12 @@ fn index() -> &'static str {
     "I'm alive!"
 }
 
-fn prove_with_aggregation<
-    A: AxiomCircuitScaffold<Http, Fr>,
-    I: Into<A::InputValue> + DeserializeOwned,
->(
+fn prove_with_aggregation<A: AxiomCircuitScaffold<Http, Fr>>(
     qm_url: String,
     provider_uri: String,
-    input: I,
+    input: A::InputValue,
     version: Version,
 ) -> Result<String, String> {
-    let input = input.into();
     let provider = Provider::<Http>::try_from(provider_uri).unwrap();
     let data_path = PathBuf::from(version.to_string());
     let srs_path: PathBuf = dirs::home_dir().unwrap().join(".axiom/srs/challenge_0085");
@@ -193,10 +187,10 @@ async fn batch_verify_v1(
     let request: WorldcoinNativeInput = request.into_inner();
 
     let _handler = std::thread::spawn(move || {
-        prove_with_aggregation::<WorldcoinV1Circuit, WorldcoinNativeInput>(
+        prove_with_aggregation::<WorldcoinV1Circuit>(
             qm_url,
             provider_uri,
-            request,
+            request.into(),
             Version::V1,
         )
     });
@@ -214,10 +208,10 @@ fn batch_verify_v2(
     let request: WorldcoinNativeInput = request.into_inner();
 
     let _handler = std::thread::spawn(move || {
-        prove_with_aggregation::<WorldcoinV2Circuit, WorldcoinNativeInput>(
+        prove_with_aggregation::<WorldcoinV2Circuit>(
             qm_url,
             provider_uri,
-            request,
+            request.into(),
             Version::V2,
         )
     });
