@@ -13,21 +13,21 @@ contract Claim is Script {
         );
 
         uint256 grantId = 30;
-        uint256 root = 12439333144543028190433995054436939846410560778857819700795779720142743070295;
+        uint256 root = 12_439_333_144_543_028_190_433_995_054_436_939_846_410_560_778_857_819_700_795_779_720_142_743_070_295;
         address receiver = address(0xff9db18c23be01D48DCF1fE182f4807055ae8cA2);
         bytes32 nullifierHash = 0x2f147f560ba31a9e7ea8aa7bd36b477fb3dfb2784ff2fef7b69442918000d8ac;
-        bytes32[] memory leaves = new bytes32[](4);
+        bytes32[] memory sisterNodes = new bytes32[](4);
 
-        leaves[0] = bytes32(
+        sisterNodes[0] = bytes32(
             0x55d05ad66b187a7533750526f6386d98ff0859d326ea4f1a2c846def63390990
         );
-        leaves[1] = bytes32(
+        sisterNodes[1] = bytes32(
             0x4b4efd86a2cec7174648fca755d3b9caf672051f139e1b37846d357f29e0d889
         );
-        leaves[2] = bytes32(
+        sisterNodes[2] = bytes32(
             0x2a3c055e5aad1f95e094e401d23a52dd4975291cc3ecbaef3a11c98dfdef94b8
         );
-        leaves[3] = bytes32(
+        sisterNodes[3] = bytes32(
             0xebfb29350462bf97adfa61b387536ca750b8f5fc13c9221123f5ca41df8b92d1
         );
 
@@ -38,7 +38,7 @@ contract Claim is Script {
             root,
             receiver,
             nullifierHash,
-            leaves,
+            sisterNodes,
             isLeftBytes
         );
 
