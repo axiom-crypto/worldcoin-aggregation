@@ -17,6 +17,7 @@ This subdirectory implements Axiom client circuits for batch WorldID proof verif
 |   ├── constants.rs                    constant values for the circuit
 |   ├── lib.rs                          define pub mods
 |   ├── mock_test.rs                    utils for unit test with mock proofs
+|   ├── server_types.rs                 define structs for interacting with Axiom backend
 |   ├── test.rs                         test cases
 |   ├── types.rs                        define WorldcoinInput struct for the circuit
 |   ├── utils.rs                        util functions
@@ -150,3 +151,18 @@ cargo test
 ```
 
 This will run test cases which use inputs from `data/` for `max_proofs=16`.
+
+## Request endpoint
+### Start Server
+```
+export QM_URL_V1=<internal url for v1 circuit query manager>
+export QM_URL_V2=<internal url for v2 circuit query manager>
+export PROVIDER_URI=<JSON_RPC_URL_SEPOLIA>
+cargo run --release --bin server
+```
+### Make request
+```
+curl -X POST  -H "Content-Type: application/json" -d @data/worldcoin_input.json localhost:8000/v1
+curl -X POST  -H "Content-Type: application/json" -d @data/worldcoin_input.json localhost:8000/v2
+```
+Requests to /v1 and /v2 endpoints will initiate the proof generation and fulfillment on-chain.
