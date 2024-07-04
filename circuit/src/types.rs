@@ -25,7 +25,7 @@ pub struct ClaimNative {
     pub proof: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct VkNative {
     vk_alpha_1: [String; 3],
     vk_beta_2: [[String; 2]; 3],

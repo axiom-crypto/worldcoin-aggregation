@@ -1,3 +1,4 @@
+use crate::types::ClaimNative;
 use axiom_circuit::types::AxiomV2CircuitOutput;
 use ethers::types::H256;
 use serde::{Deserialize, Serialize};
@@ -7,6 +8,15 @@ pub const CHAIN_ID: u64 = 11155111;
 pub const V1_CALLBACK_TARGET: &str = "0x27ff9334e2b75b838baeb78618d12ced843c075d";
 pub const V2_CALLBACK_TARGET: &str = "0x3f88b9dc416ceadc36092673097ba456ba878cfb";
 pub const CALLBACK_EXTRA_DATA: &str = "0x";
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WorldcoinRequest {
+    pub root: String,
+    pub grant_id: String,
+    pub num_proofs: usize,
+    pub max_proofs: usize,
+    pub claims: Vec<ClaimNative>,
+}
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
