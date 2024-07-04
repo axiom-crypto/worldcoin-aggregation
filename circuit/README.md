@@ -1,4 +1,4 @@
-# Worldcoin Aggregation
+# WorldID Proof Aggregation
 
 This subdirectory implements Axiom client circuits for batch WorldID proof verification with Axiom.
 
@@ -154,15 +154,14 @@ cargo test
 This will run test cases which use inputs from `data/` for `max_proofs=16`.
 
 ### Server Setup
-`bin/server.rs` can serve requests and fulfill query on-chain.
+The binary `bin/server.rs` will provide API endpoints to fulfill requests and fulfill queries on-chain. Before starting the server, the following requirements must be met:
 
-Before starting server,
 - Under `./data/v1/{max_proofs}`, the files `circuit.json`, `{v1_inner_circuit_id}.pk`, `{v1_inner_circuit_id}.json` should be present.
 - Under `./data/v2/{max_proofs}`, the files `circuit.json`, `{v2_inner_circuit_id}.pk`, `{v2_inner_circuit_id}.json` should be present.
 - Under `./data`, the file `vk.json` should be present.
 - Under `~/.axiom/srs/challenge_0085`, required srs files should be present.
 
-Start server by
+Start the server using the following commands:
 ```
 export QM_URL_V1=<internal url for v1 circuit query manager>
 export QM_URL_V2=<internal url for v2 circuit query manager>
@@ -171,20 +170,20 @@ cargo run --release --bin server
 ```
 
 ## Request endpoints
-The server exposes two endpoints, `/v1` and `/v2`, which will complete client circuit proof generation, send request to the Axiom internal backend to generate the proof which can be verified on-chain, and submit the fulfillment tx upon proof completion.
+The server exposes two endpoints, `/v1` and `/v2`, which will complete client circuit proof generation, send requests to the internal Axiom backend to generate the proof which can be verified on-chain, and submit a fulfillment transaction upon proof completion.
 
-- `/v1` uses the v1 circuit and submits fulfillment tx to the `WorldcoinAggregationV1` contract
-- `/v2` uses the v2 circuit and submits fulfillment tx to the `WorldcoinAggregationV2` contract
+- `/v1` uses the V1 circuit and submits a fulfillment transaction to the `WorldcoinAggregationV1` contract
+- `/v2` uses the V2 circuit and submits a fulfillment transaction to the `WorldcoinAggregationV2` contract
 
-At present, only requests with max_proofs=16 are supported in the endpoints.
+At present, only requests with `max_proofs=16` are supported by the endpoints.
 
-Sample requests
+Sample requests:
 ```
 curl -X POST  -H "Content-Type: application/json" -d @data/server_request.json localhost:8000/v1
 curl -X POST  -H "Content-Type: application/json" -d @data/server_request.json localhost:8000/v2
 ```
 
-Each [request](./src/server_types.rs#L13) should have `root`, `grant_id`. `num_proofs`, `max_proofs` and the list of `claims`, where each claim contains `receiver` address, `nullfilier_hash` and `proof`. One example
+Each [request](./src/server_types.rs#L13) should have `root`, `grant_id`, `num_proofs`, `max_proofs` and the list of `claims`, where each claim contains `receiver` address, `nullfilier_hash` and `proof`. One example:
 ```
 {
   "root": "12439333144543028190433995054436939846410560778857819700795779720142743070295",
