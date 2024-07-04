@@ -65,7 +65,7 @@ fn prove_with_aggregation<A: AxiomCircuitScaffold<Http, Fr>>(
     let data_path = PathBuf::from(format!("./data/{}/{}", version.to_string(), max_proofs));
     let srs_path: PathBuf = dirs::home_dir().unwrap().join(".axiom/srs/challenge_0085");
 
-    let config = format!("./configs/{}/{}", version.to_string(), max_proofs);
+    let config = format!("./configs/config_{}.json", max_proofs);
     let raw_params: RawCircuitParams<A::CoreParams> =
         serde_json::from_reader(File::open(config).unwrap()).unwrap();
     let max_user_outputs = raw_params.max_outputs.unwrap_or(USER_MAX_OUTPUTS);
@@ -197,13 +197,16 @@ async fn batch_verify_v1(
     };
 
     let _handler = std::thread::spawn(move || {
-        prove_with_aggregation::<WorldcoinV1Circuit>(
+        let res = prove_with_aggregation::<WorldcoinV1Circuit>(
             qm_url,
             provider_uri,
             input.max_proofs,
-            input.into(),
+            input.clone().into(),
             Version::V1,
-        )
+        );
+        if let Err(e) = res {
+            println!("Request {:?} failed", input);
+        }
     });
 
     Ok("Query started successfully".to_string())
@@ -211,7 +214,7 @@ async fn batch_verify_v1(
 
 #[post("/v2", format = "json", data = "<request>")]
 fn batch_verify_v2(
-    request: Json<WorldcoinNativeInput>,
+    request: Json<WorldcoinRequest>,
     context: &State<Context>,
 ) -> Result<String, String> {
     let qm_url: String = context.qm_url_v2.clone();
@@ -227,13 +230,17 @@ fn batch_verify_v2(
     };
 
     let _handler = std::thread::spawn(move || {
-        prove_with_aggregation::<WorldcoinV2Circuit>(
+        let res = prove_with_aggregation::<WorldcoinV2Circuit>(
             qm_url,
             provider_uri,
             input.max_proofs,
-            input.into(),
+            input.clone().into(),
             Version::V2,
-        )
+        );
+
+        if let Err(e) = res {
+            println!("Request {:?} failed", input);
+        }
     });
 
     Ok("Query started successfully".to_string())
