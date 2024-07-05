@@ -1,4 +1,4 @@
-# Worldcoin Aggregation
+# WorldID Proof Aggregation
 
 This subdirectory implements Axiom client circuits for batch WorldID proof verification with Axiom.
 
@@ -17,6 +17,7 @@ This subdirectory implements Axiom client circuits for batch WorldID proof verif
 |   ├── constants.rs                    constant values for the circuit
 |   ├── lib.rs                          define pub mods
 |   ├── mock_test.rs                    utils for unit test with mock proofs
+|   ├── server_types.rs                 define structs for server requests and interacting with Axiom backend
 |   ├── test.rs                         test cases
 |   ├── types.rs                        define WorldcoinInput struct for the circuit
 |   ├── utils.rs                        util functions
@@ -143,6 +144,7 @@ Different configuration parameters for the Axiom system need to be adjusted for 
 
 ## Development and Testing
 
+### Testing
 To run tests, use:
 
 ```
@@ -150,3 +152,60 @@ cargo test
 ```
 
 This will run test cases which use inputs from `data/` for `max_proofs=16`.
+
+### Server Setup
+The binary `bin/server.rs` will provide API endpoints to fulfill requests and fulfill queries on-chain. Before starting the server, the following requirements must be met:
+
+- Under `./data/v1/{max_proofs}`, the files `circuit.json`, `{v1_inner_circuit_id}.pk`, `{v1_inner_circuit_id}.json` should be present.
+- Under `./data/v2/{max_proofs}`, the files `circuit.json`, `{v2_inner_circuit_id}.pk`, `{v2_inner_circuit_id}.json` should be present.
+- Under `./data`, the file `vk.json` should be present.
+- Under `~/.axiom/srs/challenge_0085`, required srs files should be present.
+
+Start the server using the following commands:
+```
+export QM_URL_V1=<internal url for v1 circuit query manager>
+export QM_URL_V2=<internal url for v2 circuit query manager>
+export PROVIDER_URI=<JSON_RPC_URL_SEPOLIA>
+cargo run --release --bin server
+```
+
+## Request endpoints
+The server exposes two endpoints, `/v1` and `/v2`, which will complete client circuit proof generation, send requests to the internal Axiom backend to generate the proof which can be verified on-chain, and submit a fulfillment transaction upon proof completion.
+
+- `/v1` uses the V1 circuit and submits a fulfillment transaction to the `WorldcoinAggregationV1` contract
+- `/v2` uses the V2 circuit and submits a fulfillment transaction to the `WorldcoinAggregationV2` contract
+
+At present, only requests with `max_proofs=16` are supported by the endpoints.
+
+Sample requests:
+```
+curl -X POST  -H "Content-Type: application/json" -d @data/server_request.json localhost:8000/v1
+curl -X POST  -H "Content-Type: application/json" -d @data/server_request.json localhost:8000/v2
+```
+
+Each [request](./src/server_types.rs#L13) should have `root`, `grant_id`, `num_proofs`, `max_proofs` and the list of `claims`, where each claim contains `receiver` address, `nullfilier_hash` and `proof`. One example:
+```
+{
+  "root": "12439333144543028190433995054436939846410560778857819700795779720142743070295",
+  "grant_id": "30",
+  "num_proofs": 2,
+  "max_proofs": 16,
+  "claims": [
+    {
+      "receiver": "0xff9db18c23be01D48DCF1fE182f4807055ae8cA2",
+      "nullifier_hash": "21294919666276076011035787158136769959318829071812973005197954290733822302380",
+      "proof": [
+        "19948547122086334894689325645680910374301022582555626047089468872550356701348",
+        "6362289764495762031291485042629552885766242716159339697483919575876761663887",
+        "12317072617562704121665824087528933441231019811489677371494230327903596083401",
+        "15337252639786931925369532534863856807942067245134861343169827164963211645183",
+        "7949760175864257885824108095736762655812039267855215663171263181543943914662",
+        "10989109543847136625154415890014728205912311878476742612878411879448476913324",
+        "7847594500848555155310078556331504334829185538025208292983008028678812984187",
+        "10768498842689083083534029252274093386835987853753326810579921208375319434106"
+      ]
+    },
+    ...
+  ]
+}
+```

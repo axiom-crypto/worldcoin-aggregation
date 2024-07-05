@@ -13,9 +13,13 @@ axiom-eth = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", b
 ethers = "2.0.14"
 hex = "0.4.3"
 num-bigint = "0.4.5"
-serde = "1.0.200"
 serde_json = "1.0.116"
 halo2curves = "0.6.1"
 axiom-query = "2.0.17"
 env_logger = "0.11.3"
-
+rocket = "0.5.1"
+rocket_contrib = { version = "0.4.11", features = ["json"] }
+serde = { version = "1.0.200", features = ["derive"] }
+dirs = "5.0.1"
+reqwest = "0.12.5"
+tokio = "1.38.0"
