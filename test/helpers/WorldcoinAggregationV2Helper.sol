@@ -71,7 +71,7 @@ contract WorldcoinAggregationV2Exposed is WorldcoinAggregationV2 {
 /// proofs for the two users will be hardcoded within this contract.
 contract WorldcoinAggregationV2Helper is AxiomTest {
     struct ProofElement {
-        bytes32[] leaves;
+        bytes32[] sisterNodes;
         bytes32 isLeftBytes;
     }
 
@@ -109,26 +109,25 @@ contract WorldcoinAggregationV2Helper is AxiomTest {
         receiverProofs.push();
         receiverProofs.push();
 
-        receiverProofs[0].leaves.push(0x55d05ad66b187a7533750526f6386d98ff0859d326ea4f1a2c846def63390990);
-        receiverProofs[0].leaves.push(0x4b4efd86a2cec7174648fca755d3b9caf672051f139e1b37846d357f29e0d889);
-        receiverProofs[0].leaves.push(0x2a3c055e5aad1f95e094e401d23a52dd4975291cc3ecbaef3a11c98dfdef94b8);
-        receiverProofs[0].leaves.push(0xebfb29350462bf97adfa61b387536ca750b8f5fc13c9221123f5ca41df8b92d1);
+        receiverProofs[0].sisterNodes.push(0x55d05ad66b187a7533750526f6386d98ff0859d326ea4f1a2c846def63390990);
+        receiverProofs[0].sisterNodes.push(0x4b4efd86a2cec7174648fca755d3b9caf672051f139e1b37846d357f29e0d889);
+        receiverProofs[0].sisterNodes.push(0x2a3c055e5aad1f95e094e401d23a52dd4975291cc3ecbaef3a11c98dfdef94b8);
+        receiverProofs[0].sisterNodes.push(0xebfb29350462bf97adfa61b387536ca750b8f5fc13c9221123f5ca41df8b92d1);
 
         // bool[0] = false, bool[1] = false, bool[2] = false, bool[3] = false.
         // All but first (most significant) 4 bytes are ignored.
         receiverProofs[0].isLeftBytes = 0x0000000000000000000000000000000000000000000000000000000000000000;
 
-        receiverProofs[1].leaves.push(0x7dced535b129e25d38e569ab2c69ee538fb27783c37857fa7f2c3703fb0bf9d4);
-        receiverProofs[1].leaves.push(0x4b4efd86a2cec7174648fca755d3b9caf672051f139e1b37846d357f29e0d889);
-        receiverProofs[1].leaves.push(0x2a3c055e5aad1f95e094e401d23a52dd4975291cc3ecbaef3a11c98dfdef94b8);
-        receiverProofs[1].leaves.push(0xebfb29350462bf97adfa61b387536ca750b8f5fc13c9221123f5ca41df8b92d1);
+        receiverProofs[1].sisterNodes.push(0x7dced535b129e25d38e569ab2c69ee538fb27783c37857fa7f2c3703fb0bf9d4);
+        receiverProofs[1].sisterNodes.push(0x4b4efd86a2cec7174648fca755d3b9caf672051f139e1b37846d357f29e0d889);
+        receiverProofs[1].sisterNodes.push(0x2a3c055e5aad1f95e094e401d23a52dd4975291cc3ecbaef3a11c98dfdef94b8);
+        receiverProofs[1].sisterNodes.push(0xebfb29350462bf97adfa61b387536ca750b8f5fc13c9221123f5ca41df8b92d1);
 
         // bool[0] = true, bool[1] = false, bool[2] = false, bool[3] = false.
         // All but first (most significant) 4 bytes are ignored.
         receiverProofs[1].isLeftBytes = 0x0100000000000000000000000000000000000000000000000000000000000000;
 
-        querySchema =
-            axiomVm.readRustCircuit("circuit/Cargo.toml", inputPath, "circuit/data", "run_v2_circuit");
+        querySchema = axiomVm.readRustCircuit("circuit/Cargo.toml", inputPath, "circuit/data", "run_v2_circuit");
         vkeyHash = bytes32(0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec);
         logMaxNumClaims = 4;
 

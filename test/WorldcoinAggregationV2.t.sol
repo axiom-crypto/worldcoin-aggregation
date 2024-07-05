@@ -30,7 +30,12 @@ contract WorldcoinAggregationV2_Test is WorldcoinAggregationV2Helper {
 
         for (uint256 i = 0; i != numClaims; ++i) {
             aggregation.claim(
-                grantId, root, receivers[i], nullifierHashes[i], receiverProofs[i].leaves, receiverProofs[i].isLeftBytes
+                grantId,
+                root,
+                receivers[i],
+                nullifierHashes[i],
+                receiverProofs[i].sisterNodes,
+                receiverProofs[i].isLeftBytes
             );
 
             assertEq(
@@ -219,19 +224,29 @@ contract WorldcoinAggregationV2_RevertTest is WorldcoinAggregationV2Helper {
 
         vm.expectRevert(IGrant.InvalidGrant.selector);
         aggregation.claim(
-            0, root, receivers[0], nullifierHashes[0], receiverProofs[0].leaves, receiverProofs[0].isLeftBytes
+            0, root, receivers[0], nullifierHashes[0], receiverProofs[0].sisterNodes, receiverProofs[0].isLeftBytes
         );
     }
 
     function test_RevertWhen_doubleClaiming() public {
         q.prankFulfill();
         aggregation.claim(
-            grantId, root, receivers[0], nullifierHashes[0], receiverProofs[0].leaves, receiverProofs[0].isLeftBytes
+            grantId,
+            root,
+            receivers[0],
+            nullifierHashes[0],
+            receiverProofs[0].sisterNodes,
+            receiverProofs[0].isLeftBytes
         );
 
         vm.expectRevert(WorldcoinAggregationV2.NullifierHashAlreadyUsed.selector);
         aggregation.claim(
-            grantId, root, receivers[0], nullifierHashes[0], receiverProofs[0].leaves, receiverProofs[0].isLeftBytes
+            grantId,
+            root,
+            receivers[0],
+            nullifierHashes[0],
+            receiverProofs[0].sisterNodes,
+            receiverProofs[0].isLeftBytes
         );
     }
 
@@ -240,7 +255,7 @@ contract WorldcoinAggregationV2_RevertTest is WorldcoinAggregationV2Helper {
 
         vm.expectRevert(WorldcoinAggregationV2.InvalidReceiver.selector);
         aggregation.claim(
-            grantId, root, address(0), nullifierHashes[0], receiverProofs[0].leaves, receiverProofs[0].isLeftBytes
+            grantId, root, address(0), nullifierHashes[0], receiverProofs[0].sisterNodes, receiverProofs[0].isLeftBytes
         );
     }
 

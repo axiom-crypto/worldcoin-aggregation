@@ -72,8 +72,7 @@ contract WorldcoinAggregationV1Helper is AxiomTest {
         // Sets block.timestamp to a time that would derive into grantId 30
         vm.warp(1_712_275_644);
 
-        querySchema =
-            axiomVm.readRustCircuit("circuit/Cargo.toml", inputPath, "circuit/data", "run_v1_circuit");
+        querySchema = axiomVm.readRustCircuit("circuit/Cargo.toml", inputPath, "circuit/data", "run_v1_circuit");
         vkeyHash = bytes32(0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec);
         maxNumClaims = 16;
 
