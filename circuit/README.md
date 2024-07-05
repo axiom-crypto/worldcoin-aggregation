@@ -102,11 +102,12 @@ The WorldID balance circuit verifies in batch that a set of WorldID users have a
 - external_nullifier_hash
 - root
 - num_proofs - the number of proofs which we care about the outputs from, which should satisfy 1 <= num_proofs <= max_proofs
+- block_number
 - address_i for i = 1, ..., max_proofs
 - nullifierHash_i for i = 1, ..., max_proofs
 ```
 
-The configuration parameter `max_proofs` specifies the maximum number of claims in a single circuit, and the public output size is `4 + 2 * max_proofs`. The client circuit constrains
+The configuration parameter `max_proofs` specifies the maximum number of claims in a single circuit, and the public output size is `5 + 2 * max_proofs`. The client circuit constrains
 
 ```
 - num_proofs to be in the range (0, max_proofs]
