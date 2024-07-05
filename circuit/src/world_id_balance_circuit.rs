@@ -74,6 +74,7 @@ impl<P: JsonRpcClient, F: Field> AxiomCircuitScaffold<P, F> for WorldIdBalanceCi
         ));
         callback.push(to_hi_lo(ctx, range, assigned_inputs.root));
         callback.push(to_hi_lo(ctx, range, assigned_inputs.num_proofs));
+        callback.push(to_hi_lo(ctx, range, assigned_inputs.block_number));
 
         let mut address_vec: Vec<HiLo<AssignedValue<F>>> = Vec::new();
         let mut nullifier_hash_vec: Vec<HiLo<AssignedValue<F>>> = Vec::new();
