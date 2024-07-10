@@ -79,7 +79,7 @@ pub fn create_v2_query_request(
     mut fee_data: FeeData,
     compute_query: AxiomV2CircuitOutput,
 ) -> V2QueryRequest {
-    fee_data.callback_gas_limit.get_or_insert(100_000);
+    fee_data.callback_gas_limit.get_or_insert(1_000_000);
     fee_data
         .override_axiom_query_fee
         .get_or_insert("0x0".to_string());
