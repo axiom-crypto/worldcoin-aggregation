@@ -991,6 +991,7 @@ dependencies = [
  "halo2curves",
  "hex",
  "num-bigint",
+ "phf",
  "reqwest 0.12.5",
  "rocket 0.5.1",
  "rocket_contrib",
@@ -5721,6 +5722,10 @@ dependencies = [
  "toml_datetime",
  "winnow 0.6.13",
 ]
+
+[[package]]
+name = "toolings"
+version = "0.1.0"
 
 [[package]]
 name = "tower"

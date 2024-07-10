@@ -115,11 +115,9 @@ fn prove_with_aggregation<A: AxiomCircuitScaffold<Http, Fr>>(
     let agg_srs = read_srs_from_dir_or_install(&srs_path, agg_pinning.params.degree);
     let output = agg_circuit_run(agg_pinning, inner_output, &agg_pk, &agg_srs);
 
+
     let callback = Callback {
-        target: match version {
-            Version::V1 => V1_CALLBACK_TARGET.to_string(),
-            Version::V2 => V2_CALLBACK_TARGET.to_string(),
-        },
+        target: CALLBACK_TARGETS[&(version.to_string())][&(max_proofs as u32)].to_string(),
         extra_data: CALLBACK_EXTRA_DATA.to_string(),
     };
 
