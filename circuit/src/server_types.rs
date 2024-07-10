@@ -15,7 +15,10 @@ pub static V1_MAP: Map<u32, &'static str> = phf_map! {
 };
 
 pub static V2_MAP: Map<u32, &'static str> = phf_map! {
-    16u32 => "0x3f88b9dc416ceadc36092673097ba456ba878cfb"
+    8u32 => "0x051e0aB85c4Dfb90270FD45c93628c7F0b7551e7",
+    16u32 => "0x3f88b9dc416ceadc36092673097ba456ba878cfb",
+    64u32 => "0x7400fA7E1da16D995EC5F8F717a61D974C02BfAc",
+    128u32=> "0x0CBb51Fd7fbfc36A342C3D35316B814C825EA552"
 };
 
 pub static CALLBACK_TARGETS: Map<&'static str, &Map<u32, &'static str>> = phf_map! {
