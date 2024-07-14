@@ -65,7 +65,7 @@ fn prove_with_aggregation<A: AxiomCircuitScaffold<Http, Fr>>(
     let data_path = PathBuf::from(format!("./data/{}/{}", version.to_string(), max_proofs));
     let srs_path: PathBuf = dirs::home_dir().unwrap().join(".axiom/srs/challenge_0085");
 
-    let config = if max_proofs > 16 {
+    let config = if max_proofs > 32 {
         format!("./configs/config_{}_{}.json", max_proofs, version.to_string())
     } else {
         format!("./configs/config_{}.json", max_proofs)
@@ -138,15 +138,21 @@ fn prove_with_aggregation<A: AxiomCircuitScaffold<Http, Fr>>(
             .map(|b| b.base_fee_per_gas.unwrap_or(U256::zero()) * 2)
             .unwrap_or(U256::zero());
 
+        let max_fee_per_gas = max_fee_per_gas + 500_000_000;
         max_fee_per_gas
     });
+
+    let mut callback_gas_limit = 600_000;
+    if let Version::V1 = version {
+        callback_gas_limit += 55_000 * max_proofs;
+    }
 
     let v2_req = create_v2_query_request(
         CHAIN_ID,
         callback,
         FeeData {
             max_fee_per_gas: max_fee_per_gas.to_string(),
-            callback_gas_limit: Some((600_000 + 80_000 * max_proofs) as u64),
+            callback_gas_limit: Some(callback_gas_limit as u64),
             override_axiom_query_fee: None,
         },
         output,

@@ -65,25 +65,27 @@ function getHash(receiver: string, nullfilerHash: string) {
   return ethers.keccak256(packed);
 }
 
-function getLeaves(inputPath: string) {
+function parseInput(inputPath: string) {
   const fileContent = fs.readFileSync(inputPath, "utf8");
 
   const input = JSON.parse(fileContent);
+
+  console.log("Claim Batch Root:", input.root);
+
   const claims = input.claims;
-  const leaves: string[] = [];
   for (const claim of claims) {
     leaves.push(getHash(claim.receiver, claim.nullifier_hash));
+    receivers.push(claim.receiver);
+    nullifierHashes.push(claim.nullifier_hash);
   }
 
   const num_proofs = input.num_proofs;
   const max_proofs = input.max_proofs;
 
-
   const padLeave = getHash(ZeroAddress.toString(), "0");
     for (let i = num_proofs; i < max_proofs; i++) {
     leaves.push(padLeave);
     }
-  return leaves;
 }
 
 if (process.argv.length !== 4) {
@@ -91,9 +93,12 @@ if (process.argv.length !== 4) {
     process.exit(0);
 }
 
-const leaves = getLeaves(process.argv[2]);
+const leaves: string[] = [];
+const receivers: string[] = [];
+const nullifierHashes: string[] = [];
+parseInput(process.argv[2]);
 const claimIdx = parseInt(process.argv[3]);
 const tree = new MerkleTree(leaves);
-console.log("Root:", tree.getRoot());
-console.log(`Sister Nodes Path for index ${claimIdx} is:`);
+console.log("Merkle Root:", tree.getRoot());
+console.log(`Sister Nodes Path for index ${claimIdx} ${receivers[claimIdx]} with nullifierHash 0x${BigInt(nullifierHashes[claimIdx]).toString(16)} is:`);
 console.log(tree.getSisterNodesPath(claimIdx));
