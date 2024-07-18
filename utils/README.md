@@ -1,10 +1,10 @@
-## Toolings
+## Onchain Testing Utilities
 ### Generate Merkle SisterNodes Info
 ```
 npm/pnpm/yarn install
 npx ts-node src/merkleSisterNodes.ts {input_path} {claim_index}
 ```
-This command will create a file named `claim.json` which can be used to create claim transaction for the `WorldcoinAggregationV2`.
+This command will create a file named `claim.json` which can be used to create a claim transaction for the `WorldcoinAggregationV2`.
 
 ### Crawl real claims data for testing
 ```

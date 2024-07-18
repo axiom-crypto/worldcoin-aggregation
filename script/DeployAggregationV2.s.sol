@@ -27,7 +27,7 @@ contract DeployAggregationV2 is AggregationDeployBase {
         );
 
         IERC20 wldTokenContract = IERC20(wldToken);
-        uint256 transferAmount = 10_000 * 10 ** 18;
+        uint256 transferAmount = 100_000 * 10 ** 18;
         wldTokenContract.transfer(address(worldcoinAggV2), transferAmount);
 
         vm.stopBroadcast();
