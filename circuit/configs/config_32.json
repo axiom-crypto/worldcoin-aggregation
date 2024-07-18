@@ -7,11 +7,11 @@
   "num_rlc_columns": 0,
   "keccak_rows_per_round": 20,
   "agg_params": {
-    "degree": 20,
+    "degree": 22,
     "num_advice": 13,
     "num_lookup_advice": 2,
     "num_fixed": 1,
-    "lookup_bits": 19
+    "lookup_bits": 21
   },
   "core_params": {
     "max_proofs":32 

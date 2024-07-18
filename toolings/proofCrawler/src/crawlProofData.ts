@@ -64,7 +64,7 @@ async function crawlProofs(maxProofs: number) {
 
     if (claims.length === maxProofs) break;
   }
-  
+
   const request: WorldcoinRequest = {
     grant_id: GRANT_ID,
     root: ROOT,
@@ -98,9 +98,9 @@ async function crawlProofs(maxProofs: number) {
 function main() {
   const args = process.argv.slice(2);
 
-const maxProofs = Number.parseInt(args[0]);
+  const maxProofs = Number.parseInt(args[0]);
 
-crawlProofs(maxProofs);
+  crawlProofs(maxProofs);
 }
 
 main();

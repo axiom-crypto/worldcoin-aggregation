@@ -117,3 +117,53 @@ Run the tests with
 ```bash
 forge test
 ```
+
+## Deployment
+Here are the related contracts that have been deployed:
+| Name | Sepolia Address | Description |
+|----------|----------|----------|
+| AxiomV2Query | [0x9C9CF878f9Ba4422BDD73B55554F0A796411D5ed](https://sepolia.etherscan.io/address/0x9C9CF878f9Ba4422BDD73B55554F0A796411D5ed)| [AxiomV2Query](https://docs.axiom.xyz/protocol/protocol-design/axiom-query-protocol/) fulfills queries with on-chain zk proof verification, and make callbacks |
+|WLDMock| [0xe93D97b0Bd30bD61a9D02B0A471DbB329D5d1fd8](https://sepolia.etherscan.io/address/0xe93D97b0Bd30bD61a9D02B0A471DbB329D5d1fd8)|An ERC20 contract which mocks the WLD contract|
+|RootValidatorMock|[0x9c06c3F1deecb530857127009EBE7d112ecd0E3F](https://sepolia.etherscan.io/address/0x9c06c3F1deecb530857127009EBE7d112ecd0E3F)| A contract which implements `IRootValidator` and never reverts on the `requireValidRoot` call|
+| GrantMock | [0x5d1F6aDfff773A2146f1f3c947Ddad1945103DaC](https://sepolia.etherscan.io/address/0x5d1F6aDfff773A2146f1f3c947Ddad1945103DaC)| A contract which implements `IGrant` and nver reverts on the `checkValidity` call|
+
+### V1 Client
+| Batch Size | Sepolia Address | Query Schema |
+|----------|----------|----------|
+| 8 |   [0x0Af226d96d3f149875bec102D71779BcF58e2800](https://sepolia.etherscan.io/address/0x0Af226d96d3f149875bec102D71779BcF58e2800) | 0x50746826a6dbc18722f1d29c9d7fed067c1f05e43f00a3db58e6ed5e44b3aaa2 |
+| 16 | [0x27ff9334e2b75b838baeb78618d12ced843c075d](https://sepolia.etherscan.io/address/0x27ff9334e2b75b838baeb78618d12ced843c075d) | 0xa72441820512403e5a2328a333facfbcafb0fad2cfbeb48c3c1d18771d8651d4 |
+| 32 | [0xE3C5d7441890048C472c52167453f349b1216b87](https://sepolia.etherscan.io/address/0xE3C5d7441890048C472c52167453f349b1216b87) | 0x90730514b68638c0fdeaa0617db9b9392e7cc6ddacdf49529eeb7528cebc6dbd|
+| 64 | [0xF81a28F081d7Cd5Ba695E43D4c8aB0A991f17982](https://sepolia.etherscan.io/address/0xF81a28F081d7Cd5Ba695E43D4c8aB0A991f17982) | 0x32b63d6d49fca4274bc54fd67b6c56750d62a02c4621df02f171a6d474b73549 |
+| 128 | [0x5F9c52B43Fc8E2080463e6246318203596FCB887](https://sepolia.etherscan.io/address/0x5F9c52B43Fc8E2080463e6246318203596FCB887) | 0xe056466be31c1e1da8069412acf2f2d3dbd1de30d5e6a28db14c3440e7312fd3 |
+
+You can find the[sample fullfill transaction](https://sepolia.etherscan.io/tx/0xc8fca0877cfad47e85e2c12541ad7f843e6c8dea852606d5bdedfa3a897ddee3),`AxiomV2Query` verifies the zk proof submitted and makes a callback to the deployed `WorldcoinAggregationV1` contract, which then directly transfers the grants to the receivers.
+
+### V2 Client
+| Batch Size | Sepolia Address | Sample Fulfill Tx |
+|----------|----------|----------|
+| 8 |  [0x051e0aB85c4Dfb90270FD45c93628c7F0b7551e7](https://sepolia.etherscan.io/address/0x051e0aB85c4Dfb90270FD45c93628c7F0b7551e7) | 0x6fc97d2f5193f179ff1e389b4224bf9012f423d0c22b320e0e25dab7e873fc4a |
+| 16 | [0x3f88b9dc416ceadc36092673097ba456ba878cfb](https://sepolia.etherscan.io/address/0x3f88b9dc416ceadc36092673097ba456ba878cfb) | 0x87752627efc44b2115fa241910c349c817e36dd52551b056a6d8fbe60acef88e |
+| 32 | [0x18c98598e77dBF52e897966b3b1980EB9195D496](https://sepolia.etherscan.io/address/0x18c98598e77dBF52e897966b3b1980EB9195D496) | 0x3da7061d2821c48ceadae96bc3acee5f9a56ca5dab914ac2a28670fb2cd264c4 |
+| 64 | [0x7400fA7E1da16D995EC5F8F717a61D974C02BfAc](https://sepolia.etherscan.io/address/0x7400fA7E1da16D995EC5F8F717a61D974C02BfAc) | 0xaff21322e9a3ea94f3320b7d07824ccda23daad366c162744717b52b40c16e2c |
+| 128 | [0x0CBb51Fd7fbfc36A342C3D35316B814C825EA552](https://sepolia.etherscan.io/address/0x0CBb51Fd7fbfc36A342C3D35316B814C825EA552) | 0xef586869ec64df0b82cc308f2be3f0150e6ce544dfc1ccc9b4e3c3386e5c3110 |
+
+You can find the [sample fullfill Transaction](https://sepolia.etherscan.io/tx/0x063c0731e7feda726ff08a662fbe7361be66a323e5f9dd62b620fd509847310a) and the[sample claim transaction](https://sepolia.etherscan.io/tx/0x94e34370d657d8c081effdab0a074f74815178d28f15546ca10702deb3a79cc3). The fulfill transaction to `AxiomV2Query` will trigger the proof verification. Then the receivers (someone on their behalf in the sample transaction) creates a separate claim transaction which can prove into a Merkle root and transfer the grant to the receiver.
+
+## Gas Profiling
+### V1 Client
+| Batch Size | Amoritized Used Gas/Claim | Calldata Size |
+|----------|----------|----------|
+| 8| | |
+| 16| | |
+| 32| | |
+| 64| | |
+| 128| | |
+### V2 Client
+| Batch Size | Fulfill Tx Used Gas| Claim Tx Used Gas | Amoritized Used Gas/Claim|Claim Calldata Size | Amortized Calldata Size|
+|----------|----------|----------|----------|----------|----------|
+| 8| | || ||
+| 16| | || ||
+| 32| | || ||
+| 64| | || ||
+| 128| | || ||
+

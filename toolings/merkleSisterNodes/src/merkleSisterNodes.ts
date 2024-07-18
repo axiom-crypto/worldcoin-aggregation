@@ -32,7 +32,10 @@ class MerkleTree {
     return this.layers[this.layers.length - 1][0];
   }
 
-  public getSisterNodesPath(index: number): {sisterNodes: string[], isLeftBytes: boolean[]} {
+  public getSisterNodesPath(index: number): {
+    sisterNodes: string[];
+    isLeftBytes: boolean[];
+  } {
     let sisterNodes: string[] = [];
     let isLeftBytes: boolean[] = [];
     let layerIndex = 0;
@@ -51,7 +54,7 @@ class MerkleTree {
       layerIndex++;
     }
 
-    return {sisterNodes, isLeftBytes};
+    return { sisterNodes, isLeftBytes };
   }
 }
 
@@ -69,25 +72,26 @@ function getKeccakHash(receiver: string, nullfilerHash: string) {
 
 function boolArrayToByte32(boolArray: boolean[]): String {
   if (boolArray.length > 32) {
-        throw new Error('Input array must have fewer than 32 boolean elements.');
-    }
+    throw new Error("Input array must have fewer than 32 boolean elements.");
+  }
 
-    const byteArray = new Uint8Array(32);
+  const byteArray = new Uint8Array(32);
 
-    for (let i = 0; i < boolArray.length; i++) {
-        byteArray[i] = boolArray[i] ? 1 : 0;
-    }
+  for (let i = 0; i < boolArray.length; i++) {
+    byteArray[i] = boolArray[i] ? 1 : 0;
+  }
 
-      return Array.from(byteArray)
-        .map(byte => byte.toString(16).padStart(2, '0'))
-        .join('');
+  return Array.from(byteArray)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function parseInput(inputPath: string): {
-  leaves: string[],
-receivers: string[],
- nullifierHashes: string[],
- root: string
+  leaves: string[];
+  receivers: string[];
+  nullifierHashes: string[];
+  root: string;
+  grantId: string;
 } {
   const leaves: string[] = [];
   const receivers: string[] = [];
@@ -96,7 +100,6 @@ receivers: string[],
   const fileContent = fs.readFileSync(inputPath, "utf8");
 
   const input = JSON.parse(fileContent);
-
 
   const claims = input.claims;
   for (const claim of claims) {
@@ -109,33 +112,51 @@ receivers: string[],
   const max_proofs = input.max_proofs;
 
   const padLeave = getKeccakHash(ZeroAddress.toString(), "0");
-    for (let i = num_proofs; i < max_proofs; i++) {
+  for (let i = num_proofs; i < max_proofs; i++) {
     leaves.push(padLeave);
-    }
+  }
   return {
     leaves,
     receivers,
     nullifierHashes,
-    root: input.root
+    root: input.root,
+    grantId: input.grant_id,
   };
 }
 
-if (process.argv.length !== 4) {
-    console.log(`Usage: npx ts-node merkleSisterNodes.ts {inputFilePath} {claimIndex}`)
-    process.exit(0);
-}
-
-
 function main() {
-  const {leaves, receivers, nullifierHashes, root} = parseInput(process.argv[2]);
+  if (process.argv.length !== 4) {
+    console.log(
+      `Usage: npx ts-node merkleSisterNodes.ts {inputFilePath} {claimIndex}`,
+    );
+    process.exit(0);
+  }
+  const { leaves, receivers, nullifierHashes, root, grantId } = parseInput(
+    process.argv[2],
+  );
   const claimIdx = parseInt(process.argv[3]);
   console.log("Claim Batch Root:", root);
 
   const tree = new MerkleTree(leaves);
   console.log("Merkle Root:", tree.getRoot());
-  console.log(`Sister Nodes Path for index ${claimIdx} ${receivers[claimIdx]} with nullifierHash 0x${BigInt(nullifierHashes[claimIdx]).toString(16)} is:`);
-  let {sisterNodes, isLeftBytes} = tree.getSisterNodesPath(claimIdx);
+  console.log(
+    `Sister Nodes Path for index ${claimIdx} ${receivers[claimIdx]} with nullifierHash 0x${BigInt(nullifierHashes[claimIdx]).toString(16)} is:`,
+  );
+  let { sisterNodes, isLeftBytes } = tree.getSisterNodesPath(claimIdx);
   console.log(sisterNodes);
   console.log(`isLeftBytes is: ${boolArrayToByte32(isLeftBytes)}`);
+
+  const claim = {
+    grantId,
+    isLeftBytes: `${boolArrayToByte32(isLeftBytes)}`,
+    nullifierHash: `0x${BigInt(nullifierHashes[claimIdx]).toString(16)}`,
+    receiver: receivers[claimIdx],
+    root,
+    sisterNodes,
+  };
+  const json = JSON.stringify(claim, null, 2);
+
+  fs.writeFileSync("claim.json", json);
 }
 
+main();
