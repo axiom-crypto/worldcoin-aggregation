@@ -11,8 +11,9 @@ const GRANT_ID = "30";
 const ROOT =
   "12439333144543028190433995054436939846410560778857819700795779720142743070295";
 
-
-async function getTransactionInput(maxProofs: number) {
+// crawl up to maxProofs proofs and generate the input for endpoint
+// it also records the gas used by the on-chain txs
+async function crawlProofs(maxProofs: number) {
   const provider = new JsonRpcProvider(provider_uri);
   const contract = new ethers.Contract(RECURRING_GRANT_DROP, abi, provider);
 
@@ -28,33 +29,26 @@ async function getTransactionInput(maxProofs: number) {
 
   for (const event of events) {
     const txHash = event.transactionHash;
+
     if (txHash in seen_txs) {
       console.log(`${txHash} is seen before, skipping..`);
       continue;
     }
     seen_txs.push(txHash);
+
     const tx = await provider.getTransaction(txHash);
     if (tx?.to?.toLowerCase() !== RECURRING_GRANT_DROP.toLowerCase()) continue;
-
-    const receipt = await provider.getTransactionReceipt(txHash);
-
     const data = tx?.data;
-
     const grantInterface = new ethers.Interface(abi);
-
     const decoded = grantInterface.parseTransaction({ data })?.args;
-
     if (!decoded) {
-      throw new Error(`Fail to decode for tx ${txHash}`);
+      throw new Error(`Failed to decode for tx ${txHash}`);
     }
-
     const [grant_id, receiver, root, nullifier_hash, proof] = decoded;
-
     if (grant_id.toString() !== GRANT_ID || root.toString() != ROOT) {
       continue;
     }
-
-    console.log(`find one matching tx at block ${tx.blockNumber}`);
+    console.log(`Matched tx at block ${tx.blockNumber}`);
 
     const claim: Claim = {
       receiver,
@@ -64,8 +58,10 @@ async function getTransactionInput(maxProofs: number) {
 
     claims.push(claim);
 
+    const receipt = await provider.getTransactionReceipt(txHash);
     const gas = Number(receipt?.gasUsed);
-    gasUsed.push(gas!);
+    gasUsed.push(gas);
+
     if (claims.length === maxProofs) break;
   }
   
@@ -77,18 +73,21 @@ async function getTransactionInput(maxProofs: number) {
     claims,
   };
 
-  const data_path = `../data/real_proofs_${maxProofs}.json`;
-  const gas_report_path = `../data/gas_report_${maxProofs}.json`;
+  const data_path = `../circuit/data/real_proofs_${maxProofs}.json`;
+  const gas_report_path = `../circuit/data/gas_report_${maxProofs}.json`;
 
   fs.writeFileSync(data_path, JSON.stringify(request, null, 2), "utf8");
+
   const totalGas = gasUsed.reduce((accumulator, currentValue) => {
     return accumulator + currentValue;
   }, 0);
+
   const gasReport: GasReport = {
     gasUsed,
     totalGas,
     avgGas: totalGas / claims.length,
   };
+
   fs.writeFileSync(
     gas_report_path,
     JSON.stringify(gasReport, null, 2),
@@ -96,11 +95,15 @@ async function getTransactionInput(maxProofs: number) {
   );
 }
 
-const args = process.argv.slice(2);
+function main() {
+  const args = process.argv.slice(2);
 
 const maxProofs = Number.parseInt(args[0]);
 
-getTransactionInput(maxProofs);
+crawlProofs(maxProofs);
+}
+
+main();
 
 interface WorldcoinRequest {
   root: string;
