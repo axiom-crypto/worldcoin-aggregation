@@ -158,6 +158,8 @@ The fulfill transaction to `AxiomV2Query` will trigger the proof verification. T
 ## Gas Profiling
 The gas profiling involves initiating transactions for various batch sizes and calculating the amortized gas usage and calldata size.
 
+The testing data is generated using [semaphore-rs](https://github.com/worldcoin/semaphore-rs) with `depth_30` feature flag.
+
 The profiling data assumes that the grantees have a 0 balance for WLD. If the grantees are existing WLD holders, the transfer of the WLD token will take 17.1K less gas, the difference (20K - 2.9K) comes from the `SSTORE` opcode in updating grantee balances.
 
 ### V1 Client
@@ -188,10 +190,3 @@ For `WorldcoinAggregationV1`, both the L2 gas/claim and calldata/claim decrease 
 L2 gas cost estimates at 0.06 gwei and $3000 ETH
 
 For `WorldcoinAggregationV2`, the L2 gas/claim decreases as batch size increases. For a given batch size, `WorldcoinAggregationV2` always consumes more gas than `WorldcoinAggregationV1` per claim. This is mainly due to the additional claim transaction. As the batch size increases, the calldata/claim mostly decreases, reaching its minimum when the batch size is 64. After that the calldata/claim starts to increase, which is mainly due to the increase of calldata size of the claim transaction.
-
-
-
-
-
-
-
