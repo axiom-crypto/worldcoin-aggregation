@@ -176,7 +176,7 @@ The server exposes two endpoints, `/v1` and `/v2`, which will complete client ci
 - `/v1` uses the V1 circuit and submits a fulfillment transaction to the `WorldcoinAggregationV1` contract
 - `/v2` uses the V2 circuit and submits a fulfillment transaction to the `WorldcoinAggregationV2` contract
 
-At present, only requests with `max_proofs=16` are supported by the endpoints.
+At present, requests with `max_proofs={8, 16, 32, 64, 128}` are supported by the endpoints.
 
 Sample requests:
 ```
