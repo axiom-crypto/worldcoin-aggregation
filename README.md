@@ -138,7 +138,7 @@ For the end-to-end demo and benchmarking, we deployed `WorldcoinAggregationV1` a
 | 64 | [0xF81a28F081d7Cd5Ba695E43D4c8aB0A991f17982](https://sepolia.etherscan.io/address/0xF81a28F081d7Cd5Ba695E43D4c8aB0A991f17982) | 0x32b63d6d49fca4274bc54fd67b6c56750d62a02c4621df02f171a6d474b73549 |
 | 128 | [0x5F9c52B43Fc8E2080463e6246318203596FCB887](https://sepolia.etherscan.io/address/0x5F9c52B43Fc8E2080463e6246318203596FCB887) | 0xe056466be31c1e1da8069412acf2f2d3dbd1de30d5e6a28db14c3440e7312fd3 |
 
-You can find the[sample fullfill transaction](https://sepolia.etherscan.io/tx/0xc8fca0877cfad47e85e2c12541ad7f843e6c8dea852606d5bdedfa3a897ddee3).
+You can find the[sample fulfill transaction](https://sepolia.etherscan.io/tx/0xc8fca0877cfad47e85e2c12541ad7f843e6c8dea852606d5bdedfa3a897ddee3).
 
 `AxiomV2Query` verifies the zk proof submitted and makes a callback to the deployed `WorldcoinAggregationV1` contract, which directly transfers the grants to the receivers.
 
@@ -151,7 +151,7 @@ You can find the[sample fullfill transaction](https://sepolia.etherscan.io/tx/0x
 | 64 | [0x7400fA7E1da16D995EC5F8F717a61D974C02BfAc](https://sepolia.etherscan.io/address/0x7400fA7E1da16D995EC5F8F717a61D974C02BfAc) | 0xaff21322e9a3ea94f3320b7d07824ccda23daad366c162744717b52b40c16e2c |
 | 128 | [0x0CBb51Fd7fbfc36A342C3D35316B814C825EA552](https://sepolia.etherscan.io/address/0x0CBb51Fd7fbfc36A342C3D35316B814C825EA552) | 0xef586869ec64df0b82cc308f2be3f0150e6ce544dfc1ccc9b4e3c3386e5c3110 |
 
-You can find the [sample fullfill Transaction](https://sepolia.etherscan.io/tx/0x063c0731e7feda726ff08a662fbe7361be66a323e5f9dd62b620fd509847310a) and the[sample claim transaction](https://sepolia.etherscan.io/tx/0x94e34370d657d8c081effdab0a074f74815178d28f15546ca10702deb3a79cc3).
+You can find the [sample fulfill Transaction](https://sepolia.etherscan.io/tx/0x063c0731e7feda726ff08a662fbe7361be66a323e5f9dd62b620fd509847310a) and the[sample claim transaction](https://sepolia.etherscan.io/tx/0x94e34370d657d8c081effdab0a074f74815178d28f15546ca10702deb3a79cc3).
 
 The fulfill transaction to `AxiomV2Query` will trigger the proof verification. Then the receivers (someone on their behalf in the sample transaction) create a separate claim transaction which can prove into a Merkle root and transfer the grant to the receiver.
 
