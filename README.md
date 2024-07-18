@@ -119,13 +119,15 @@ forge test
 ```
 
 ## Deployment
-Here are the related contracts that have been deployed:
+For the end-to-end demo and benchmarking, we deployed `WorldcoinAggregationV1` and `WorldcoinAggregationV2` for sizes `8, 16, 32, 64 and 128` on Sepolia.
+
+### Pre-deployed contracts
 | Name | Sepolia Address | Description |
 |----------|----------|----------|
 | AxiomV2Query | [0x9C9CF878f9Ba4422BDD73B55554F0A796411D5ed](https://sepolia.etherscan.io/address/0x9C9CF878f9Ba4422BDD73B55554F0A796411D5ed)| [AxiomV2Query](https://docs.axiom.xyz/protocol/protocol-design/axiom-query-protocol/) fulfills queries with on-chain zk proof verification, and make callbacks |
-|WLDMock| [0xe93D97b0Bd30bD61a9D02B0A471DbB329D5d1fd8](https://sepolia.etherscan.io/address/0xe93D97b0Bd30bD61a9D02B0A471DbB329D5d1fd8)|An ERC20 contract which mocks the WLD contract|
-|RootValidatorMock|[0x9c06c3F1deecb530857127009EBE7d112ecd0E3F](https://sepolia.etherscan.io/address/0x9c06c3F1deecb530857127009EBE7d112ecd0E3F)| A contract which implements `IRootValidator` and never reverts on the `requireValidRoot` call|
-| GrantMock | [0x5d1F6aDfff773A2146f1f3c947Ddad1945103DaC](https://sepolia.etherscan.io/address/0x5d1F6aDfff773A2146f1f3c947Ddad1945103DaC)| A contract which implements `IGrant` and nver reverts on the `checkValidity` call|
+| WLDMock | [0xe93D97b0Bd30bD61a9D02B0A471DbB329D5d1fd8](https://sepolia.etherscan.io/address/0xe93D97b0Bd30bD61a9D02B0A471DbB329D5d1fd8)| An ERC20 contract which mocks the WLD contract |
+| RootValidatorMock | [0x9c06c3F1deecb530857127009EBE7d112ecd0E3F](https://sepolia.etherscan.io/address/0x9c06c3F1deecb530857127009EBE7d112ecd0E3F)| A contract which implements the `IRootValidator` interface and never reverts on the the `requireValidRoot` call |
+| GrantMock | [0x5d1F6aDfff773A2146f1f3c947Ddad1945103DaC](https://sepolia.etherscan.io/address/0x5d1F6aDfff773A2146f1f3c947Ddad1945103DaC) | A contract which implements the `IGrant` interface and nver reverts on the `checkValidity` call|
 
 ### V1 Client
 | Batch Size | Sepolia Address | Query Schema |
@@ -136,10 +138,12 @@ Here are the related contracts that have been deployed:
 | 64 | [0xF81a28F081d7Cd5Ba695E43D4c8aB0A991f17982](https://sepolia.etherscan.io/address/0xF81a28F081d7Cd5Ba695E43D4c8aB0A991f17982) | 0x32b63d6d49fca4274bc54fd67b6c56750d62a02c4621df02f171a6d474b73549 |
 | 128 | [0x5F9c52B43Fc8E2080463e6246318203596FCB887](https://sepolia.etherscan.io/address/0x5F9c52B43Fc8E2080463e6246318203596FCB887) | 0xe056466be31c1e1da8069412acf2f2d3dbd1de30d5e6a28db14c3440e7312fd3 |
 
-You can find the[sample fullfill transaction](https://sepolia.etherscan.io/tx/0xc8fca0877cfad47e85e2c12541ad7f843e6c8dea852606d5bdedfa3a897ddee3),`AxiomV2Query` verifies the zk proof submitted and makes a callback to the deployed `WorldcoinAggregationV1` contract, which then directly transfers the grants to the receivers.
+You can find the[sample fullfill transaction](https://sepolia.etherscan.io/tx/0xc8fca0877cfad47e85e2c12541ad7f843e6c8dea852606d5bdedfa3a897ddee3).
+
+`AxiomV2Query` verifies the zk proof submitted and makes a callback to the deployed `WorldcoinAggregationV1` contract, which directly transfers the grants to the receivers.
 
 ### V2 Client
-| Batch Size | Sepolia Address | Sample Fulfill Tx |
+| Batch Size | Sepolia Address | Query Schema |
 |----------|----------|----------|
 | 8 |  [0x051e0aB85c4Dfb90270FD45c93628c7F0b7551e7](https://sepolia.etherscan.io/address/0x051e0aB85c4Dfb90270FD45c93628c7F0b7551e7) | 0x6fc97d2f5193f179ff1e389b4224bf9012f423d0c22b320e0e25dab7e873fc4a |
 | 16 | [0x3f88b9dc416ceadc36092673097ba456ba878cfb](https://sepolia.etherscan.io/address/0x3f88b9dc416ceadc36092673097ba456ba878cfb) | 0x87752627efc44b2115fa241910c349c817e36dd52551b056a6d8fbe60acef88e |
@@ -147,23 +151,47 @@ You can find the[sample fullfill transaction](https://sepolia.etherscan.io/tx/0x
 | 64 | [0x7400fA7E1da16D995EC5F8F717a61D974C02BfAc](https://sepolia.etherscan.io/address/0x7400fA7E1da16D995EC5F8F717a61D974C02BfAc) | 0xaff21322e9a3ea94f3320b7d07824ccda23daad366c162744717b52b40c16e2c |
 | 128 | [0x0CBb51Fd7fbfc36A342C3D35316B814C825EA552](https://sepolia.etherscan.io/address/0x0CBb51Fd7fbfc36A342C3D35316B814C825EA552) | 0xef586869ec64df0b82cc308f2be3f0150e6ce544dfc1ccc9b4e3c3386e5c3110 |
 
-You can find the [sample fullfill Transaction](https://sepolia.etherscan.io/tx/0x063c0731e7feda726ff08a662fbe7361be66a323e5f9dd62b620fd509847310a) and the[sample claim transaction](https://sepolia.etherscan.io/tx/0x94e34370d657d8c081effdab0a074f74815178d28f15546ca10702deb3a79cc3). The fulfill transaction to `AxiomV2Query` will trigger the proof verification. Then the receivers (someone on their behalf in the sample transaction) creates a separate claim transaction which can prove into a Merkle root and transfer the grant to the receiver.
+You can find the [sample fullfill Transaction](https://sepolia.etherscan.io/tx/0x063c0731e7feda726ff08a662fbe7361be66a323e5f9dd62b620fd509847310a) and the[sample claim transaction](https://sepolia.etherscan.io/tx/0x94e34370d657d8c081effdab0a074f74815178d28f15546ca10702deb3a79cc3).
+
+The fulfill transaction to `AxiomV2Query` will trigger the proof verification. Then the receivers (someone on their behalf in the sample transaction) create a separate claim transaction which can prove into a Merkle root and transfer the grant to the receiver.
 
 ## Gas Profiling
+The gas profiling involves initiating transactions for various batch sizes and calculating the amortized gas usage and calldata size.
+
+The profiling data assumes that the grantees have a 0 balance for WLD. If the grantees are existing WLD holders, the transfer of the WLD token will take 17.1K less gas, the difference (20K - 2.9K) comes from the `SSTORE` opcode in updating grantee balances.
+
 ### V1 Client
-| Batch Size | Amoritized Used Gas/Claim | Calldata Size |
-|----------|----------|----------|
-| 8| | |
-| 16| | |
-| 32| | |
-| 64| | |
-| 128| | |
+| # Claims | L2 Gas/Claim | Proof Gas/Claim | Calldata/Claim | L2 Gas$/Claim |
+|----------|----------|----------|----------|----------|
+| 1 | 418K | 373K | 388 | $0.0752 | 
+| 8 | 108K | 63K | 540 | $0.01944 |
+| 16 | 79K | 34K | 302 | $0.01422 |
+| 32 | 65K | 20K | 182 | $0.0117 | 
+| 64 | 58K | 12K | 123 | $0.01044 | 
+| 128 | 54K | 9K | 96 | $0.00972 |
+
+L2 gas cost estimates at 0.06 gwei and $3000 ETH
+
+For `WorldcoinAggregationV1`, both the L2 gas/claim and calldata/claim decrease as batch size increases.
+
 ### V2 Client
-| Batch Size | Fulfill Tx Used Gas| Claim Tx Used Gas | Amoritized Used Gas/Claim|Claim Calldata Size | Amortized Calldata Size|
-|----------|----------|----------|----------|----------|----------|
-| 8| | || ||
-| 16| | || ||
-| 32| | || ||
-| 64| | || ||
-| 128| | || ||
+
+| # Claims | L2 Gas/Claim | Proof Gas/Claim | Calldata/Claim | L2 Gas$/Claim |
+|----------|----------|----------|----------|----------|
+| 1 | 418K | 373K | 388 | $0.0752 | 
+| 8 | 147K | 59K | 801 | $0.0264 |
+| 16 | 118K | 29K | 595 | $0.0212 |
+| 32 | 105K | 15K | 507 | $0.0189 | 
+| 64 | 97K | 7K | 480 | $0.0175 | 
+| 128 | 95K | 4K | 482 | $0.0169 |
+
+L2 gas cost estimates at 0.06 gwei and $3000 ETH
+
+For `WorldcoinAggregationV2`, the L2 gas/claim decreases as batch size increases. For a given batch size, `WorldcoinAggregationV2` always consumes more gas than `WorldcoinAggregationV1` per claim. This is mainly due to the additional claim transaction. As the batch size increases, the calldata/claim mostly decreases, reaching its minimum when the batch size is 64. After that the calldata/claim starts to increase, which is mainly due to the increase of calldata size of the claim transaction.
+
+
+
+
+
+
 
