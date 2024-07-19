@@ -108,16 +108,16 @@ We deployed Grant Protocol V1 on Sepolia for different sizes at the addresses be
 | 64         | [0xF81a28F081d7Cd5Ba695E43D4c8aB0A991f17982](https://sepolia.etherscan.io/address/0xF81a28F081d7Cd5Ba695E43D4c8aB0A991f17982) | 0x32b63d6d49fca4274bc54fd67b6c56750d62a02c4621df02f171a6d474b73549 |
 | 128        | [0x5F9c52B43Fc8E2080463e6246318203596FCB887](https://sepolia.etherscan.io/address/0x5F9c52B43Fc8E2080463e6246318203596FCB887) | 0xe056466be31c1e1da8069412acf2f2d3dbd1de30d5e6a28db14c3440e7312fd3 |
 
-We measured gas and calldata usage, shown in the table below. We also show gas attributed to proof verification, which excludes gas used for WLD token transfers and other business logic. Our dollar cost estimates are based on an L2 gas cost of 0.06 gwei, L1 blob base fee of 1gwei, and \$3000 ETH.
+We measured gas and calldata usage, shown in the table below. We also show gas attributed to proof verification, which excludes gas used for WLD token transfers and other business logic. On-chain \$ includes L1 and L2 gas. Our dollar cost estimates are based on an L2 gas cost of 0.06 gwei, L1 blob base fee of 1wei, and \$3000 ETH.
 
-| # Claims | L2 Gas/Claim | Proof Gas/Claim | Calldata/Claim | L2 Gas\$/Claim |
-| -------- | ------------ | --------------- | -------------- | -------------- |
-| 1        | 418K         | 373K            | 388            | \$0.0752       |
-| 8        | 108K         | 63K             | 540            | \$0.01944      |
-| 16       | 79K          | 34K             | 302            | \$0.01422      |
-| 32       | 65K          | 20K             | 182            | \$0.0117       |
-| 64       | 58K          | 12K             | 123            | \$0.01044      |
-| 128      | 54K          | 9K              | 96             | \$0.00972      |
+| # Claims | L2 Gas/Claim | Proof Gas/Claim | Calldata/Claim | On-chain \$/Claim |
+| -------- | ------------ | --------------- | -------------- | ----------------- |
+| 1        | 418K         | -               | 388            | \$0.0760          |
+| 8        | 108K         | 56K             | 540            | \$0.0205          |
+| 16       | 79K          | 29K             | 302            | \$0.0148          |
+| 32       | 65K          | 15K             | 182            | \$0.0121          |
+| 64       | 58K          | 8K              | 123            | \$0.0107          |
+| 128      | 54K          | 4K              | 96             | \$0.0099          |
 
 ### Grant Protocol V2
 
@@ -131,16 +131,16 @@ We deployed Grant Protocol V2 on Sepolia for different sizes at the addresses be
 | 64         | [0x7400fA7E1da16D995EC5F8F717a61D974C02BfAc](https://sepolia.etherscan.io/address/0x7400fA7E1da16D995EC5F8F717a61D974C02BfAc) | 0xaff21322e9a3ea94f3320b7d07824ccda23daad366c162744717b52b40c16e2c |
 | 128        | [0x0CBb51Fd7fbfc36A342C3D35316B814C825EA552](https://sepolia.etherscan.io/address/0x0CBb51Fd7fbfc36A342C3D35316B814C825EA552) | 0xef586869ec64df0b82cc308f2be3f0150e6ce544dfc1ccc9b4e3c3386e5c3110 |
 
-We measured gas and calldata usage, shown in the table below. We also show gas attributed to proof verification, which excludes gas used for WLD token transfers and other business logic. Our dollar cost estimates are based on an L2 gas cost of 0.06 gwei, L1 blob base fee of 1gwei, and \$3000 ETH.
+We measured gas and calldata usage, shown in the table below. We also show gas attributed to proof verification, which excludes gas used for WLD token transfers and other business logic. On-chain \$ includes L1 and L2 gas. Our dollar cost estimates are based on an L2 gas cost of 0.06 gwei, L1 blob base fee of 1wei, and \$3000 ETH.
 
-| # Claims | L2 Gas/Claim | Proof Gas/Claim | Calldata/Claim | L2 Gas\$/Claim |
-| -------- | ------------ | --------------- | -------------- | -------------- |
-| 1        | 418K         | 373K            | 388            | \$0.0752       |
-| 8        | 147K         | 59K             | 801            | \$0.0264       |
-| 16       | 118K         | 29K             | 595            | \$0.0212       |
-| 32       | 105K         | 15K             | 507            | \$0.0189       |
-| 64       | 97K          | 7K              | 480            | \$0.0175       |
-| 128      | 95K          | 4K              | 482            | \$0.0169       |
+| # Claims | L2 Gas/Claim | Proof Gas/Claim | Calldata/Claim | On-chain \$/Claim |
+| -------- | ------------ | --------------- | -------------- | ----------------- |
+| 1        | 418K         | -               | 388            | \$0.0760          |
+| 8        | 147K         | 59K             | 801            | \$0.0281          |
+| 16       | 118K         | 29K             | 595            | \$0.0224          |
+| 32       | 105K         | 15K             | 507            | \$0.0200          |
+| 64       | 97K          | 7K              | 480            | \$0.0185          |
+| 128      | 95K          | 4K              | 482            | \$0.0179          |
 
 For a given batch size, V2 consumes more gas than V1 per claim due to the additional claim transaction. As the batch size increases, the calldata/claim mostly decreases, reaching its minimum when the batch size is 64. After that the calldata/claim starts to increase due to increased calldata usage from the claim transaction.
 
