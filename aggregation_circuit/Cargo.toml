@@ -1,0 +1,113 @@
+[package]
+name = "worldcoin-aggregation"
+version = "0.0.1"        
+edition = "2021"
+
+[dependencies]
+itertools = "0.11"
+lazy_static = "1.4.0"
+# serialization
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0", default-features = false }
+# misc
+anyhow = "1.0"
+log = "0.4"
+env_logger = "0.10"
+# generating circuit inputs from blockchain
+ethers-providers = { version = "2.0.14" }
+futures = { version = "=0.3" }
+#reqwest = { version = "=0.11", features = ["json"] }
+async-recursion = "1.0.5"
+
+# server endpoint
+rocket = { version = "0.5.0", features = ["json"] }
+#clap = { version = "=4.4.7", features = ["derive"] }
+clap-num = { version = "1.0.2" }
+
+# getting build info
+built = { version = "0.7", features = ["cargo-lock", "dependency-tree", "git2", "chrono", "semver"] }
+
+ethers-core = { version = "=2.0.14", features = ["optimism"] }
+
+#axiom-query = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop", default-features = true, features = ["jemallocator", "keygen"] }
+axiom-circuit = { git = "https://github.com/axiom-crypto/axiom-sdk-rs.git", branch = "develop" }
+axiom-sdk = { git = "https://github.com/axiom-crypto/axiom-sdk-rs.git", branch = "develop" }
+axiom-components = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop" }
+#axiom-codec = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop", package = "axiom-codec", default-features = false }
+axiom-eth = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop", package = "axiom-eth",  default-features = true, features = [
+  "jemallocator",
+  "providers",
+  "aggregation",
+  "evm",
+  "keygen",
+] }
+
+axiom-core = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git",  branch = "develop", package = "axiom-core", default-features = false, features = ["jemallocator", "keygen"] }
+
+ethers = "2.0.14"
+hex = "0.4.3"
+num-bigint = "0.4.5"
+halo2curves = "0.6.1"
+dirs = "5.0.1"
+reqwest = "0.12.5"
+tokio = "1.38.0"
+phf = { version = "0.11.2", features = ["macros"] }
+
+# keygen
+clap = { version = "=4.4.7", features = ["derive"], optional = true }
+blake3 = { version = "=1.5", optional = true }
+serde_yaml = { version = "=0.9.16", optional = true }
+serde_with = "3.9.0"
+
+
+
+[dev-dependencies]
+ark-std = { version = "0.3.0", features = ["print-trace"] }
+test-log = "0.2.11"
+test-case = "3.1.0"
+
+[features]
+default = ["halo2-axiom", "jemallocator", "keygen", "display"]
+display = ["axiom-eth/display"]
+asm = ["axiom-eth/asm"]
+revm = ["axiom-eth/revm"]
+halo2-pse = ["axiom-eth/halo2-pse"]
+halo2-axiom = ["axiom-eth/halo2-axiom"]
+jemallocator = ["axiom-eth/jemallocator"]
+keygen = ["axiom-eth/keygen", "dep:clap", "dep:serde_yaml"]
+
+[profile.dev]
+opt-level = 3
+debug = 2              # change to 0 or 2 for more or less debug info
+overflow-checks = true
+incremental = true
+
+# Local "release" mode, more optimized than dev but faster to compile than release
+[profile.local]
+inherits = "dev"
+opt-level = 3
+# Set this to 1 or 2 to get more useful backtraces
+debug = 1
+debug-assertions = true
+panic = 'unwind'
+# better recompile times
+incremental = true
+lto = "thin"
+# codegen-units = 16
+
+[profile.release]
+opt-level = 3
+debug = 1
+debug-assertions = false
+lto = "fat"
+# `codegen-units = 1` can lead to WORSE performance - always bench to find best profile for your machine!
+codegen-units = 1
+panic = "unwind"
+incremental = false
+
+[profile.unit-testing]
+inherits = "dev"
+opt-level = 0
+debug = 2              # change to 0 or 2 for more or less debug info
+overflow-checks = true
+incremental = true
