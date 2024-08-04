@@ -1,4 +1,4 @@
-use std::{cmp::min, collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{anyhow, bail, Result};
 use async_recursion::async_recursion;
@@ -21,7 +21,6 @@ use crate::{
 };
 
 use super::recursive_request::RecursiveRequest;
-
 
 #[derive(Clone)]
 pub struct LocalScheduler {
@@ -54,7 +53,7 @@ impl LocalScheduler {
         claims: Vec<ClaimNative>,
     ) -> Result<WorldcoinRequestLeaf> {
         if end - start > (1 << depth) {
-            bail!("start: {start}, end: {end}, cannot request more than 2^{depth} blocks");
+            bail!("start: {start}, end: {end}, cannot request more than 2^{depth} proofs");
         }
 
         Ok(WorldcoinRequestLeaf {
@@ -95,7 +94,7 @@ impl LocalScheduler {
             Ok(match params.node_type {
                 NodeType::Leaf => unreachable!(),
                 NodeType::Intermediate => {
-                    // TODO: any case this would be happening
+                    // TODO: the logic would be different for v2
                     if snarks.len() != 2 {
                         snarks.resize(2, snarks[0].clone()); // dummy snark
                     }

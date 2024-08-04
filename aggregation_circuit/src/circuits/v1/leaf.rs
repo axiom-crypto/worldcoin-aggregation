@@ -148,6 +148,8 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinInput<F> {
         let max_proofs = ctx.load_witness(F::from(1 << self.max_depth));
         let max_proofs_plus_one = range.gate().add(ctx, max_proofs, one);
 
+        // ==== Constraints ====
+
         // constrain 0 < num_proofs <= max_proofs
         range.check_less_than(ctx, zero, num_proofs, 64);
         range.check_less_than(ctx, num_proofs, max_proofs_plus_one, 64);
@@ -169,7 +171,7 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinInput<F> {
         let nullifier_hashes = parallelize_core(builder.base.pool(0), inputs, |ctx, input| {
             let (groth16_verifier_input, receiver) = input;
 
-            // constrain the same vkey
+            // constrain proofs using the same vkey
             let flattened_vk: Vec<AssignedValue<F>> = groth16_verifier_input.vk.flatten();
             assert_eq!(flattened_vk.len(), constants.num_fe_hilo_vkey);
             flattened_vk

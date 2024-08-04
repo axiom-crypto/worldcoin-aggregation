@@ -40,7 +40,7 @@ use crate::{
     circuits::v1::{
         intermediate::WorldcoinIntermediateAggregationInput,
         leaf::WorldcoinLeafCircuit,
-        root::{WorldcoinRootAggregationCircuit, WorldcoinRootAggregationInput},
+        root::WorldcoinRootAggregationInput,
     },
     types::{VkNative, WorldcoinInput, WorldcoinRequest},
 };
