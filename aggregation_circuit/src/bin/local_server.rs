@@ -9,7 +9,7 @@ use worldcoin_aggregation::{
     constants::INITIAL_DEPTH,
     keygen::node_params::{NodeParams, NodeType},
     prover::{ProverConfig, ProvingServerState},
-    scheduler::{RecursiveRequest, Scheduler},
+    scheduler::{RecursiveRequest, LocalScheduler},
     types::*,
 };
 
@@ -37,14 +37,14 @@ struct Request {
 }
 
 #[post("/reset")]
-async fn reset(scheduler: &State<Scheduler>) -> Status {
+async fn reset(scheduler: &State<LocalScheduler>) -> Status {
     scheduler.state.reset().await;
     Status::Ok
 }
 
 /// synchronously run the task and its dependencies, it will store generated snarks in local fs
 #[post("/prove", format = "json", data = "<task>")]
-async fn serve(task: Json<Request>, scheduler: &State<Scheduler>) -> Result<String> {
+async fn serve(task: Json<Request>, scheduler: &State<LocalScheduler>) -> Result<String> {
     let Request {
         start,
         end,
@@ -91,7 +91,7 @@ async fn serve(task: Json<Request>, scheduler: &State<Scheduler>) -> Result<Stri
         params,
     };
 
-    let scheduler = Scheduler::clone(scheduler);
+    let scheduler = LocalScheduler::clone(scheduler);
     // Actually run the thing
     log::info!("Running task: {req:?}");
     let evm_proof = if for_evm {
@@ -132,7 +132,7 @@ fn rocket() -> Rocket<Build> {
     let data = fs::read_to_string("./data/vk.json").unwrap();
     let vk: VkNative = serde_json::from_str(&data).unwrap();
 
-    let scheduler: Scheduler = Scheduler::new(cids_repo, state, vk);
+    let scheduler: LocalScheduler = LocalScheduler::new(cids_repo, state, vk);
     rocket::build()
         .mount("/", routes![serve, reset])
         .manage(scheduler)
