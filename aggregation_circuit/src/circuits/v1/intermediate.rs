@@ -14,6 +14,7 @@ use axiom_eth::{
     halo2_base::{
         gates::{circuit::CircuitBuilderStage, GateInstructions, RangeChip, RangeInstructions},
         AssignedValue, Context,
+        QuantumCell::Constant,
     },
     halo2_proofs::{
         halo2curves::bn256::{Bn256, Fr},
@@ -210,17 +211,40 @@ pub fn join_previous_instances<F: Field>(
     let [instance0, instance1] = prev_instances;
 
     // join & sanitize block numbers
-    let (start_block_number, intermed_block_num0) = (instance0[0], instance0[1]);
-    let (intermed_block_num1, end_block_number) = (instance1[0], instance1[1]);
-    let num_blocks0 = range
+    let (start_idx, intermed_idx0) = (instance0[0], instance0[1]);
+    let (intermed_idx1, mut end_idx) = (instance1[0], instance1[1]);
+    let num_proofs0 = range
         .gate()
-        .sub(ctx, intermed_block_num0, start_block_number);
-    let num_blocks1 = range.gate().sub(ctx, end_block_number, intermed_block_num1);
+        .sub(ctx, intermed_idx0, start_idx);
+    let num_proofs1 = range.gate().sub(ctx, end_idx, intermed_idx1);
 
-    range.check_less_than_safe(ctx, num_blocks0, 1 << prev_depth + 1);
-    range.check_less_than_safe(ctx, num_blocks1, 1 << prev_depth + 1);
+    let prev_max_proofs_plus_one = (1 << prev_depth) + 1;
+    range.check_less_than_safe(ctx, num_proofs0, prev_max_proofs_plus_one);
+    range.check_less_than_safe(ctx, num_proofs1, prev_max_proofs_plus_one);
 
-    let boundary_num_diff = range.gate().sub(ctx, end_block_number, start_block_number);
+    // whether the 2nd shard is a dummy shard
+    let selector = range.is_less_than_safe(ctx, num_proofs, prev_max_proofs_plus_one);
+
+    end_idx = range
+        .gate()
+        .select(ctx, intermed_idx0, end_idx, selector);
+    // make sure shards link up
+    let mut eq_check = range
+        .gate()
+        .is_equal(ctx, intermed_idx0, intermed_idx1);
+    eq_check = range.gate().or(ctx, eq_check, selector);
+    range.gate().assert_is_const(ctx, &eq_check, &F::ONE);
+    // if num_proofs > 2^prev_depth, then num_proofs0 must equal 2^prev_depth
+    let prev_max_proofs = range.gate().pow_of_two()[prev_depth];
+    let is_max_depth0 = range
+        .gate()
+        .is_equal(ctx, num_proofs0, Constant(prev_max_proofs));
+    eq_check = range.gate().or(ctx, is_max_depth0, selector);
+    range.gate().assert_is_const(ctx, &eq_check, &F::ONE);
+
+    // check number of blocks is correct
+    let boundary_num_diff = range.gate().sub(ctx, end_idx, start_idx);
+
     ctx.constrain_equal(&boundary_num_diff, &num_proofs);
 
     let num_instance =
@@ -233,11 +257,9 @@ pub fn join_previous_instances<F: Field>(
         ctx.constrain_equal(&instance0[_i], &instance1[_i]);
     }
 
-    println!("instances from previous shards are the same");
-
     // new instances for the aggregation layer
-    instances.push(start_block_number);
-    instances.push(end_block_number);
+    instances.push(start_idx);
+    instances.push(end_idx);
     instances.extend_from_slice(&instance0[2..6]);
     // combine receivers
     let max_proofs_prev_depth = 1 << prev_depth;

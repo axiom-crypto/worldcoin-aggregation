@@ -27,6 +27,7 @@ use axiom_core::axiom_eth::{
     },
     utils::snark_verifier::EnhancedSnark,
 };
+
 use clap::Parser;
 use ethers_core::utils::hex;
 use rocket::tokio;
@@ -197,6 +198,7 @@ impl ProvingServerState {
         log::debug!("build circuit for proof_id={}", req.proof_id());
         let (kzg_params, pk, circuit) = self.build_circuit(circuit_id, req).await?;
         log::debug!("gen_snark start");
+
         let snark = gen_snark_shplonk(&kzg_params, &pk, circuit, snark_path);
         log::debug!("gen_snark end");
         #[cfg(debug_assertions)]
