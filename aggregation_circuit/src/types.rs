@@ -15,7 +15,7 @@ use axiom_components::{
 use axiom_eth::{utils::encode_addr_to_field, zkevm_hashes::util::eth_types::Field};
 use ethers::utils::keccak256;
 use serde::Deserialize;
-use std::{fmt::Debug, vec};
+use std::fmt::Debug;
 
 use axiom_components::groth16::{get_groth16_consts_from_max_pi, test::parse_input};
 
@@ -101,22 +101,6 @@ pub struct WorldcoinNativeInput {
     pub max_proofs: usize,
     pub claims: Vec<ClaimNative>,
 }
-
-// impl From<WorldcoinNativeInput> for WorldcoinInput<Fr> {
-//     fn from(input: WorldcoinNativeInput) -> Self {
-//         let WorldcoinNativeInput {
-//             vk,
-//             root,
-//             grant_id,
-//             num_proofs,
-//             max_proofs,
-//             claims,
-//         } = input;
-//         let vk_str = serde_json::to_string(&vk).unwrap();
-
-//         WorldcoinInput::new(vk_str, root, grant_id, num_proofs, max_proofs, claims)
-//     }
-// }
 
 pub fn get_pf_string(proof: &[String]) -> String {
     json!({
@@ -270,8 +254,6 @@ impl<F: Field> From<Groth16Input<F>> for Groth16VerifierInput<F> {
 impl<T: Copy> From<Groth16VerifierInput<T>> for Groth16Input<T> {
     fn from(input: Groth16VerifierInput<T>) -> Self {
         let flattened_vkey = input.vk.flatten();
-        // assert_eq!(constants.num_fe_hilo_vkey, flattened_vkey.len());
-
         let flattened_proof = input.proof.flatten_vec();
         Groth16Input {
             vkey_bytes: flattened_vkey,

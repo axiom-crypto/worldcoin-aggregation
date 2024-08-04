@@ -3,7 +3,7 @@ use std::iter;
 use axiom_eth::{
     halo2_base::{
         gates::{flex_gate::threads::parallelize_core, GateInstructions, RangeInstructions},
-        AssignedValue,
+        AssignedValue, Context,
     },
     mpt::MPTChip,
     rlc::circuit::builder::RlcCircuitBuilder,
@@ -23,7 +23,6 @@ use axiom_components::{
             Groth16VerifierComponentProof, Groth16VerifierComponentVerificationKey,
             Groth16VerifierInput,
         },
-        Groth16VerifierComponent, NUM_FE_PROOF,
     },
     utils::flatten::InputFlatten,
 };
@@ -67,6 +66,59 @@ impl<F: Field> CircuitMetadata for WorldcoinInput<F> {
     }
 }
 
+pub struct WorldcoinAssignedInput<F: Field> {
+    start: AssignedValue<F>,
+    end: AssignedValue<F>,
+    root: AssignedValue<F>,
+    grant_id: AssignedValue<F>,
+    receivers: Vec<AssignedValue<F>>,
+    groth16_verifier_inputs: Vec<Groth16VerifierInput<AssignedValue<F>>>,
+}
+
+impl<F: Field> WorldcoinInput<F> {
+    fn assign(&self, ctx: &mut Context<F>) -> WorldcoinAssignedInput<F> {
+        let start = ctx.load_witness(F::from(self.start as u64));
+
+        let end = ctx.load_witness(F::from(self.end as u64));
+        let root = ctx.load_witness(self.root);
+        let grant_id = ctx.load_witness(self.grant_id);
+        let receivers = ctx.assign_witnesses(self.receivers.clone());
+
+        let mut groth16_verifier_inputs: Vec<Groth16VerifierInput<AssignedValue<F>>> = Vec::new();
+        let num_public_inputs = ctx.load_witness(F::from(MAX_GROTH16_PI as u64 + 1));
+        let constants = get_groth16_consts_from_max_pi(MAX_GROTH16_PI);
+
+        for groth16_input in self.groth16_inputs.iter() {
+            let input: Groth16Input<F> = groth16_input.clone().into();
+            let vk = ctx.assign_witnesses(input.vkey_bytes);
+            let proof = ctx.assign_witnesses(input.proof_bytes);
+            let public_inputs = ctx.assign_witnesses(input.public_inputs);
+
+            let groth16_verifier_input: Groth16VerifierInput<AssignedValue<F>> =
+                Groth16VerifierInput {
+                    vk: Groth16VerifierComponentVerificationKey::unflatten(
+                        vk,
+                        constants.gamma_abc_g1_len,
+                    ),
+                    proof: Groth16VerifierComponentProof::unflatten(proof).unwrap(),
+                    public_inputs,
+                    num_public_inputs,
+                };
+
+            groth16_verifier_inputs.push(groth16_verifier_input);
+        }
+
+        WorldcoinAssignedInput {
+            start,
+            end,
+            root,
+            grant_id,
+            receivers,
+            groth16_verifier_inputs,
+        }
+    }
+}
+
 // TODO: clean up struct, mpt is not needed
 impl<F: Field> EthCircuitInstructions<F> for WorldcoinInput<F> {
     type FirstPhasePayload = WorldcoinWitness<F>;
@@ -84,81 +136,74 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinInput<F> {
         // ==== Assign =====
         let zero = ctx.load_zero();
         let one = ctx.load_constant(F::ONE);
-
-        let end = ctx.load_witness(F::from(self.end as u64));
-        let start = ctx.load_witness(F::from(self.start as u64));
+        let WorldcoinAssignedInput {
+            start,
+            end,
+            root,
+            grant_id,
+            receivers,
+            groth16_verifier_inputs,
+        } = self.assign(ctx);
         let num_proofs = range.gate().sub(ctx, end, start);
         let max_proofs = ctx.load_witness(F::from(1 << self.max_depth));
         let max_proofs_plus_one = range.gate().add(ctx, max_proofs, one);
-        let root = ctx.load_witness(self.root);
-        let grant_id = ctx.load_witness(self.grant_id);
-        let receivers = ctx.assign_witnesses(self.receivers.clone());
-
-        let mut groth16_verifier_inputs: Vec<Groth16VerifierInput<AssignedValue<F>>> = Vec::new();
-        let num_public_inputs = ctx.load_witness(F::from(MAX_GROTH16_PI as u64 + 1));
-        let constants = get_groth16_consts_from_max_pi(MAX_GROTH16_PI);
-
-        for groth16_input in self.groth16_inputs.iter() {
-            let input: Groth16Input<F> = groth16_input.clone().into();
-            let vk = ctx.assign_witnesses(input.vkey_bytes);
-            let proof = ctx.assign_witnesses(input.proof_bytes);
-            let public_inputs = ctx.assign_witnesses(input.public_inputs);
-
-            let groth16_verifiery_input: Groth16VerifierInput<AssignedValue<F>> =
-                Groth16VerifierInput {
-                    vk: Groth16VerifierComponentVerificationKey::unflatten(
-                        vk,
-                        constants.gamma_abc_g1_len,
-                    ),
-                    proof: Groth16VerifierComponentProof::unflatten(proof).unwrap(),
-                    public_inputs,
-                    num_public_inputs,
-                };
-
-            groth16_verifier_inputs.push(groth16_verifiery_input);
-        }
 
         // constrain 0 < num_proofs <= max_proofs
         range.check_less_than(ctx, zero, num_proofs, 64);
         range.check_less_than(ctx, num_proofs, max_proofs_plus_one, 64);
 
+        let constants = get_groth16_consts_from_max_pi(MAX_GROTH16_PI);
         let vk_bytes: Vec<AssignedValue<F>> = groth16_verifier_inputs[0].vk.flatten();
-        let vk_hash: HiLo<AssignedValue<F>> = get_vk_hash(ctx, range, keccak, vk_bytes);
 
-        let mut nullifier_hashes: Vec<AssignedValue<F>> = Vec::new();
+        assert_eq!(vk_bytes.len(), constants.num_fe_hilo_vkey);
 
-        // constrain the public inputs
-        // pi[0] root
-        // pi[3] grant_id
-        // pi[2] signal_hash from receiver
-        let max_proofs = 1 << self.max_depth as usize;
-        for _i in 0..max_proofs {
-            let public_inputs = &groth16_verifier_inputs[_i].public_inputs;
+        let vk_hash: HiLo<AssignedValue<F>> = get_vk_hash(ctx, range, keccak, vk_bytes.clone());
+
+        // Vec<Groth16VerifierInput, receiver>
+        let inputs: Vec<(Groth16VerifierInput<AssignedValue<F>>, &AssignedValue<F>)> =
+            groth16_verifier_inputs
+                .into_iter()
+                .zip(&receivers)
+                .collect_vec();
+
+        let nullifier_hashes = parallelize_core(builder.base.pool(0), inputs, |ctx, input| {
+            let (groth16_verifier_input, receiver) = input;
+
+            // constrain the same vkey
+            let flattened_vk: Vec<AssignedValue<F>> = groth16_verifier_input.vk.flatten();
+            assert_eq!(flattened_vk.len(), constants.num_fe_hilo_vkey);
+            flattened_vk
+                .iter()
+                .zip(&vk_bytes)
+                .for_each(|(a, b)| ctx.constrain_equal(a, b));
+
+            // constrain the public inputs
+            // pi[0] root
+            // pi[1] nullifier_hash
+            // pi[2] signal_hash from receiver
+            // pi[3] grant_id
+            let public_inputs = groth16_verifier_input.public_inputs.clone();
             ctx.constrain_equal(&public_inputs[0], &root);
             ctx.constrain_equal(&public_inputs[3], &grant_id);
-            let receiver = receivers[_i];
+            let receiver = receiver;
             let signal_hash = get_signal_hash(ctx, range, keccak, &receiver);
             ctx.constrain_equal(&signal_hash, &public_inputs[2]);
-            nullifier_hashes.push(public_inputs[1]);
-        }
 
-        // constrain groth16 verify success
-        parallelize_core(
-            builder.base.pool(0),
-            groth16_verifier_inputs,
-            |ctx, input| {
-                let res = handle_single_groth16verify(
-                    ctx,
-                    range,
-                    input,
-                    LIMB_BITS,
-                    NUM_LIMBS,
-                    MAX_GROTH16_PI,
-                );
-                let success = from_hi_lo(ctx, range, res.1.success);
-                ctx.constrain_equal(&success, &one);
-            },
-        );
+            // constrain groth16 verify success
+            let res = handle_single_groth16verify(
+                ctx,
+                range,
+                groth16_verifier_input,
+                LIMB_BITS,
+                NUM_LIMBS,
+                MAX_GROTH16_PI,
+            );
+            let success = from_hi_lo(ctx, range, res.1.success);
+            ctx.constrain_equal(&success, &one);
+
+            // nullifier_hash
+            public_inputs[1]
+        });
 
         let assigned_instances = iter::empty()
             .chain([start, end])
@@ -183,9 +228,9 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinInput<F> {
 
     fn virtual_assign_phase1(
         &self,
-        builder: &mut RlcCircuitBuilder<F>,
-        mpt: &MPTChip<F>,
-        witness: Self::FirstPhasePayload,
+        _builder: &mut RlcCircuitBuilder<F>,
+        _mpt: &MPTChip<F>,
+        _witness: Self::FirstPhasePayload,
     ) {
         // do nothing
     }
