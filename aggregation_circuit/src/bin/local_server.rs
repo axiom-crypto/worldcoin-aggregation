@@ -9,7 +9,7 @@ use worldcoin_aggregation::{
     constants::INITIAL_DEPTH,
     keygen::node_params::{NodeParams, NodeType},
     prover::{ProverConfig, ProvingServerState},
-    scheduler::{RecursiveRequest, LocalScheduler},
+    scheduler::{local_scheduler::*, recursive_request::*},
     types::*,
 };
 
