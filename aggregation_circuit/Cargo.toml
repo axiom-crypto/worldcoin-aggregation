@@ -29,11 +29,9 @@ built = { version = "0.7", features = ["cargo-lock", "dependency-tree", "git2", 
 
 ethers-core = { version = "=2.0.14", features = ["optimism"] }
 
-#axiom-query = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop", default-features = true, features = ["jemallocator", "keygen"] }
 axiom-circuit = { git = "https://github.com/axiom-crypto/axiom-sdk-rs.git", branch = "develop" }
 axiom-sdk = { git = "https://github.com/axiom-crypto/axiom-sdk-rs.git", branch = "develop" }
 axiom-components = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop" }
-#axiom-codec = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop", package = "axiom-codec", default-features = false }
 axiom-eth = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop", package = "axiom-eth",  default-features = true, features = [
   "jemallocator",
   "providers",
@@ -41,7 +39,6 @@ axiom-eth = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", b
   "evm",
   "keygen",
 ] }
-
 axiom-core = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git",  branch = "develop", package = "axiom-core", default-features = false, features = ["jemallocator", "keygen"] }
 
 ethers = "2.0.14"
