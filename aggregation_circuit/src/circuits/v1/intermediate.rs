@@ -42,8 +42,8 @@ impl WorldcoinIntermediateAggregationCircuitV1 {
 }
 
 /// The input to create an intermediate [AggregationCircuit] that aggregates [WorldcoinLeafCircuitV1]s.
-/// These are intemediate aggregations because they do not perform additional keccaks. Therefore the public instance format (after excluding accumulators) is
-/// different from that of the original [WorldcoinLeafCircuitV1]s.
+/// These are intermediate aggregations because they do not perform additional keccaks. Therefore the public instance format (after excluding accumulators) is
+/// the same as that of the original [WorldcoinLeafCircuitV1]s.
 #[derive(Clone, Debug)]
 pub struct WorldcoinIntermediateAggregationInput {
     // aggregation circuit with `instances` the accumulator (two G1 points) for delayed pairing verification
