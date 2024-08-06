@@ -121,11 +121,12 @@ fn rocket() -> Rocket<Build> {
         .unwrap_or_else(|_| panic!("Failed to open file {}", cli.cids_path.display()));
     let cids: Vec<(String, String)> =
         serde_json::from_reader(cids_file).expect("Failed to parse cids file");
-    let cids_repo = HashMap::from_iter(cids.into_iter().map(|(k, cid)| {
-        let params: NodeParams =
-            serde_json::from_str(&k).unwrap_or_else(|e| panic!("Failed to parse {}. {:?}", k, e));
-        (params, cid)
-    }));
+    let cids_repo: HashMap<NodeParams, String> =
+        HashMap::from_iter(cids.into_iter().map(|(k, cid)| {
+            let params: NodeParams = serde_json::from_str(&k)
+                .unwrap_or_else(|e| panic!("Failed to parse {}. {:?}", k, e));
+            (params, cid)
+        }));
 
     let state = ProvingServerState::new(cli.prover_config);
 

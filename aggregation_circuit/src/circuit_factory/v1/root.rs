@@ -5,14 +5,15 @@ use axiom_core::axiom_eth::{
     snark_verifier_sdk::Snark,
 };
 use axiom_eth::snark_verifier_sdk::halo2::aggregation::AggregationCircuit;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     circuits::v1::root::WorldcoinRootAggregationInput, keygen::node_params::PinningRoot,
-    prover::ProofRequest,
+    prover::prover::ProofRequest,
 };
 
 /// Request for block numbers [start, end).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorldcoinRequestRoot {
     pub start: u32,
     pub end: u32,

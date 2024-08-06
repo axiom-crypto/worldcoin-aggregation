@@ -200,6 +200,7 @@ impl ProvingServerState {
         log::debug!("gen_snark start");
 
         let snark = gen_snark_shplonk(&kzg_params, &pk, circuit, snark_path);
+
         log::debug!("gen_snark end");
         #[cfg(debug_assertions)]
         {
