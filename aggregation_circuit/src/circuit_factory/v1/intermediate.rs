@@ -5,12 +5,13 @@ use axiom_core::axiom_eth::{
     halo2curves::bn256::Bn256,
     snark_verifier_sdk::{halo2::aggregation::AggregationCircuit, Snark},
 };
+use serde::{Deserialize, Serialize};
 
 use crate::circuits::v1::intermediate::WorldcoinIntermediateAggregationInput;
-use crate::{keygen::node_params::PinningIntermediate, prover::ProofRequest};
+use crate::{keygen::node_params::PinningIntermediate, prover::prover::ProofRequest};
 
 /// Request for proofs [start, end).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorldcoinRequestIntermediate {
     pub start: u32,
     pub end: u32,

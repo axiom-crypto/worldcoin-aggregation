@@ -16,7 +16,6 @@ env_logger = "0.10"
 # generating circuit inputs from blockchain
 ethers-providers = { version = "2.0.14" }
 futures = { version = "=0.3" }
-#reqwest = { version = "=0.11", features = ["json"] }
 async-recursion = "1.0.5"
 
 # server endpoint
@@ -46,7 +45,7 @@ hex = "0.4.3"
 num-bigint = "0.4.5"
 halo2curves = "0.6.1"
 dirs = "5.0.1"
-reqwest = "0.12.5"
+
 tokio = "1.38.0"
 phf = { version = "0.11.2", features = ["macros"] }
 
@@ -55,7 +54,13 @@ clap = { version = "=4.4.7", features = ["derive"], optional = true }
 blake3 = { version = "=1.5", optional = true }
 serde_yaml = { version = "=0.9.16", optional = true }
 serde_with = "3.9.0"
+async-trait = "0.1.81"
 
+
+reqwest = { version = "0.11", features = ["json"] }
+reqwest-middleware = "0.1.6"
+reqwest-retry = "0.1.5"
+parking_lot = "0.12.3"
 
 
 [dev-dependencies]

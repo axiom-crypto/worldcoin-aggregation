@@ -5,17 +5,18 @@ use axiom_core::axiom_eth::{
     halo2curves::bn256::{Bn256, Fr},
     utils::DEFAULT_RLC_CACHE_BITS,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::{
     keygen::node_params::PinningLeaf,
-    prover::ProofRequest,
+    prover::prover::ProofRequest,
     types::{ClaimNative, VkNative, WorldcoinInput},
 };
 
 use crate::circuits::v1::leaf::*;
 
 /// Request for block numbers [start, end).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorldcoinRequestLeaf {
     pub start: u32,
     pub end: u32,

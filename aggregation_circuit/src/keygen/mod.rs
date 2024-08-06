@@ -38,8 +38,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     circuit_factory::v1::leaf::*,
     circuits::v1::{
-        intermediate::WorldcoinIntermediateAggregationInput,
-        leaf::WorldcoinLeafCircuit,
+        intermediate::WorldcoinIntermediateAggregationInput, leaf::WorldcoinLeafCircuit,
         root::WorldcoinRootAggregationInput,
     },
     types::{VkNative, WorldcoinInput, WorldcoinRequest},

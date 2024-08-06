@@ -4,7 +4,8 @@ use anyhow::{anyhow, bail, Result};
 use async_recursion::async_recursion;
 use axiom_core::axiom_eth::snark_verifier_sdk::Snark;
 
-use rocket::tokio::sync::RwLock;
+use futures::future::join_all;
+use rocket::tokio::{self, sync::RwLock};
 
 use crate::{
     circuit_factory::{
@@ -14,32 +15,37 @@ use crate::{
             root::WorldcoinRequestRoot,
         },
     },
+    constants::VK,
     keygen::node_params::{NodeParams, NodeType},
-    prover::prover::ProvingServerState,
-    scheduler::types::RequestRouter,
+    prover::types::{ProverProof, ProverTask},
+    scheduler::{
+        executor::{dispatcher::DispatcherExecutor, ProofExecutor},
+        recursive_request::RecursiveRequest,
+        types::*,
+    },
     types::{ClaimNative, VkNative},
 };
 
-use super::recursive_request::RecursiveRequest;
+use super::task_tracker::SchedulerTaskTracker;
 
 #[derive(Clone)]
-pub struct LocalScheduler {
+pub struct AsyncScheduler {
     /// Mutex just to force sequential proving
-    pub state: Arc<ProvingServerState>,
+    pub executor: Arc<dyn ProofExecutor>,
     pub circuit_id_repo: Arc<RwLock<HashMap<NodeParams, String>>>,
-    pub vk: VkNative,
+    pub task_tracker: Arc<SchedulerTaskTracker>,
 }
 
-impl LocalScheduler {
+impl AsyncScheduler {
     pub fn new(
         circuit_id_repo: HashMap<NodeParams, String>,
-        state: ProvingServerState,
-        vk: VkNative,
+        executor_url: String,
+        task_tracker: SchedulerTaskTracker,
     ) -> Self {
         Self {
             circuit_id_repo: Arc::new(RwLock::new(circuit_id_repo)),
-            state: Arc::new(state),
-            vk,
+            executor: Arc::new(DispatcherExecutor::new(&executor_url, 5000, 500, false).unwrap()),
+            task_tracker: Arc::new(task_tracker),
         }
     }
 
@@ -63,19 +69,32 @@ impl LocalScheduler {
             root,
             grant_id,
             claims,
-            vk: self.vk.clone(),
+            vk: VK.clone(),
         })
     }
 
-    // Recursion with futures is complicated, so we use a synchronous version.
     #[async_recursion]
     pub async fn handle_recursive_request(&self, req: RecursiveRequest) -> Result<RequestRouter> {
         // Recursively generate the SNARKs for the dependencies of this task.
-        let mut snarks = vec![];
+        let mut futures = vec![];
         for dep in req.dependencies() {
-            let dep_snark = self.recursive_get_snark(dep).await?;
-            snarks.push(dep_snark);
+            let future = async move { self.recursive_gen_proof(dep).await };
+            futures.push(future);
         }
+
+        let results = join_all(futures).await;
+
+        let mut snarks: Vec<Snark> = results
+            .into_iter()
+            .map(|result| {
+                let snark = result.unwrap();
+                match snark {
+                    ProverProof::Snark(snark) => snark.snark.inner,
+                    ProverProof::EvmProof(_) => unreachable!(),
+                }
+            })
+            .collect();
+
         let RecursiveRequest {
             start,
             end,
@@ -84,6 +103,7 @@ impl LocalScheduler {
             claims,
             params,
         } = req;
+
         if params.depth == params.initial_depth {
             let leaf = self
                 .get_request_leaf(start, end, params.depth, root, grant_id, claims)
@@ -138,7 +158,8 @@ impl LocalScheduler {
     }
 
     #[async_recursion]
-    pub async fn recursive_get_snark(&self, req: RecursiveRequest) -> Result<Snark> {
+    pub async fn recursive_gen_proof(&self, req: RecursiveRequest) -> Result<ProverProof> {
+        println!("Generating proof for {:?}", req);
         let req_router = self.handle_recursive_request(req.clone()).await?;
         let circuit_id = self
             .circuit_id_repo
@@ -148,32 +169,15 @@ impl LocalScheduler {
             .ok_or_else(|| anyhow!("Circuit ID for {:?} not found", req.params))?
             .to_owned();
         log::debug!("Router:{:?} CID-{circuit_id}", req.params);
-        let snark = match req_router {
-            RequestRouter::Leaf(req) => self.state.get_snark(&circuit_id, req).await,
-            RequestRouter::Intermediate(req) => self.state.get_snark(&circuit_id, req).await,
-            RequestRouter::Root(req) => self.state.get_snark(&circuit_id, req).await,
-            RequestRouter::Evm(req) => self.state.get_snark(&circuit_id, req).await,
-        }?;
 
-        Ok(snark.inner)
-    }
+        let task = ProverTask {
+            circuit_id,
+            input: req_router,
+        };
 
-    #[async_recursion]
-    pub async fn recursive_get_evm_proof(&self, req: RecursiveRequest) -> Result<String> {
-        let req_router = self.handle_recursive_request(req.clone()).await?;
-        let circuit_id = self
-            .circuit_id_repo
-            .read()
-            .await
-            .get(&req.params)
-            .ok_or_else(|| anyhow!("Circuit ID for {:?} not found", req.params))?
-            .to_owned();
-        log::debug!("Router:{:?} CID-{circuit_id}", req.params);
-        match req_router {
-            RequestRouter::Leaf(req) => self.state.get_evm_proof(&circuit_id, req).await,
-            RequestRouter::Intermediate(req) => self.state.get_evm_proof(&circuit_id, req).await,
-            RequestRouter::Root(req) => self.state.get_evm_proof(&circuit_id, req).await,
-            RequestRouter::Evm(req) => self.state.get_evm_proof(&circuit_id, req).await,
-        }
+        let result = self.executor.execute(task).await.unwrap();
+
+        let proof = result.proof;
+        Ok(proof)
     }
 }

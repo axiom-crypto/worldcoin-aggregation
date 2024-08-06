@@ -6,11 +6,12 @@ use axiom_core::axiom_eth::{
     snark_verifier_sdk::{halo2::aggregation::AggregationCircuit, Snark},
     utils::{merkle_aggregation::InputMerkleAggregation, snark_verifier::EnhancedSnark},
 };
+use serde::{Deserialize, Serialize};
 
-use crate::{keygen::node_params::PinningEvm, prover::ProofRequest};
+use crate::{keygen::node_params::PinningEvm, prover::prover::ProofRequest};
 
 /// Request for block numbers [start, end) exclusive.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorldcoinRequestEvm {
     pub start: u32,
     pub end: u32,
