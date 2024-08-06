@@ -210,7 +210,7 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinInput<F> {
         let assigned_instances = iter::empty()
             .chain([start, end])
             .chain([vk_hash.hi(), vk_hash.lo()])
-            .chain([root, grant_id])
+            .chain([grant_id, root])
             .chain(receivers.clone())
             .chain(nullifier_hashes.clone())
             .collect_vec();
