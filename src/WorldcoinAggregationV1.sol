@@ -61,9 +61,6 @@ contract WorldcoinAggregationV1 {
     /// @dev The verification key of the query must match the contract's
     error InvalidVkeyHash();
 
-    /// @dev Axiom result array must have `4 + 2 * MAX_NUM_CLAIMS` items.
-    error InvalidNumberOfResults();
-
     modifier onlyProver() {
         if (PROVER != address(0) && msg.sender != PROVER) revert OnlyProver();
         _;
