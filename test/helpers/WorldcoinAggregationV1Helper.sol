@@ -1,64 +1,51 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { AxiomTest } from "@axiom-crypto/axiom-std/AxiomTest.sol";
-
-import { toString } from "./Utils.sol";
 import { WorldcoinAggregationV1 } from "../../src/WorldcoinAggregationV1.sol";
+import { Claim4Verifier } from "../../src/verifiers/Claim4Verifier.sol";
 import { WLDGrant } from "./WLDGrant.sol";
 
-import { stdJson as StdJson } from "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 
 contract WorldcoinAggregationV1Exposed is WorldcoinAggregationV1 {
     constructor(
-        address axiomV2QueryAddress,
-        uint64 callbackSourceChainId,
-        bytes32 querySchema,
         bytes32 vkeyHash,
         uint256 maxNumClaims,
         address wldToken,
         address rootValidator,
-        address grant
-    )
-        WorldcoinAggregationV1(
-            axiomV2QueryAddress,
-            callbackSourceChainId,
-            querySchema,
-            vkeyHash,
-            maxNumClaims,
-            wldToken,
-            rootValidator,
-            grant
-        )
-    { }
+        address grant,
+        address verifierAddress,
+        address prover
+    ) WorldcoinAggregationV1(vkeyHash, maxNumClaims, wldToken, rootValidator, grant, verifierAddress, prover) { }
 
     function toAddress(bytes32 input) external pure returns (address) {
         return _toAddress(input);
     }
 
-    function unsafeCalldataAccess(bytes32[] calldata array, uint256 index) external pure returns (bytes32) {
+    function unsafeCalldataAccess(bytes calldata array, uint256 index) external pure returns (bytes32) {
         return _unsafeCalldataAccess(array, index);
     }
 }
 
-contract WorldcoinAggregationV1Helper is AxiomTest {
-    using StdJson for string;
-
-    struct AxiomInput {
-        bytes32 e;
-    }
-
+contract WorldcoinAggregationV1Helper is Test {
     WorldcoinAggregationV1Exposed aggregation;
     WLDGrant mockGrant;
-    bytes32 querySchema;
+    address verifier;
 
-    bytes32 vkeyHash;
-    uint256 grantId;
     uint256 root;
-    uint256 maxNumClaims;
 
-    address[] receivers;
-    bytes32[] nullifierHashes;
+    address[] _receivers = [
+        0xc680592A97E35E981318B49FBeD2f3396Ec7dFf4,
+        0x66DD3df1620E0b6C3BE13BA50Dac88f97f41e010,
+        0x2c3F330be9322B3F4B8C18F599CC8818A828028B,
+        0x34C7d63c890b0024371C0c74a83Ba35d5e7C43be
+    ];
+    uint256[] _nullifierHashes = [
+        9_152_573_647_681_310_217_632_987_348_218_830_000_142_150_227_431_582_313_786_965_903_541_954_934_978,
+        17_961_520_020_524_413_071_862_288_312_249_102_574_632_592_728_502_718_915_127_155_958_458_245_352_790,
+        18_714_282_156_277_731_590_587_481_838_204_083_867_234_725_583_878_493_153_338_136_882_367_159_561_843,
+        15_377_352_755_968_110_800_508_131_942_790_346_748_785_379_025_598_101_592_175_782_947_450_578_582_634
+    ];
 
     // The address here doesn't matter much for testing purposes. So we
     // just use Sepolia-WETH
@@ -68,42 +55,27 @@ contract WorldcoinAggregationV1Helper is AxiomTest {
     string inputPath = "circuit/data/worldcoin_input.json";
 
     function setUp() public virtual {
-        _createSelectForkAndSetupAxiom("provider");
+        vm.createSelectFork("provider");
         // Sets block.timestamp to a time that would derive into grantId 30
         vm.warp(1_712_275_644);
 
-        querySchema = axiomVm.readRustCircuit("circuit/Cargo.toml", inputPath, "circuit/data", "run_v1_circuit");
-        vkeyHash = bytes32(0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec);
-        maxNumClaims = 16;
-
         mockGrant = new WLDGrant();
+        verifier = address(new Claim4Verifier());
         aggregation = new WorldcoinAggregationV1Exposed({
-            axiomV2QueryAddress: axiomV2QueryAddress,
-            callbackSourceChainId: uint64(block.chainid),
-            querySchema: querySchema,
-            vkeyHash: vkeyHash,
-            maxNumClaims: maxNumClaims,
+            vkeyHash: bytes32(0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec),
+            maxNumClaims: 4,
             wldToken: wldToken,
             // Identity Manager
             rootValidator: rootValidator,
-            grant: address(mockGrant)
+            grant: address(mockGrant),
+            verifierAddress: verifier,
+            prover: address(0)
         });
 
         // Fund the grant
         deal(wldToken, address(aggregation), 100e18);
 
-        string memory input = vm.readFile(inputPath);
-        grantId = uint256(input.readUint(".grant_id"));
-        root = input.readUint(".root");
-
-        uint256 numClaims = input.readUint(".num_proofs");
-        for (uint256 i = 0; i != numClaims; ++i) {
-            string memory path = string.concat(".claims[", toString(i), "]");
-            bytes32 receiver = bytes32(input.readUint(string.concat(path, ".receiver")));
-            bytes32 nullifierHash = bytes32(input.readUint(string.concat(path, ".nullifier_hash")));
-            receivers.push(_toAddress(receiver));
-            nullifierHashes.push(nullifierHash);
-        }
+        root = 12_513_188_762_182_928_614_004_040_534_635_102_336_524_438_582_671_349_918_151_801_398_571_764_995_481;
 
         // function requireValidRoot(uint256 root) internal view {
         //     // The latest root is always valid.
@@ -117,41 +89,6 @@ contract WorldcoinAggregationV1Helper is AxiomTest {
         // In this test, we override the latest root to bypass the require
         // _latestRoot is slot 0x012e
         vm.store(rootValidator, 0x000000000000000000000000000000000000000000000000000000000000012e, bytes32(root));
-    }
-
-    // Axiom result array must have `4 + 2 * MAX_NUM_CLAIMS` items.
-    // We expect the results returned from the Axiom query to be:
-    //
-    // axiomResults[0]: vkeyHash
-    // axiomResults[1]: grantId
-    // axiomResults[2]: root
-    // axiomResults[3]: numClaims
-    // axiomResults[idx] for idx in [4, 4 + numClaims): receivers
-    // axiomResults[idx] for idx in [4 + MAX_NUM_CLAIMS, 4 + MAX_NUM_CLAIMS + numClaims): claimedNullifierHashes
-    function _parseResults(bytes32[] memory results)
-        internal
-        view
-        returns (
-            bytes32 _vkeyHash,
-            uint256 _grantId,
-            uint256 _root,
-            uint256 numClaims,
-            address[] memory _receivers,
-            bytes32[] memory _nullifierHashes
-        )
-    {
-        _vkeyHash = results[0];
-        _grantId = uint256(results[1]);
-        _root = uint256(results[2]);
-        numClaims = uint256(results[3]);
-
-        _receivers = new address[](numClaims);
-        _nullifierHashes = new bytes32[](numClaims);
-
-        for (uint256 i = 0; i != numClaims; ++i) {
-            _receivers[i] = _toAddress(results[4 + i]);
-            _nullifierHashes[i] = results[4 + maxNumClaims + i];
-        }
     }
 
     function _toAddress(bytes32 input) internal pure returns (address out) {

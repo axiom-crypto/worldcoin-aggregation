@@ -6,8 +6,14 @@ libs = ["node_modules", "lib"]
 remappings = ["@axiom-crypto/axiom-std/=lib/axiom-std/src/"]
 ffi = true
 fs_permissions = [{ access = "read", path = "./circuit"}, { access = "read", path = "./script/config"}]
+optimizer = true
+optimizer_runs = 1000000
 ast = true
 verbosity = 2
+
+[profile.default.optimizer_details]
+  constantOptimizer = false
+  yul = false
 
 [fuzz]
 runs = 10000

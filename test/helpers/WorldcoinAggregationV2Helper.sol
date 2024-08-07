@@ -75,6 +75,10 @@ contract WorldcoinAggregationV2Helper is AxiomTest {
         bytes32 isLeftBytes;
     }
 
+    struct AxiomInput {
+        bytes32 e;
+    }
+
     using StdJson for string;
 
     WorldcoinAggregationV2Exposed aggregation;
