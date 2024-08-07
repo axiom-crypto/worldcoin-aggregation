@@ -40,6 +40,21 @@ contract WorldcoinAggregationV1_Test is WorldcoinAggregationV1Helper {
         }
     }
 
+    function test_skipClaimedNullifierHashes() public {
+        aggregation.distributeGrants(PROOF);
+
+        uint256[] memory balancesBefore = new uint256[](_receivers.length);
+        for (uint256 i = 0; i != _receivers.length; ++i) {
+            balancesBefore[i] = IERC20(wldToken).balanceOf(_receivers[i]);
+        }
+
+        aggregation.distributeGrants(PROOF);
+
+        for (uint256 i = 0; i != _receivers.length; ++i) {
+            assertEq(IERC20(wldToken).balanceOf(_receivers[i]), balancesBefore[i], "balance should not increase");
+        }
+    }
+
     function testFuzz_toAddress(bytes32 input) public {
         address expected = address(uint160(uint256(input)));
         assertEq(aggregation.toAddress(input), expected, "toAddress failed");
