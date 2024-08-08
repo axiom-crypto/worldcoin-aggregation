@@ -35,6 +35,7 @@ contract WorldcoinAggregationV1_Test is WorldcoinAggregationV1Helper {
             assertEq(grantId, 30, "grantId mismatch");
             assertEq(receiver, _receivers[numClaims], "receiver mismatch");
             assertEq(logs[i].emitter, address(aggregation), "emitter mismatch");
+            assertEq(aggregation.nullifierHashes(_nullifierHashes[numClaims]), true, "nullifierHash should be claimed");
 
             ++numClaims;
         }
