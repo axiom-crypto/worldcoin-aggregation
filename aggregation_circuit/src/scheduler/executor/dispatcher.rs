@@ -17,7 +17,7 @@ use super::ProofExecutor;
 //use super::ProofExecutor;
 
 #[derive(Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 struct TasksRequest {
     pub circuit_id: String,
     pub input: RequestRouter,
@@ -102,6 +102,7 @@ impl DispatcherExecutor {
             input: proof.input,
             force_prove: self.force_prove,
         };
+
         let resp = client
             .post(task_url.clone())
             .json(&body)

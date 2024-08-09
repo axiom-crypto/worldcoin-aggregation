@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs::File, path::PathBuf};
 
 use anyhow::anyhow;
 use clap::Parser;
-use rocket::{http::Status, launch, post, routes, serde::json::Json, Build, Rocket, State};
+use rocket::{get, http::Status, launch, post, routes, serde::json::Json, Build, Rocket, State};
 
 use worldcoin_aggregation::{
     keygen::node_params::NodeParams,
@@ -14,6 +14,12 @@ use worldcoin_aggregation::{
     scheduler::types::RequestRouter,
     types::*,
 };
+
+#[get("/build_info")]
+async fn serve_build_info() -> String {
+    // TODO: this endpoint is just for heartbeat for now. Change it to return build info.
+    "alive".to_string()
+}
 
 #[post("/reset")]
 async fn reset(prover: &State<ProvingServerState>) -> Status {
@@ -87,6 +93,6 @@ fn rocket() -> Rocket<Build> {
     let prover = ProvingServerState::new(cli.prover_config);
 
     rocket::build()
-        .mount("/", routes![serve, reset])
+        .mount("/", routes![serve, reset, serve_build_info])
         .manage(prover)
 }

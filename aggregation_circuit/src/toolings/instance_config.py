@@ -48,7 +48,7 @@ def download_cids(config_path, config_name):
     s3.download_file(s3_bucket, s3_key, config_path)
 
 # pk_size is in bytes
-def circuit_name_to_instance_types(pk_size):
+def select_instance_types(pk_size):
     if pk_size < 20_000_000_000:
         return ["m6a.4xlarge"]
     if pk_size > 150_000_000_000:
@@ -72,14 +72,13 @@ def traverse_cids(config_name, cids, circuit_id_to_metadata):
     #   "128146c349a865541a10ebeee0387e8858adf59af4d2aaa77932607877a62153"
     # ],
 
-    circuit_id_to_metadata = []
     for cid_entry in cids: 
         # here we use params as circuit_name
         circuit_name = cid_entry[0]
         circuit_id = cid_entry[1]
     
         pk_size = get_pk_size(circuit_id)
-        instance_types = circuit_name_to_instance_types(circuit_name, config_name, pk_size)
+        instance_types = select_instance_types(pk_size)
         metadata = CircuitMetadata(config_name, circuit_name, instance_types, pk_size)
         metadata.ram_disk_size = round_pk_size_to_gb(pk_size)
     
@@ -93,8 +92,12 @@ def dedup_in_order(seq):
     return [x for x in seq if not (x in seen or seen_add(x))]
 
 def main():
-    if len(sys.argv) != 4:
-        print("Usage: python instance_config.py <config file> <circuit data dir> <output file>")
+    global s3_bucket
+    global s3_folder
+    global prover_image_tag
+
+    if len(sys.argv) < 4:
+        print("Usage: python tree_crawler.py <config file> <circuit data dir> <output file> <s3_bucket>[optional] <s3_folder>[optional] prover_image_tag[optional]")
         print("INFO: Log into AWS for s3 read access first.")
         print("INFO: All proof tree and pinning files will be auto downloaded to the circuit data dir.")
         sys.exit(1)
@@ -102,6 +105,10 @@ def main():
     config_file = sys.argv[1]
     circuit_data_dir = sys.argv[2]
     output_file = sys.argv[3]
+    if len(sys.argv) >= 4:
+        s3_bucket = sys.argv[4]
+        s3_folder = sys.argv[5]
+        prover_image_tag = sys.argv[6]
 
     with open(config_file) as f:
         config = json.load(f)
@@ -112,11 +119,11 @@ def main():
 
     for config in config_names:
         cids_path = os.path.join(circuit_data_dir, f"{config}.cids")
-        download_cids(cids_path, cids)
+        download_cids(cids_path, config)
         with open(cids_path) as f:
             cids = json.load(f)
 
-        traverse_cids(circuit_data_dir, config, cids, circuit_id_to_metadata)
+        traverse_cids(config, cids, circuit_id_to_metadata)
 
 
     circuit_id_to_metadata = {k: v.to_dict() for k, v in circuit_id_to_metadata.items()}
