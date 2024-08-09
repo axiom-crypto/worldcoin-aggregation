@@ -1,0 +1,11 @@
+# Copied from axiom-eth-working for easier CI integration
+# !! DOUBLE CHECK BEFORE PRODUCTION KEYGEN !!
+
+# Core configuration used for chains where extra data field has at most 32 bytes
+k_at_depth: [20, 20, 20, 20, 20]
+max_extra_data_bytes: 32
+params:
+  node_type:
+    Evm: 1
+  depth: 1 
+  initial_depth: 0
