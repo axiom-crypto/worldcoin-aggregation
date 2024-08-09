@@ -17,7 +17,7 @@ use super::ProofExecutor;
 //use super::ProofExecutor;
 
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+// #[serde(rename_all = "camelCase")]
 struct TasksRequest {
     pub circuit_id: String,
     pub input: RequestRouter,
