@@ -11,25 +11,28 @@ s3 = boto3.client('s3', config=Config(region_name='us-east-1'))
 
 s3_bucket = ""
 s3_folder = ""
+prover_image_tag = None
 
 class CircuitMetadata:
     # pk_size is in bytes
-    def __init__(self, config_name, circuit_name, instance_types, pk_size, shard_type=None):
+    def __init__(self, config_name, circuit_name, instance_types, pk_size, prover_image_tag):
         self.circuit_name = circuit_name
         self.instance_types = instance_types
-        self.shard_type = shard_type
         self.config_names = [config_name]
         self.pk_size = pk_size
         self.ram_disk_size = 40
+        self.prover_image_tag = prover_image_tag
+        self.s3_path = f"s3://{s3_bucket}/{s3_folder}".rstrip('/')
 
     def to_dict(self):
         return {
             "config_names": self.config_names,
             "circuit_name": self.circuit_name,
             "dynamic_instance_types": self.instance_types,
-            "shard_type": self.shard_type,
             "pk_size_bytes": self.pk_size,
-            "ram_disk_gb": self.ram_disk_size
+            "ram_disk_gb": self.ram_disk_size,
+            "prover_image_tag": self.prover_image_tag,
+            "s3_path": self.s3_path
         }
 
 def get_pk_size(circuit_id):
@@ -79,7 +82,7 @@ def traverse_cids(config_name, cids, circuit_id_to_metadata):
     
         pk_size = get_pk_size(circuit_id)
         instance_types = select_instance_types(pk_size)
-        metadata = CircuitMetadata(config_name, circuit_name, instance_types, pk_size)
+        metadata = CircuitMetadata(config_name, circuit_name, instance_types, pk_size, prover_image_tag)
         metadata.ram_disk_size = round_pk_size_to_gb(pk_size)
     
         circuit_id_to_metadata[circuit_id] = metadata    

@@ -22,6 +22,7 @@ RUN apt update \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY --from=builder /code/target/release/prover_server ./
+COPY --from=builder /code/data/vk.json ./data/vk.json
 
 CMD ["/code/prover_server"]
 EXPOSE 8000

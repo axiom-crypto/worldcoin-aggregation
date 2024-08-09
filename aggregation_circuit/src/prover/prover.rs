@@ -188,14 +188,15 @@ impl ProvingServerState {
         // this can be replaced by DB read
         // check fs cache
         #[cfg(feature = "halo2-axiom")]
-        if let Some(Ok(snark)) = snark_path.as_ref().map(read_snark) {
-            log::debug!("snark found at {:?}", snark_path);
-            return Ok(EnhancedSnark {
-                inner: snark,
-                agg_vk_hash_idx: R::AGG_VKEY_HASH_IDX,
-            });
-        }
+        // if let Some(Ok(snark)) = snark_path.as_ref().map(read_snark) {
+        //     log::debug!("snark found at {:?}", snark_path);
+        //     return Ok(EnhancedSnark {
+        //         inner: snark,
+        //         agg_vk_hash_idx: R::AGG_VKEY_HASH_IDX,
+        //     });
+        // }
         log::debug!("build circuit for proof_id={}", req.proof_id());
+        log::debug!("circuit_id={}, request={:?}", circuit_id, req);
         let (kzg_params, pk, circuit) = self.build_circuit(circuit_id, req).await?;
         log::debug!("gen_snark start");
 
