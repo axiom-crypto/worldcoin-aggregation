@@ -10,13 +10,18 @@ use serde::{Deserialize, Serialize};
 use crate::circuits::v1::intermediate::WorldcoinIntermediateAggregationInput;
 use crate::{keygen::node_params::PinningIntermediate, prover::prover::ProofRequest};
 
+use serde_with::{base64::Base64, serde_as, DeserializeAs, SerializeAs};
+use axiom_eth::utils::snark_verifier::Base64Bytes;
+
 /// Request for proofs [start, end).
+#[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorldcoinRequestIntermediate {
     pub start: u32,
     pub end: u32,
     pub depth: usize,
     pub initial_depth: usize,
+    #[serde_as(as = "Vec<Base64Bytes>")]
     pub snarks: Vec<Snark>,
 }
 
