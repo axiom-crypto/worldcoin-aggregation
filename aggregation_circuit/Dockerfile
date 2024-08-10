@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
 
 # Update default packages
 RUN apt-get update -y
+RUN apt-get install -y clang
 
 WORKDIR /code
 ENV CARGO_HOME=/code/.cargo
