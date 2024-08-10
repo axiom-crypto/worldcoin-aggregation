@@ -4858,6 +4858,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_as"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ee4afe4c5c3b69699c4267ae42b838e911466d7ca0005046adc93ac95bb16dd"
+
+[[package]]
 name = "serde_derive"
 version = "1.0.205"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6392,6 +6398,7 @@ dependencies = [
  "reqwest-retry",
  "rocket",
  "serde",
+ "serde_as",
  "serde_json",
  "serde_with 3.9.0",
  "serde_yaml",

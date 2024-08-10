@@ -37,6 +37,8 @@ async fn serve(
         input: request,
     } = task.into_inner();
 
+    println!("Receive request: {} {:?}", circuit_id, request);
+    
     match request {
         RequestRouter::Evm(request) => {
             let round = request.round;

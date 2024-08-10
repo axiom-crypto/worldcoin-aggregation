@@ -10,7 +10,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::{keygen::node_params::PinningEvm, prover::prover::ProofRequest};
 
+use serde_with::{base64::Base64, serde_as, DeserializeAs, SerializeAs};
+
+use axiom_eth::utils::snark_verifier::Base64Bytes;
+
 /// Request for block numbers [start, end) exclusive.
+#[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorldcoinRequestEvm {
     pub start: u32,
@@ -19,6 +24,7 @@ pub struct WorldcoinRequestEvm {
     pub initial_depth: usize,
     pub round: usize,
     /// Snark to be wrapped, either from WorldcoinRootAggregationCircuit or from previous passthrough aggregation
+    #[serde_as(as = "Base64Bytes")]
     pub snark: Snark,
 }
 
