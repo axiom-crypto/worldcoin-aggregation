@@ -15,9 +15,8 @@ COPY . .
 
 # see https://github.com/jemalloc/jemalloc/blob/dev/TUNING.md
 # this sets decay to 1GB, DO NOT USE narenas=1
-ENV JEMALLOC_SYS_WITH_MALLOC_CONF="background_thread:true,metadata_thp:always,dirty_decay_ms:1000000,muzzy_decay_ms:1000000,abort_conf:true"
 
-RUN cargo build --release --features ["halo2-axiom", "asm", "jemalloc"] --bin prover_server  
+RUN cargo build --release --features "halo2-axiom,asm,jemallocator" --bin prover_server
 
 FROM debian:stable-slim
 WORKDIR /code
@@ -28,6 +27,8 @@ RUN apt update \
 
 COPY --from=builder /code/target/release/prover_server ./
 COPY --from=builder /code/data/vk.json ./data/vk.json
+
+ENV JEMALLOC_SYS_WITH_MALLOC_CONF="background_thread:true,metadata_thp:always,dirty_decay_ms:1000000,muzzy_decay_ms:1000000,abort_conf:true"
 
 CMD ["/code/prover_server"]
 EXPOSE 8000
