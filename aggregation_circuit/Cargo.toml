@@ -62,7 +62,7 @@ reqwest-middleware = "0.1.6"
 reqwest-retry = "0.1.5"
 parking_lot = "0.12.3"
 serde_as = "0.0.1"
-
+uuid = { version = "1.2", features = ["v4"] }
 
 [dev-dependencies]
 ark-std = { version = "0.3.0", features = ["print-trace"] }

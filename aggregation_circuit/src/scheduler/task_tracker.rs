@@ -10,7 +10,9 @@ use crate::{
 
 #[derive(Debug)]
 pub struct SchedulerTaskTracker {
-    // record all task ids for the request
+    // record all task information for the request
+    // map request_id -> Vec<task>
+    // task -> (task_id, node_params)
     pub request_id_to_tasks: Mutex<HashMap<String, Vec<(String, NodeParams)>>>,
 }
 

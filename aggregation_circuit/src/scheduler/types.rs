@@ -23,20 +23,14 @@ pub enum RequestRouter {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Request {
+pub struct SchedulerTaskRequest {
     pub root: String,
     pub grant_id: String,
     // the claims vector has [start, end) claims
     pub claims: Vec<ClaimNative>,
     pub num_proofs: usize,
     pub max_proofs: usize,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct SchedulerTaskRequest {
-    pub request_id: String,
-    pub input: Request,
+    pub initial_depth: Option<usize>
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
