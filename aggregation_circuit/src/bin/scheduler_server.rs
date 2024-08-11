@@ -60,7 +60,7 @@ async fn serve(
 
     let depth = max_proofs.trailing_zeros();
 
-    let params = NodeParams::new(NodeType::Evm(EXTRA_ROUNDS), depth as usize, INITIAL_DEPTH);
+    let params = NodeParams::new(NodeType::Evm(EXTRA_ROUNDS), depth as usize, initial_depth);
 
     let req = RecursiveRequest {
         start: 0,
