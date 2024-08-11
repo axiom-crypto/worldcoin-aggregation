@@ -20,29 +20,16 @@ pub struct ExecutionSummary {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ExecutionResult {
-    pub summary: ExecutionSummary,
+    pub task_id: String,
     pub proof: ProverProof,
 }
 
 #[async_trait]
 pub trait ProofExecutor: Send + Sync + 'static {
     async fn execute(&self, proof: ProverTask) -> anyhow::Result<ExecutionResult> {
-        let execution_started_at_sec = current_timstamp_sec();
-        let circuit_id = proof.circuit_id.clone();
-
         let (task_id, proof) = self.execute_impl(proof).await?;
 
-        let execution_finished_at_sec = current_timstamp_sec();
-        let execution_sumamry = ExecutionSummary {
-            task_id,
-            circuit_id,
-            execution_started_at_sec,
-            execution_finished_at_sec,
-        };
-        Ok(ExecutionResult {
-            summary: execution_sumamry,
-            proof,
-        })
+        Ok(ExecutionResult { task_id, proof })
     }
     async fn execute_impl(&self, proof: ProverTask) -> anyhow::Result<(TaskId, ProverProof)>;
 }

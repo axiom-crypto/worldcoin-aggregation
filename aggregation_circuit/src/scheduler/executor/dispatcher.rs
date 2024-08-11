@@ -103,7 +103,6 @@ impl DispatcherExecutor {
             force_prove: self.force_prove,
         };
 
-        println!("req is {:?}", body);
         let resp = client
             .post(task_url.clone())
             .json(&body)

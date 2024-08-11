@@ -272,5 +272,3 @@ pub struct WorldcoinRequest {
     pub max_proofs: usize,
     pub claims: Vec<ClaimNative>,
 }
-
-

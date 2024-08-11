@@ -1,13 +1,15 @@
-use std::{collections::HashMap, fs::File, path::PathBuf};
+use std::{collections::HashMap, fmt::format, fs::File, io::Write, path::PathBuf};
 
 use anyhow::anyhow;
+use axiom_components::groth16::verifier::types::Proof;
 use clap::Parser;
+use ethers::types::transaction::request;
 use rocket::{launch, post, routes, serde::json::Json, Build, Rocket, State};
 use tokio::task;
 use worldcoin_aggregation::{
     constants::{EXTRA_ROUNDS, INITIAL_DEPTH},
     keygen::node_params::{NodeParams, NodeType},
-    prover::prover::ProverConfig,
+    prover::{prover::ProverConfig, types::ProverProof},
     scheduler::{
         async_scheduler::AsyncScheduler,
         local_scheduler::*,
@@ -72,15 +74,41 @@ async fn serve(
     //task_tracker.create_task(request_id.clone())?;
     let scheduler = Arc::clone(&scheduler.inner());
 
+    let request_id_clone = request_id.clone();
+
     task::spawn(async move {
         // Call the method on the cloned scheduler
-        let proof = scheduler.recursive_gen_proof(req).await;
-        log::info!("Successfully generated proof! {:?}", proof);
+        let proof = scheduler
+            .recursive_gen_proof(&request_id, req)
+            .await
+            .unwrap();
+        match proof {
+            ProverProof::EvmProof(final_proof) => {
+                log::info!("Successfully generated proof! {:?}", final_proof);
+
+                let request_id_to_tasks = scheduler.task_tracker.request_id_to_tasks.lock();
+                let tasks = request_id_to_tasks.get(&request_id).unwrap();
+                // dump execution summary
+                let json_string =
+                    serde_json::to_string_pretty(tasks).expect("Failed to serialize data to JSON");
+                let mut file = File::create(
+                    scheduler
+                        .execution_summary_path
+                        .join(format!("{}.json", request_id)),
+                )
+                .unwrap();
+                file.write_all(json_string.as_bytes()).unwrap();
+                // fulfill final_proof
+            }
+            _ => unreachable!(),
+        }
     });
 
     log::info!("Successfully created task!");
 
-    return Ok(Json(SchedulerTaskResponse { request_id }));
+    return Ok(Json(SchedulerTaskResponse {
+        request_id: request_id_clone,
+    }));
 }
 
 #[derive(Parser, Clone, Debug)]
@@ -90,6 +118,8 @@ struct Cli {
     pub cids_path: PathBuf,
     #[arg(long = "executor-url")]
     pub executor_url: String,
+    #[arg(long = "execution-summary", default_value = "./execution_summary")]
+    pub execution_summary_path: PathBuf,
 }
 
 #[launch]
@@ -99,14 +129,24 @@ fn rocket() -> Rocket<Build> {
         .unwrap_or_else(|_| panic!("Failed to open file {}", cli.cids_path.display()));
     let cids: Vec<(String, String)> =
         serde_json::from_reader(cids_file).expect("Failed to parse cids file");
-    let cids_repo = HashMap::from_iter(cids.into_iter().map(|(k, cid)| {
-        let params: NodeParams =
-            serde_json::from_str(&k).unwrap_or_else(|e| panic!("Failed to parse {}. {:?}", k, e));
-        (params, cid)
-    }));
+
+    let mut cids_repo: HashMap<NodeParams, String> = HashMap::new();
+    let mut cid_to_params: HashMap<String, NodeParams> = HashMap::new();
+    for (params, circuit_id) in cids {
+        let params: NodeParams = serde_json::from_str(&params)
+            .unwrap_or_else(|e| panic!("Failed to parse {}. {:?}", params, e));
+        cids_repo.insert(params.clone(), circuit_id.clone());
+        cid_to_params.insert(circuit_id, params);
+    }
 
     let task_tracker = SchedulerTaskTracker::new();
-    let scheduler: AsyncScheduler = AsyncScheduler::new(cids_repo, cli.executor_url, task_tracker);
+    let scheduler: AsyncScheduler = AsyncScheduler::new(
+        cids_repo,
+        cid_to_params,
+        cli.executor_url,
+        task_tracker,
+        cli.execution_summary_path,
+    );
 
     rocket::build()
         .mount("/", routes![serve])
