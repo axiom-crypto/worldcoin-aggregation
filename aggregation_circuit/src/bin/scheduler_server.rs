@@ -6,6 +6,7 @@ use clap::Parser;
 use ethers::types::transaction::request;
 use rocket::{launch, post, routes, serde::json::Json, Build, Rocket, State};
 use tokio::task;
+use uuid::Uuid;
 use worldcoin_aggregation::{
     constants::{EXTRA_ROUNDS, INITIAL_DEPTH},
     keygen::node_params::{NodeParams, NodeType},
@@ -15,7 +16,7 @@ use worldcoin_aggregation::{
         local_scheduler::*,
         recursive_request::*,
         task_tracker::{self, SchedulerTaskTracker},
-        types::{Request, SchedulerTaskRequest, SchedulerTaskResponse},
+        types::{SchedulerTaskRequest, SchedulerTaskResponse},
     },
     types::*,
 };
@@ -27,14 +28,17 @@ async fn serve(
     task: Json<SchedulerTaskRequest>,
     scheduler: &State<Arc<AsyncScheduler>>,
 ) -> Result<Json<SchedulerTaskResponse>> {
-    let SchedulerTaskRequest { request_id, input } = task.into_inner();
-    let Request {
+
+    let SchedulerTaskRequest {
         num_proofs,
         max_proofs,
         root,
         grant_id,
         claims,
-    } = input;
+        initial_depth
+    } = task.into_inner();
+
+    let initial_depth = initial_depth.unwrap_or(INITIAL_DEPTH);
 
     if num_proofs > max_proofs {
         return Err(anyhow!("Too many proofs!")
@@ -74,6 +78,7 @@ async fn serve(
     //task_tracker.create_task(request_id.clone())?;
     let scheduler = Arc::clone(&scheduler.inner());
 
+    let request_id = Uuid::new_v4().to_string();
     let request_id_clone = request_id.clone();
 
     task::spawn(async move {
