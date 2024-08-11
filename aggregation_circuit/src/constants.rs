@@ -12,7 +12,7 @@ pub const NUM_LIMBS: usize = 3;
 pub const LIMB_BITS: usize = 88;
 
 // batch size of groth16 verifications, we are handling 2 ** INITIAL_DEPTH in one leaf shard
-pub const INITIAL_DEPTH: usize = 0;
+pub const INITIAL_DEPTH: usize = 3;
 // extra rounds for evm proof
 pub const EXTRA_ROUNDS: usize = 1;
 
