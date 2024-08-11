@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, hash::Hash, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, bail, Result};
 use async_recursion::async_recursion;
@@ -23,7 +23,7 @@ use crate::{
         recursive_request::RecursiveRequest,
         types::*,
     },
-    types::{ClaimNative, VkNative},
+    types::ClaimNative,
 };
 
 use super::task_tracker::SchedulerTaskTracker;
@@ -33,19 +33,25 @@ pub struct AsyncScheduler {
     /// Mutex just to force sequential proving
     pub executor: Arc<dyn ProofExecutor>,
     pub circuit_id_repo: Arc<RwLock<HashMap<NodeParams, String>>>,
+    pub cid_to_params: Arc<RwLock<HashMap<String, NodeParams>>>,
     pub task_tracker: Arc<SchedulerTaskTracker>,
+    pub execution_summary_path: Arc<PathBuf>,
 }
 
 impl AsyncScheduler {
     pub fn new(
         circuit_id_repo: HashMap<NodeParams, String>,
+        circuit_id_to_params: HashMap<String, NodeParams>,
         executor_url: String,
         task_tracker: SchedulerTaskTracker,
+        execution_summary_path: PathBuf,
     ) -> Self {
         Self {
             circuit_id_repo: Arc::new(RwLock::new(circuit_id_repo)),
+            cid_to_params: Arc::new(RwLock::new(circuit_id_to_params)),
             executor: Arc::new(DispatcherExecutor::new(&executor_url, 5000, 500, false).unwrap()),
             task_tracker: Arc::new(task_tracker),
+            execution_summary_path: Arc::new(execution_summary_path),
         }
     }
 
@@ -74,11 +80,15 @@ impl AsyncScheduler {
     }
 
     #[async_recursion]
-    pub async fn handle_recursive_request(&self, req: RecursiveRequest) -> Result<RequestRouter> {
+    pub async fn handle_recursive_request(
+        &self,
+        request_id: &String,
+        req: RecursiveRequest,
+    ) -> Result<RequestRouter> {
         // Recursively generate the SNARKs for the dependencies of this task.
         let mut futures = vec![];
         for dep in req.dependencies() {
-            let future = async move { self.recursive_gen_proof(dep).await };
+            let future = async move { self.recursive_gen_proof(request_id, dep).await };
             futures.push(future);
         }
 
@@ -158,9 +168,15 @@ impl AsyncScheduler {
     }
 
     #[async_recursion]
-    pub async fn recursive_gen_proof(&self, req: RecursiveRequest) -> Result<ProverProof> {
+    pub async fn recursive_gen_proof(
+        &self,
+        request_id: &String,
+        req: RecursiveRequest,
+    ) -> Result<ProverProof> {
         println!("Generating proof for {:?}", req);
-        let req_router = self.handle_recursive_request(req.clone()).await?;
+        let req_router = self
+            .handle_recursive_request(request_id, req.clone())
+            .await?;
         let circuit_id = self
             .circuit_id_repo
             .read()
@@ -171,12 +187,24 @@ impl AsyncScheduler {
         log::debug!("Router:{:?} CID-{circuit_id}", req.params);
 
         let task = ProverTask {
-            circuit_id,
+            circuit_id: circuit_id.clone(),
             input: req_router,
         };
 
         let result = self.executor.execute(task).await.unwrap();
 
+        self.task_tracker
+            .record_task(
+                request_id.clone(),
+                result.task_id,
+                self.cid_to_params
+                    .read()
+                    .await
+                    .get(&circuit_id)
+                    .unwrap()
+                    .clone(),
+            )
+            .unwrap();
         let proof = result.proof;
         Ok(proof)
     }
