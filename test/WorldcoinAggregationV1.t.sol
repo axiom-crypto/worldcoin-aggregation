@@ -30,7 +30,7 @@ contract WorldcoinAggregationV1_Test is WorldcoinAggregationV1Helper {
         //     // The raw data of the log.
         //     bytes data;
         //     // The address of the log's emitter.
-        //         address emitter;
+        //     address emitter;
         // }
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
@@ -44,10 +44,12 @@ contract WorldcoinAggregationV1_Test is WorldcoinAggregationV1Helper {
             assertEq(grantId, 30, "grantId mismatch");
             assertEq(receiver, _receivers[_numClaims], "receiver mismatch");
             assertEq(logs[i].emitter, address(aggregation), "emitter mismatch");
-            assertEq(aggregation.nullifierHashes(_nullifierHashes[numClaims]), true, "nullifierHash should be claimed");
+            assertEq(aggregation.nullifierHashes(_nullifierHashes[_numClaims]), true, "nullifierHash should be claimed");
 
             ++_numClaims;
         }
+
+        assertEq(_numClaims, numClaims, "numClaims mismatch");
     }
 
     function test_skipClaimedNullifierHashes() public {
