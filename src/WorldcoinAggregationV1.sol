@@ -90,50 +90,66 @@ contract WorldcoinAggregationV1 {
         PROVER = prover;
     }
 
-    function distributeGrants(bytes calldata proof) external onlyProver {
-        // Proof must have minimum `17 + 2 * MAX_NUM_CLAIMS` words.
-        // We expect the proof to be structured as such:
-        //
-        // proof[0..12 * 32]: reserved for proof verification data used with the
-        // pairing precompile
-        //
-        // proof[12 * 32..13 * 32]: vkeyHash Hi
-        // proof[13 * 32..14 * 32]: vkeyHash Lo
-        // proof[14 * 32..15 * 32]: grantId
-        // proof[15 * 32..16 * 32]: root
-        // proof[16 * 32..17 * 32]: numClaims
-        // proof[idx] for idx in [17 * 32, 17 * 32 + numClaims): receivers
-        // proof[idx] for idx in [17 * 32 + numClaims, 17 * 32 + numClaims + MAX_NUM_CLAIMS): claimedNullifierHashes
-        //
-        // if (proof.length < (17 + 2 * MAX_NUM_CLAIMS) * 32) revert InvalidProof();
-        //
-        // proof[(17 + 2 * MAX_NUM_CLAIMS) * 32)..]: Proof used in SNARK verification
+    function distributeGrants(
+        bytes32 vkeyHigh,
+        bytes32 vkeyLow,
+        uint256 numClaims,
+        uint256 grantId,
+        uint256 root,
+        address[] calldata receivers,
+        uint256[] calldata _nullifierHashes,
+        bytes calldata proof
+    ) external onlyProver {
+        uint256 grantAmount;
+        {
+            if (receivers.length != _nullifierHashes.length) revert InvalidProof();
+            if (numClaims != receivers.length) revert InvalidProof();
 
-        if (proof.length < (17 + (MAX_NUM_CLAIMS << 1)) << 5) revert InvalidProof();
+            // Proof must have minimum `14` words.
+            // We expect the proof to be structured as such:
+            //
+            // proof[0..12 * 32]: reserved for proof verification data used with the
+            // pairing precompile
+            //
+            // proof[12 * 32..13 * 32]: outputHash Hi
+            // proof[13 * 32..14 * 32]: outputHash Lo
+            //
+            // if (proof.length < 14 * 32) revert InvalidProof();
+            //
+            // proof[14 * 32..]: Proof used in SNARK verification
 
-        bytes32 vkeyHash = _unsafeCalldataAccess(proof, 12 << 5) << 128 | _unsafeCalldataAccess(proof, 13 << 5);
-        if (vkeyHash != VKEY_HASH) revert InvalidVkeyHash();
+            if (proof.length < 14 << 5) revert InvalidProof();
 
-        uint256 grantId = uint256(_unsafeCalldataAccess(proof, 14 << 5));
-        GRANT.checkValidity(grantId);
+            // No need to clean the upper bits on `vkeyLow`, `outputHash` or SNARK
+            // verification would fail.
+            bytes32 vkeyHash = vkeyHigh << 128 | vkeyLow;
+            if (vkeyHash != VKEY_HASH) revert InvalidVkeyHash();
 
-        uint256 root = uint256(_unsafeCalldataAccess(proof, 15 << 5));
-        ROOT_VALIDATOR.requireValidRoot(root);
+            GRANT.checkValidity(grantId);
 
-        uint256 numClaims = uint256(_unsafeCalldataAccess(proof, 16 << 5));
-        if (numClaims > MAX_NUM_CLAIMS) revert TooManyClaims();
+            ROOT_VALIDATOR.requireValidRoot(root);
 
-        // If the entire claim cannot be fulfilled, we fail the entire batch
-        uint256 grantAmount = GRANT.getAmount(grantId);
-        if (grantAmount * numClaims > WLD.balanceOf(address(this))) revert InsufficientBalance();
+            if (numClaims > MAX_NUM_CLAIMS) revert TooManyClaims();
+
+            // If the entire claim cannot be fulfilled, we fail the entire batch
+            grantAmount = GRANT.getAmount(grantId);
+            if (grantAmount * numClaims > WLD.balanceOf(address(this))) revert InsufficientBalance();
+
+            bytes32 derivedOutputHash =
+                keccak256(abi.encodePacked(vkeyHigh, vkeyLow, grantId, root, numClaims, receivers, _nullifierHashes));
+            bytes32 outputHash = _unsafeCalldataAccess(proof, 12 << 5) << 128 | _unsafeCalldataAccess(proof, 13 << 5);
+
+            if (outputHash != derivedOutputHash) revert InvalidProof();
+        }
 
         // Verify SNARK
         (bool success,) = VERIFIER_ADDRESS.call(proof);
         if (!success) revert InvalidProof();
 
+        uint256[] calldata _receivers = _toUint256Array(receivers);
         for (uint256 i = 0; i != numClaims;) {
-            address receiver = _toAddress(_unsafeCalldataAccess(proof, (17 + i) << 5));
-            uint256 claimedNullifierHash = uint256(_unsafeCalldataAccess(proof, (17 + i + MAX_NUM_CLAIMS) << 5));
+            address receiver = _toAddress(_unsafeCalldataAccess(_receivers, i));
+            uint256 claimedNullifierHash = uint256(_unsafeCalldataAccess(_nullifierHashes, i));
 
             if (!nullifierHashes[claimedNullifierHash] && receiver != address(0)) {
                 nullifierHashes[claimedNullifierHash] = true;
@@ -158,6 +174,27 @@ contract WorldcoinAggregationV1 {
         /// @solidity memory-safe-assembly
         assembly {
             out := input
+        }
+    }
+
+    /// @notice Cast an address array to a uint256 array
+    /// @param input The address array to cast
+    /// @return out The uint256 array casted from the input
+    function _toUint256Array(address[] calldata input) internal pure returns (uint256[] calldata out) {
+        assembly {
+            out.offset := input.offset
+            out.length := input.length
+        }
+    }
+
+    /// @dev Acceses a bytes32 array index without bounds checking
+    /// @param array The array to access
+    /// @param index The index to access
+    /// @return out The value at the index
+    function _unsafeCalldataAccess(uint256[] calldata array, uint256 index) internal pure returns (bytes32 out) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            out := calldataload(add(array.offset, mul(index, 0x20)))
         }
     }
 

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { WorldcoinAggregationV1 } from "../../src/WorldcoinAggregationV1.sol";
-import { Claim4Verifier } from "../../src/verifiers/Claim4Verifier.sol";
+import { Claim2Verifier } from "../../src/verifiers/Claim2Verifier.sol";
 import { WLDGrant } from "./WLDGrant.sol";
 
 import { Test } from "forge-std/Test.sol";
@@ -22,6 +22,14 @@ contract WorldcoinAggregationV1Exposed is WorldcoinAggregationV1 {
         return _toAddress(input);
     }
 
+    function toUint256Array(address[] calldata input) external pure returns (uint256[] memory) {
+        return _toUint256Array(input);
+    }
+
+    function unsafeCalldataAccess(uint256[] calldata array, uint256 index) external pure returns (bytes32) {
+        return _unsafeCalldataAccess(array, index);
+    }
+
     function unsafeCalldataAccess(bytes calldata array, uint256 index) external pure returns (bytes32) {
         return _unsafeCalldataAccess(array, index);
     }
@@ -34,17 +42,14 @@ contract WorldcoinAggregationV1Helper is Test {
 
     uint256 root;
 
-    address[] _receivers = [
-        0xc680592A97E35E981318B49FBeD2f3396Ec7dFf4,
-        0x66DD3df1620E0b6C3BE13BA50Dac88f97f41e010,
-        0x2c3F330be9322B3F4B8C18F599CC8818A828028B,
-        0x34C7d63c890b0024371C0c74a83Ba35d5e7C43be
-    ];
+    bytes32 vkeyHigh = 0x0000000000000000000000000000000046e72119ce99272ddff09e0780b472fd;
+    bytes32 vkeyLow = 0x00000000000000000000000000000000c612ca799c245eea223b27e57a5f9cec;
+    uint256 numClaims = 2;
+    uint256 grantId = 30;
+    address[] _receivers = [0xc680592A97E35E981318B49FBeD2f3396Ec7dFf4, 0x66DD3df1620E0b6C3BE13BA50Dac88f97f41e010];
     uint256[] _nullifierHashes = [
         9_152_573_647_681_310_217_632_987_348_218_830_000_142_150_227_431_582_313_786_965_903_541_954_934_978,
-        17_961_520_020_524_413_071_862_288_312_249_102_574_632_592_728_502_718_915_127_155_958_458_245_352_790,
-        18_714_282_156_277_731_590_587_481_838_204_083_867_234_725_583_878_493_153_338_136_882_367_159_561_843,
-        15_377_352_755_968_110_800_508_131_942_790_346_748_785_379_025_598_101_592_175_782_947_450_578_582_634
+        17_961_520_020_524_413_071_862_288_312_249_102_574_632_592_728_502_718_915_127_155_958_458_245_352_790
     ];
 
     // The address here doesn't matter much for testing purposes. So we
@@ -60,7 +65,7 @@ contract WorldcoinAggregationV1Helper is Test {
         vm.warp(1_712_275_644);
 
         mockGrant = new WLDGrant();
-        verifier = address(new Claim4Verifier());
+        verifier = address(new Claim2Verifier());
         aggregation = new WorldcoinAggregationV1Exposed({
             vkeyHash: bytes32(0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec),
             maxNumClaims: 4,
