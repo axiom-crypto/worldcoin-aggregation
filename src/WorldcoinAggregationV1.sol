@@ -187,7 +187,7 @@ contract WorldcoinAggregationV1 {
         }
     }
 
-    /// @dev Acceses a bytes32 array index without bounds checking
+    /// @dev Accesses a bytes32 array index without bounds checking
     /// @param array The array to access
     /// @param index The index to access
     /// @return out The value at the index
