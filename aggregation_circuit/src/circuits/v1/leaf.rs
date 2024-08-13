@@ -47,7 +47,7 @@ pub type WorldcoinLeafCircuit<F> = RlcKeccakCircuitImpl<F, WorldcoinInput<F>>;
 /// [4] grant_id
 /// [5] root
 /// [6, 6 + 1 << max_depth) receiver_i
-/// [6 + num_proofs, 6 + 2 * (1 << max_depth)) nullifier_hash_i
+/// [6 + 1 << max_depth, 6 + 2 * (1 << max_depth)) nullifier_hash_i
 #[derive(Clone, Debug)]
 pub struct WorldcoinWitness<F: Field> {
     pub start: AssignedValue<F>,
@@ -82,6 +82,10 @@ impl<F: Field> WorldcoinInput<F> {
         let end = ctx.load_witness(F::from(self.end as u64));
         let root = ctx.load_witness(self.root);
         let grant_id = ctx.load_witness(self.grant_id);
+
+        // receivers and groth16_inputs should have the same length
+        assert_eq!(self.receivers.len(), self.groth16_inputs.len());
+
         let receivers = ctx.assign_witnesses(self.receivers.clone());
 
         let mut groth16_verifier_inputs: Vec<Groth16VerifierInput<AssignedValue<F>>> = Vec::new();
@@ -143,11 +147,17 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinInput<F> {
             receivers,
             groth16_verifier_inputs,
         } = self.assign(ctx);
+
+        // ==== Constraints ====
+
+        // 0 <= start < end < 2^253
+        range.range_check(ctx, start, 253);
+        range.range_check(ctx, end, 253);
+        range.check_less_than(ctx, start, end, 253);
+
         let num_proofs = range.gate().sub(ctx, end, start);
         let max_proofs = ctx.load_witness(F::from(1 << self.max_depth));
         let max_proofs_plus_one = range.gate().add(ctx, max_proofs, one);
-
-        // ==== Constraints ====
 
         // constrain 0 < num_proofs <= max_proofs
         range.check_less_than(ctx, zero, num_proofs, 64);
