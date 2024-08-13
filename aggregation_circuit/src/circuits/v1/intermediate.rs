@@ -193,7 +193,7 @@ impl WorldcoinIntermediateAggregationInput {
 /// [4] grant_id
 /// [5] root
 /// [6, 6 + 1 << max_depth - 1] receiver_i
-/// [6 + num_proofs, 6 + 2 * (1 << max_depth)] nullifier_hash_i
+/// [6 + 1 << max_depth, 6 + 2 * (1 << max_depth)] nullifier_hash_i
 pub fn join_previous_instances<F: Field>(
     ctx: &mut Context<F>,
     range: &RangeChip<F>,

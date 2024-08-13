@@ -115,14 +115,14 @@ pub struct PinningIntermediate {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PinningRoot {
     /// Configuration parameters
-    pub params: AggregationCircuitParams,
+    pub params: RlcKeccakCircuitParams,
     /// PlonkProtocol of the children
     #[serde_as(as = "Vec<Base64Bytes>")]
     pub to_agg: Vec<PlonkProtocol<G1Affine>>,
     /// Number of instances in each instance column
     pub num_instance: Vec<usize>,
-    /// Break points. Should only have phase0, so MultiPhase is extraneous.
-    pub break_points: MultiPhaseThreadBreakPoints,
+    /// Break points.
+    pub break_points: RlcThreadBreakPoints,
     /// g1 generator, g2 generator, s_g2 (s is generator of trusted setup).
     /// Together with domain size `2^k`, this commits to the trusted setup used.
     /// This is all that's needed to verify the final ecpairing check on the KZG proof.
