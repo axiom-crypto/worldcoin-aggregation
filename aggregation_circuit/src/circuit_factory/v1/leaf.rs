@@ -76,8 +76,7 @@ impl ProofRequest for WorldcoinRequestLeaf {
         }
 
         let input = self.into();
-        let circuit =
-            WorldcoinLeafCircuit::new_impl(stage, input, pinning.params, DEFAULT_RLC_CACHE_BITS);
+        let circuit = WorldcoinLeafCircuit::new_impl(stage, input, pinning.params, 0);
         if stage.witness_gen_only() {
             circuit.set_break_points(pinning.break_points);
         }

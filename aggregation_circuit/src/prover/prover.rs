@@ -163,15 +163,6 @@ impl ProvingServerState {
             )?;
             log::debug!("read pk from {}", pk_path.display());
             let pk = Arc::new(pk);
-
-            // TODO: temporary code to reduce mem
-            log::debug!("Removing pk from {}", pk_path.display());
-            if let Err(e) =  Self::remove_pk_file(pk_path) {
-                println!("Failed to remove pk: {}", e);
-            } else {
-                println!("Removed pk from disk");
-            }
-
             log::debug!("Returning pk");
             pk
         };
@@ -179,15 +170,6 @@ impl ProvingServerState {
         Ok((kzg_params.clone(), pk, circuit))
     }
 
-    fn remove_pk_file(pk_path: PathBuf) -> std::io::Result<()> {
-        if pk_path.exists() {
-            fs::remove_file(pk_path)?;
-            println!("File removed successfully.");
-        } else {
-            println!("File does not exist.");
-        }
-        Ok(())
-    }
 
     pub async fn get_snark<R: ProofRequest>(
         &self,

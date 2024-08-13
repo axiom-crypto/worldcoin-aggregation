@@ -38,10 +38,12 @@ use serde::{Deserialize, Serialize};
 use crate::{
     circuit_factory::v1::leaf::*,
     circuits::v1::{
-        intermediate::WorldcoinIntermediateAggregationInput, leaf::WorldcoinLeafCircuit,
-        root::WorldcoinRootAggregationInput,
+        intermediate::WorldcoinIntermediateAggregationInput,
+        leaf::WorldcoinLeafCircuit,
+        root::{WorldcoinRootAggregationCircuit, WorldcoinRootAggregationInput},
     },
-    types::{VkNative, WorldcoinInput, WorldcoinRequest},
+    constants::VK,
+    types::{WorldcoinInput, WorldcoinRequest},
 };
 
 pub mod node_params;
@@ -127,19 +129,13 @@ impl KeygenCircuitIntent<Fr> for IntentLeaf {
         self.k
     }
     fn build_keygen_circuit(self) -> Self::ConcreteCircuit {
-        println!("reading vk and input");
-        let vk_path = "./data/vk.json";
-        let vk_file = File::open(vk_path).expect("Fail to open data/vk.json");
-        let vk: VkNative = serde_json::from_reader(vk_file).expect("Fail to parse vk.json");
-
         let max_proofs = 1 << self.depth;
-
         let input_path = format!("./data/generated_proofs_{}.json", max_proofs);
         let request: WorldcoinRequest =
             serde_json::from_reader(File::open(input_path).expect("Fail to open input"))
                 .expect("Fail to parse input");
         let request_leaf: WorldcoinRequestLeaf = WorldcoinRequestLeaf {
-            vk,
+            vk: VK.clone(),
             root: request.root,
             grant_id: request.grant_id,
             claims: request.claims,
@@ -151,12 +147,8 @@ impl KeygenCircuitIntent<Fr> for IntentLeaf {
         let input: WorldcoinInput<Fr> = request_leaf.into();
 
         let circuit_params = get_dummy_rlc_keccak_params(self.k as usize, self.k as usize - 1);
-        let mut circuit = WorldcoinLeafCircuit::new_impl(
-            CircuitBuilderStage::Mock,
-            input,
-            circuit_params,
-            DEFAULT_RLC_CACHE_BITS,
-        );
+        let mut circuit =
+            WorldcoinLeafCircuit::new_impl(CircuitBuilderStage::Mock, input, circuit_params, 0);
         circuit.calculate_params();
 
         circuit
@@ -235,7 +227,7 @@ impl KeygenCircuitIntent<Fr> for IntentIntermediate {
 }
 
 impl KeygenAggregationCircuitIntent for IntentRoot {
-    type AggregationCircuit = AggregationCircuit;
+    type AggregationCircuit = WorldcoinRootAggregationCircuit;
     fn intent_of_dependencies(&self) -> Vec<AggregationDependencyIntent> {
         vec![(&self.child_intent).into(); 2]
     }
@@ -244,28 +236,28 @@ impl KeygenAggregationCircuitIntent for IntentRoot {
 
         let input = WorldcoinRootAggregationInput::new(
             snarks,
-            1 << self.depth as u32,
+            1,
             self.depth,
             self.initial_depth,
             &self.kzg_params,
         )
         .unwrap();
-
-        let circuit_params = get_dummy_aggregation_params(self.k as usize);
-        let mut circuit = input
-            .build(
-                CircuitBuilderStage::Keygen,
-                circuit_params,
-                &self.kzg_params,
-            )
-            .unwrap();
-        circuit.0.calculate_params(Some(20));
-        circuit.0
+        // This is aggregation circuit, so set lookup bits to max
+        let circuit_params = get_dummy_rlc_keccak_params(self.k as usize, self.k as usize - 1);
+        // This is from bad UX; only svk = kzg_params.get_g()[0] is used
+        let mut circuit = WorldcoinRootAggregationCircuit::new_impl(
+            CircuitBuilderStage::Keygen,
+            input,
+            circuit_params,
+            0, // note: rlc is not used
+        );
+        circuit.calculate_params();
+        circuit
     }
 }
 
 impl KeygenCircuitIntent<Fr> for IntentRoot {
-    type ConcreteCircuit = AggregationCircuit;
+    type ConcreteCircuit = WorldcoinRootAggregationCircuit;
     type Pinning = PinningRoot;
     fn get_k(&self) -> u32 {
         self.k

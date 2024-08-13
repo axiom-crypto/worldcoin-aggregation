@@ -28,14 +28,13 @@ async fn serve(
     task: Json<SchedulerTaskRequest>,
     scheduler: &State<Arc<AsyncScheduler>>,
 ) -> Result<Json<SchedulerTaskResponse>> {
-
     let SchedulerTaskRequest {
         num_proofs,
         max_proofs,
         root,
         grant_id,
         claims,
-        initial_depth
+        initial_depth,
     } = task.into_inner();
 
     let initial_depth = initial_depth.unwrap_or(INITIAL_DEPTH);

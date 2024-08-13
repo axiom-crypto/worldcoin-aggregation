@@ -1,14 +1,17 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use axiom_core::axiom_eth::{
     halo2_base::gates::circuit::CircuitBuilderStage,
     halo2_proofs::poly::kzg::commitment::ParamsKZG, halo2curves::bn256::Bn256,
     snark_verifier_sdk::Snark,
 };
-use axiom_eth::snark_verifier_sdk::halo2::aggregation::AggregationCircuit;
+use axiom_eth::{
+    snark_verifier_sdk::halo2::aggregation::AggregationCircuit, utils::DEFAULT_RLC_CACHE_BITS,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    circuits::v1::root::WorldcoinRootAggregationInput, keygen::node_params::PinningRoot,
+    circuits::v1::root::{WorldcoinRootAggregationCircuit, WorldcoinRootAggregationInput},
+    keygen::node_params::PinningRoot,
     prover::prover::ProofRequest,
 };
 
@@ -28,10 +31,10 @@ pub struct WorldcoinRequestRoot {
 }
 
 impl ProofRequest for WorldcoinRequestRoot {
-    type Circuit = AggregationCircuit;
+    type Circuit = WorldcoinRootAggregationCircuit;
     type Pinning = PinningRoot;
     fn get_k(pinning: &Self::Pinning) -> u32 {
-        pinning.params.degree
+        pinning.params.k() as u32
     }
 
     fn proof_id(&self) -> String {
@@ -47,7 +50,19 @@ impl ProofRequest for WorldcoinRequestRoot {
         kzg_params: Option<&ParamsKZG<Bn256>>,
     ) -> Result<Self::Circuit> {
         let kzg_params = kzg_params.ok_or_else(|| anyhow!("kzg_params not provided"))?;
+
+        if self.end < self.start {
+            bail!("Invalid index range: [{}, {}]", self.start, self.end);
+        }
         let num_proofs = self.end - self.start;
+        if num_proofs > (1 << self.depth) {
+            bail!(
+                "Number of proofs {} is too large for depth {}",
+                num_proofs,
+                self.depth
+            );
+        }
+
         let input = WorldcoinRootAggregationInput::new(
             self.snarks,
             num_proofs,
@@ -56,8 +71,7 @@ impl ProofRequest for WorldcoinRequestRoot {
             kzg_params,
         )?;
 
-        let mut circuit = input.build(stage, pinning.params, kzg_params)?.0;
-
+        let circuit = WorldcoinRootAggregationCircuit::new_impl(stage, input, pinning.params, 0);
         if stage.witness_gen_only() {
             circuit.set_break_points(pinning.break_points);
         }

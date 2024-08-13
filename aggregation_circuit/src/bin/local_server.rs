@@ -8,7 +8,7 @@ use std::fs;
 use worldcoin_aggregation::{
     constants::INITIAL_DEPTH,
     keygen::node_params::{NodeParams, NodeType},
-    prover::{ProverConfig, ProvingServerState},
+    prover::prover::{ProverConfig, ProvingServerState},
     scheduler::{local_scheduler::*, recursive_request::*},
     types::*,
 };

@@ -119,7 +119,6 @@ impl<F: Field> WorldcoinInput<F> {
     }
 }
 
-// TODO: clean up struct, mpt is not needed
 impl<F: Field> EthCircuitInstructions<F> for WorldcoinInput<F> {
     type FirstPhasePayload = WorldcoinWitness<F>;
 
