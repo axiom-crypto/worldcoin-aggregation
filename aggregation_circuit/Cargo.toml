@@ -14,7 +14,7 @@ anyhow = "1.0"
 log = "0.4"
 env_logger = "0.10"
 # generating circuit inputs from blockchain
-ethers-providers = { version = "2.0.14" }
+#ethers-providers = { version = "2.0.14" }
 futures = { version = "=0.3" }
 async-recursion = "1.0.5"
 
@@ -26,21 +26,20 @@ clap-num = { version = "1.0.2" }
 # getting build info
 built = { version = "0.7", features = ["cargo-lock", "dependency-tree", "git2", "chrono", "semver"] }
 
-ethers-core = { version = "=2.0.14", features = ["optimism"] }
+#ethers-core = { version = "=2.0.14", features = ["optimism"] }
 
-axiom-circuit = { git = "https://github.com/axiom-crypto/axiom-sdk-rs.git", branch = "develop" }
-axiom-sdk = { git = "https://github.com/axiom-crypto/axiom-sdk-rs.git", branch = "develop" }
-axiom-components = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop" }
-axiom-eth = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop", package = "axiom-eth",  default-features = true, features = [
+axiom-components = { git = "ssh://git@github.com/axiom-crypto/axiom-eth.git", branch = "develop" }
+axiom-eth = { git = "ssh://git@github.com/axiom-crypto/axiom-eth.git", branch = "develop", package = "axiom-eth",  default-features = true, features = [
   "jemallocator",
   "providers",
   "aggregation",
   "evm",
   "keygen",
 ] }
-axiom-core = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git",  branch = "develop", package = "axiom-core", default-features = false, features = ["jemallocator", "keygen"] }
+axiom-core = { git = "ssh://git@github.com/axiom-crypto/axiom-eth.git",  branch = "develop", package = "axiom-core", default-features = false, features = ["jemallocator", "keygen"] }
 
-ethers = "2.0.14"
+#ethers = "2.0.14"
+ethers= { version = "=2.0.14", features = ["optimism"] }
 hex = "0.4.3"
 num-bigint = "0.4.5"
 halo2curves = "0.6.1"

@@ -19,7 +19,7 @@ use std::fmt::Debug;
 
 use axiom_components::groth16::{get_groth16_consts_from_max_pi, test::parse_input};
 
-use axiom_sdk::{halo2_base::utils::biguint_to_fe, Fr};
+use axiom_eth::{halo2_base::utils::biguint_to_fe, halo2curves::bn256::Fr};
 
 use crate::constants::*;
 use ethers::{abi::Address, types::U256};

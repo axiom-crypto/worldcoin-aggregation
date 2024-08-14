@@ -20,16 +20,12 @@ use axiom_core::axiom_eth::{
     },
     halo2_proofs::{plonk::Circuit, poly::commitment::Params},
     snark_verifier_sdk::evm::{encode_calldata, gen_evm_proof_shplonk},
-    snark_verifier_sdk::{
-        self,
-        halo2::{gen_snark_shplonk, read_snark},
-        CircuitExt,
-    },
+    snark_verifier_sdk::{self, halo2::gen_snark_shplonk, CircuitExt},
     utils::snark_verifier::EnhancedSnark,
 };
 
 use clap::Parser;
-use ethers_core::utils::hex;
+use ethers::utils::hex;
 use rocket::tokio;
 use serde::de::DeserializeOwned;
 use tokio::sync::{Mutex, RwLock};
