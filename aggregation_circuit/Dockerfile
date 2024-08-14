@@ -13,10 +13,7 @@ WORKDIR /code
 ENV CARGO_HOME=/code/.cargo
 COPY . .
 
-# see https://github.com/jemalloc/jemalloc/blob/dev/TUNING.md
-# this sets decay to 1GB, DO NOT USE narenas=1
-
-RUN cargo build --release --features "asm" --bin prover_server
+RUN cargo build --release --features "asm, revm" --bin prover_server --bin scheduler_server
 
 FROM debian:stable-slim
 WORKDIR /code
@@ -28,7 +25,10 @@ RUN apt update \
 COPY --from=builder /code/target/release/prover_server ./
 COPY --from=builder /code/data/vk.json ./data/vk.json
 
+# see https://github.com/jemalloc/jemalloc/blob/dev/TUNING.md
+# this sets decay to 1GB, DO NOT USE narenas=1
 ENV JEMALLOC_SYS_WITH_MALLOC_CONF="background_thread:true,metadata_thp:always,dirty_decay_ms:1000000,muzzy_decay_ms:1000000,abort_conf:true"
 
+# default entrance, can be overriden by --entrypoint
 CMD ["/code/prover_server"]
 EXPOSE 8000
