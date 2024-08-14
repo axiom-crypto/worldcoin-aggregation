@@ -1,6 +1,5 @@
 use anyhow::{bail, Context};
 use async_trait::async_trait;
-// use axiom_prover::types::{ProverProof, ProverTask, ProverTaskResponse};
 use log::debug;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
@@ -13,8 +12,6 @@ use crate::{
 };
 
 use super::ProofExecutor;
-
-//use super::ProofExecutor;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]

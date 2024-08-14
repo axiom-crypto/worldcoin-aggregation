@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::prover::types::{ProverProof, ProverTask};
 
-use super::types::current_timstamp_sec;
-
 pub mod dispatcher;
 
 pub type TaskId = String;

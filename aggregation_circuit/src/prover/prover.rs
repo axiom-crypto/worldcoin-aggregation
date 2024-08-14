@@ -133,38 +133,7 @@ impl ProvingServerState {
         Ok(pinning)
     }
 
-    pub async fn load_pk<R: ProofRequest>(&self, circuit_id: &str, req: R) -> anyhow::Result<()> {
-        let pinning_json = self.get_pinning(circuit_id).await?;
-        let pinning: R::Pinning = serde_json::from_value(pinning_json.deref().clone())?;
-
-        let k = R::get_k(&pinning);
-        let kzg_params = &self.get_srs(k).await?;
-
-        let circuit = req
-            .prover_circuit(pinning, Some(kzg_params))
-            .context(InvalidInputContext)?;
-
-        let pk_path = self.pkey_path(circuit_id);
-        let pk = snark_verifier_sdk::read_pk_with_capacity::<R::Circuit>(
-            128 * 1024 * 1024, /* 128 MB */
-            &pk_path,
-            circuit.params(),
-        )?;
-
-        log::debug!("read pk from {}", pk_path.display());
-        let pk = Arc::new(pk);
-
-        self.pk
-            .write()
-            .await
-            .insert(circuit_id.to_owned(), pk.clone());
-
-        log::debug!("Suceessfully loaded pk");
-
-        Ok(())
-    }
-
-    async fn build_circuit<R: ProofRequest>(
+    pub async fn build_circuit<R: ProofRequest>(
         &self,
         circuit_id: &str,
         req: R,
@@ -192,6 +161,11 @@ impl ProvingServerState {
             )?;
             log::debug!("read pk from {}", pk_path.display());
             let pk = Arc::new(pk);
+            self.pk
+                .write()
+                .await
+                .insert(circuit_id.to_owned(), pk.clone());
+
             log::debug!("Returning pk");
 
             pk

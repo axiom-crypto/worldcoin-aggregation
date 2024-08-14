@@ -3,26 +3,25 @@
 //! - two [WorldcoinLeafnCircuit]s (if `max_depth == initial_depth + 1`) or
 //! - two [WorldcoinIntermediateAggregationCircuit]s.
 //!
-//! The difference between Intermediate and Root aggregation circuits is that they expose different public outputs
+//! The difference between Intermediate and Root aggregation circuits is that they expose different public outputs. Root aggregation
+//! exposes the hash of the output [vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]
 
 use anyhow::{bail, Result};
 use axiom_eth::{
-    halo2_base::{gates::circuit::CircuitBuilderStage, AssignedValue},
+    halo2_base::AssignedValue,
     halo2_proofs::poly::{commitment::ParamsProver, kzg::commitment::ParamsKZG},
-    halo2curves::bn256::{Bn256, Fq, Fr},
+    halo2curves::bn256::{Bn256, Fr},
     mpt::MPTChip,
     rlc::circuit::builder::RlcCircuitBuilder,
     snark_verifier_sdk::{
-        halo2::aggregation::{
-            aggregate_snarks, AggregationCircuit, SnarkAggregationOutput, Svk, VerifierUniversality,
-        },
+        halo2::aggregation::{aggregate_snarks, SnarkAggregationOutput, Svk, VerifierUniversality},
         Snark, SHPLONK,
     },
     utils::{
         build_utils::aggregation::CircuitMetadata,
         eth_circuit::EthCircuitInstructions,
         keccak::decorator::RlcKeccakCircuitImpl,
-        snark_verifier::{get_accumulator_indices, AggregationCircuitParams, NUM_FE_ACCUMULATOR},
+        snark_verifier::{get_accumulator_indices, NUM_FE_ACCUMULATOR},
         uint_to_bytes_be,
     },
 };
@@ -122,11 +121,13 @@ impl EthCircuitInstructions<Fr> for WorldcoinRootAggregationInput {
             initial_depth,
         );
 
+        // output:  [vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]
         let mut output: Vec<AssignedValue<Fr>> = Vec::new();
         output.extend(new_instances[2..6].to_vec());
         output.extend([num_proofs].to_vec());
         output.extend(new_instances[6..6 + 2 * (1 << max_depth)].to_vec());
 
+        // generate keccak hash for the outputs
         let output_bytes: Vec<AssignedValue<Fr>> = output
             .iter()
             .map(|b| {

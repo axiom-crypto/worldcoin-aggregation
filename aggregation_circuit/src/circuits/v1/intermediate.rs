@@ -8,7 +8,7 @@
 //!
 //! The root of the aggregation tree will be a [WorldcoinRootAggregationCircuit].
 //! The difference between Intermediate and Root aggregation circuits has different public outputs.
-//! RootAggregation exposes num_proofs instead start/end.
+//! RootAggregation exposes the hash of outputs.
 use anyhow::{bail, Ok, Result};
 use axiom_eth::{
     halo2_base::{
@@ -31,9 +31,9 @@ use axiom_eth::{
 };
 use itertools::Itertools;
 
-pub struct WorldcoinIntermediateAggregationCircuitV1(pub AggregationCircuit);
+pub struct WorldcoinIntermediateAggregationCircuit(pub AggregationCircuit);
 
-impl WorldcoinIntermediateAggregationCircuitV1 {
+impl WorldcoinIntermediateAggregationCircuit {
     /// The number of instances NOT INCLUDING the accumulator
     pub fn get_num_instance(max_depth: usize, initial_depth: usize) -> usize {
         assert!(max_depth >= initial_depth);
@@ -41,9 +41,9 @@ impl WorldcoinIntermediateAggregationCircuitV1 {
     }
 }
 
-/// The input to create an intermediate [AggregationCircuit] that aggregates [WorldcoinLeafCircuitV1]s.
+/// The input to create an intermediate [AggregationCircuit] that aggregates [WorldcoinLeafCircuit]s.
 /// These are intermediate aggregations because they do not perform additional keccaks. Therefore the public instance format (after excluding accumulators) is
-/// the same as that of the original [WorldcoinLeafCircuitV1]s.
+/// the same as that of the original [WorldcoinLeafCircuit]s.
 #[derive(Clone, Debug)]
 pub struct WorldcoinIntermediateAggregationInput {
     // aggregation circuit with `instances` the accumulator (two G1 points) for delayed pairing verification
@@ -85,20 +85,7 @@ impl WorldcoinIntermediateAggregationInput {
         stage: CircuitBuilderStage,
         circuit_params: AggregationCircuitParams,
         kzg_params: &ParamsKZG<Bn256>,
-    ) -> Result<WorldcoinIntermediateAggregationCircuitV1> {
-        let circuit = self
-            .build_aggregation_circuit(stage, circuit_params, kzg_params, false)
-            .unwrap();
-        Ok(WorldcoinIntermediateAggregationCircuitV1(circuit))
-    }
-
-    pub fn build_aggregation_circuit(
-        self,
-        stage: CircuitBuilderStage,
-        circuit_params: AggregationCircuitParams,
-        kzg_params: &ParamsKZG<Bn256>,
-        expose_num_proofs: bool,
-    ) -> Result<AggregationCircuit> {
+    ) -> Result<WorldcoinIntermediateAggregationCircuit> {
         let num_proofs = self.num_proofs;
         let max_depth = self.max_depth;
         let initial_depth = self.initial_depth;
@@ -126,6 +113,7 @@ impl WorldcoinIntermediateAggregationInput {
             VerifierUniversality::None,
         );
         let mut prev_instances = circuit.previous_instances().clone();
+
         // remove old accumulators
         for (prev_instance, acc_indices) in prev_instances.iter_mut().zip_eq(prev_acc_indices) {
             for i in acc_indices.into_iter().sorted().rev() {
@@ -134,7 +122,7 @@ impl WorldcoinIntermediateAggregationInput {
         }
 
         let builder = &mut circuit.builder;
-        // TODO: slight computational overhead from recreating RangeChip; builder should store RangeChip as OnceCell
+
         let range = builder.range_chip();
         let ctx = builder.main(0);
         let num_proofs = ctx.load_witness(Fr::from(num_proofs as u64));
@@ -154,24 +142,12 @@ impl WorldcoinIntermediateAggregationInput {
 
         assert_eq!(assigned_instances.len(), NUM_FE_ACCUMULATOR);
 
-        if !expose_num_proofs {
-            assigned_instances.extend(new_instances);
-            assert_eq!(
-                assigned_instances.len(),
-                NUM_FE_ACCUMULATOR + 6 + 2 * (1 << self.max_depth)
-            );
-        } else {
-            // public IOs for WorldcoinRootAggregation circuit
-            // vkeyHash, grant_id, root, num_proofs, receivers, nullifier_hashes
-            assigned_instances.extend(new_instances[2..6].to_vec());
-            assigned_instances.extend([num_proofs].to_vec());
-            assigned_instances.extend(new_instances[6..6 + 2 * (1 << max_depth)].to_vec());
-            assert_eq!(
-                assigned_instances.len(),
-                NUM_FE_ACCUMULATOR + 5 + 2 * (1 << self.max_depth)
-            );
-        }
-        Ok(circuit)
+        assigned_instances.extend(new_instances);
+        assert_eq!(
+            assigned_instances.len(),
+            NUM_FE_ACCUMULATOR + 6 + 2 * (1 << self.max_depth)
+        );
+        Ok(WorldcoinIntermediateAggregationCircuit(circuit))
     }
 }
 
@@ -204,7 +180,7 @@ pub fn join_previous_instances<F: Field>(
 ) -> Vec<AssignedValue<F>> {
     let prev_depth = max_depth - 1;
     let num_instance_prev_depth =
-        WorldcoinIntermediateAggregationCircuitV1::get_num_instance(prev_depth, initial_depth);
+        WorldcoinIntermediateAggregationCircuit::get_num_instance(prev_depth, initial_depth);
     assert_eq!(num_instance_prev_depth, prev_instances[0].len());
     assert_eq!(num_instance_prev_depth, prev_instances[1].len());
 
@@ -247,7 +223,7 @@ pub fn join_previous_instances<F: Field>(
     ctx.constrain_equal(&boundary_num_diff, &num_proofs);
 
     let num_instance =
-        WorldcoinIntermediateAggregationCircuitV1::get_num_instance(max_depth, initial_depth);
+        WorldcoinIntermediateAggregationCircuit::get_num_instance(max_depth, initial_depth);
 
     let mut instances = Vec::with_capacity(num_instance);
 

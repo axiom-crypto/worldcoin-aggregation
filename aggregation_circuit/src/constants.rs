@@ -18,7 +18,7 @@ pub const EXTRA_ROUNDS: usize = 1;
 
 lazy_static! {
     pub static ref VK: VkNative = {
-        let file_path = "./data/vk.json"; // Update with your file path
+        let file_path = "./data/vk.json";
         let json_data = fs::read_to_string(file_path).expect("Unable to read vk");
         serde_json::from_str(&json_data).expect("Unable to parse vk json")
     };

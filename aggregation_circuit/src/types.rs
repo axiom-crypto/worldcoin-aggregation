@@ -15,7 +15,6 @@ use axiom_components::{
 use axiom_eth::{utils::encode_addr_to_field, zkevm_hashes::util::eth_types::Field};
 use ethers::utils::keccak256;
 use serde::Deserialize;
-use serde_with::{base64::Base64, serde_as, DeserializeAs, SerializeAs};
 use std::fmt::Debug;
 
 use axiom_components::groth16::{get_groth16_consts_from_max_pi, test::parse_input};

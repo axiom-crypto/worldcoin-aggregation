@@ -1,11 +1,11 @@
-use std::{collections::HashMap, hash::Hash, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, bail, Result};
 use async_recursion::async_recursion;
 use axiom_core::axiom_eth::snark_verifier_sdk::Snark;
 
 use futures::future::join_all;
-use rocket::tokio::{self, sync::RwLock};
+use rocket::tokio::sync::RwLock;
 
 use crate::{
     circuit_factory::{
@@ -32,11 +32,21 @@ use super::task_tracker::SchedulerTaskTracker;
 pub struct AsyncScheduler {
     /// Mutex just to force sequential proving
     pub executor: Arc<dyn ProofExecutor>,
+    // circuit_id -> intent params
     pub circuit_id_repo: Arc<RwLock<HashMap<NodeParams, String>>>,
+    // intent params -> circuit_id
     pub cid_to_params: Arc<RwLock<HashMap<String, NodeParams>>>,
+    // tracker for existing tasks
     pub task_tracker: Arc<SchedulerTaskTracker>,
     pub execution_summary_path: Arc<PathBuf>,
 }
+
+// query task status from dispatcher every 5000 ms
+const DISPATCHER_POLL_INTERVAL: u64 = 5000;
+// threshold for concurrent tasks
+const DISPATCHER_CONCURRENCY: usize = 100;
+// whether to re-prove in case the input for the circuit already has proof from previous runs
+const FORCE_PROVE: bool = false;
 
 impl AsyncScheduler {
     pub fn new(
@@ -49,7 +59,15 @@ impl AsyncScheduler {
         Self {
             circuit_id_repo: Arc::new(RwLock::new(circuit_id_repo)),
             cid_to_params: Arc::new(RwLock::new(circuit_id_to_params)),
-            executor: Arc::new(DispatcherExecutor::new(&executor_url, 5000, 500, false).unwrap()),
+            executor: Arc::new(
+                DispatcherExecutor::new(
+                    &executor_url,
+                    DISPATCHER_POLL_INTERVAL,
+                    DISPATCHER_CONCURRENCY,
+                    FORCE_PROVE,
+                )
+                .unwrap(),
+            ),
             task_tracker: Arc::new(task_tracker),
             execution_summary_path: Arc::new(execution_summary_path),
         }

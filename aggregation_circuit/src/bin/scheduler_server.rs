@@ -1,21 +1,18 @@
-use std::{collections::HashMap, fmt::format, fs::File, io::Write, path::PathBuf};
+use std::{collections::HashMap, fs::File, io::Write, path::PathBuf};
 
 use anyhow::anyhow;
-use axiom_components::groth16::verifier::types::Proof;
 use clap::Parser;
-use ethers::types::transaction::request;
 use rocket::{launch, post, routes, serde::json::Json, Build, Rocket, State};
 use tokio::task;
 use uuid::Uuid;
 use worldcoin_aggregation::{
     constants::{EXTRA_ROUNDS, INITIAL_DEPTH},
     keygen::node_params::{NodeParams, NodeType},
-    prover::{prover::ProverConfig, types::ProverProof},
+    prover::types::ProverProof,
     scheduler::{
         async_scheduler::AsyncScheduler,
-        local_scheduler::*,
         recursive_request::*,
-        task_tracker::{self, SchedulerTaskTracker},
+        task_tracker::SchedulerTaskTracker,
         types::{SchedulerTaskRequest, SchedulerTaskResponse},
     },
     types::*,
@@ -70,7 +67,6 @@ async fn serve(
         params,
     };
 
-    //let scheduler = AsyncScheduler::clone(scheduler);
     // Actually run the thing
     log::info!("Running task: {req:?}");
 
