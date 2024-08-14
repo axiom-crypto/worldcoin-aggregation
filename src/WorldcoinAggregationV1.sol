@@ -91,8 +91,7 @@ contract WorldcoinAggregationV1 {
     }
 
     function distributeGrants(
-        bytes32 vkeyHigh,
-        bytes32 vkeyLow,
+        bytes32 vkeyHash,
         uint256 numClaims,
         uint256 grantId,
         uint256 root,
@@ -122,7 +121,6 @@ contract WorldcoinAggregationV1 {
 
             // No need to clean the upper bits on `vkeyLow`, `outputHash` or SNARK
             // verification would fail.
-            bytes32 vkeyHash = vkeyHigh << 128 | vkeyLow;
             if (vkeyHash != VKEY_HASH) revert InvalidVkeyHash();
 
             GRANT.checkValidity(grantId);
@@ -135,8 +133,17 @@ contract WorldcoinAggregationV1 {
             grantAmount = GRANT.getAmount(grantId);
             if (grantAmount * numClaims > WLD.balanceOf(address(this))) revert InsufficientBalance();
 
-            bytes32 derivedOutputHash =
-                keccak256(abi.encodePacked(vkeyHigh, vkeyLow, grantId, root, numClaims, receivers, _nullifierHashes));
+            bytes32 derivedOutputHash = keccak256(
+                abi.encodePacked(
+                    vkeyHash >> 128,
+                    vkeyHash & bytes32(0x00000000000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF),
+                    grantId,
+                    root,
+                    numClaims,
+                    receivers,
+                    _nullifierHashes
+                )
+            );
             bytes32 outputHash = _unsafeCalldataAccess(proof, 12 << 5) << 128 | _unsafeCalldataAccess(proof, 13 << 5);
 
             if (outputHash != derivedOutputHash) revert InvalidProof();

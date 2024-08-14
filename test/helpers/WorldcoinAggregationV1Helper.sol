@@ -42,6 +42,7 @@ contract WorldcoinAggregationV1Helper is Test {
 
     uint256 root;
 
+    bytes32 vkeyHash = 0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec;
     bytes32 vkeyHigh = 0x0000000000000000000000000000000046e72119ce99272ddff09e0780b472fd;
     bytes32 vkeyLow = 0x00000000000000000000000000000000c612ca799c245eea223b27e57a5f9cec;
     uint256 numClaims = 2;
@@ -67,7 +68,7 @@ contract WorldcoinAggregationV1Helper is Test {
         mockGrant = new WLDGrant();
         verifier = address(new Claim2Verifier());
         aggregation = new WorldcoinAggregationV1Exposed({
-            vkeyHash: bytes32(0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec),
+            vkeyHash: vkeyHash,
             maxNumClaims: 4,
             wldToken: wldToken,
             // Identity Manager

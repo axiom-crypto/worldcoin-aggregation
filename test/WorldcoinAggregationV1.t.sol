@@ -14,8 +14,7 @@ contract WorldcoinAggregationV1_Test is WorldcoinAggregationV1Helper {
         vm.recordLogs();
         aggregation.distributeGrants({
             proof: PROOF,
-            vkeyHigh: vkeyHigh,
-            vkeyLow: vkeyLow,
+            vkeyHash: vkeyHash,
             numClaims: numClaims,
             grantId: grantId,
             root: root,
@@ -55,8 +54,7 @@ contract WorldcoinAggregationV1_Test is WorldcoinAggregationV1Helper {
     function test_skipClaimedNullifierHashes() public {
         aggregation.distributeGrants({
             proof: PROOF,
-            vkeyHigh: vkeyHigh,
-            vkeyLow: vkeyLow,
+            vkeyHash: vkeyHash,
             numClaims: numClaims,
             grantId: grantId,
             root: root,
@@ -71,8 +69,7 @@ contract WorldcoinAggregationV1_Test is WorldcoinAggregationV1Helper {
 
         aggregation.distributeGrants({
             proof: PROOF,
-            vkeyHigh: vkeyHigh,
-            vkeyLow: vkeyLow,
+            vkeyHash: vkeyHash,
             numClaims: numClaims,
             grantId: grantId,
             root: root,
@@ -151,8 +148,7 @@ contract WorldcoinAggregationV1_RevertTest is WorldcoinAggregationV1Helper {
         vm.expectRevert(WorldcoinAggregationV1.InvalidProof.selector);
         aggregation.distributeGrants({
             proof: PROOF,
-            vkeyHigh: vkeyHigh,
-            vkeyLow: vkeyLow,
+            vkeyHash: vkeyHash,
             numClaims: numClaims,
             grantId: grantId,
             root: root,
@@ -165,8 +161,7 @@ contract WorldcoinAggregationV1_RevertTest is WorldcoinAggregationV1Helper {
         vm.expectRevert(WorldcoinAggregationV1.InvalidProof.selector);
         aggregation.distributeGrants({
             proof: PROOF,
-            vkeyHigh: vkeyHigh,
-            vkeyLow: vkeyLow,
+            vkeyHash: vkeyHash,
             numClaims: 0,
             grantId: grantId,
             root: root,
@@ -181,8 +176,7 @@ contract WorldcoinAggregationV1_RevertTest is WorldcoinAggregationV1Helper {
         vm.expectRevert(WorldcoinAggregationV1.InvalidProof.selector);
         aggregation.distributeGrants({
             proof: invalidProof,
-            vkeyHigh: vkeyHigh,
-            vkeyLow: vkeyLow,
+            vkeyHash: vkeyHash,
             numClaims: numClaims,
             grantId: grantId,
             root: root,
@@ -195,8 +189,7 @@ contract WorldcoinAggregationV1_RevertTest is WorldcoinAggregationV1Helper {
         vm.expectRevert(WorldcoinAggregationV1.InvalidVkeyHash.selector);
         aggregation.distributeGrants({
             proof: PROOF,
-            vkeyHigh: 0x00,
-            vkeyLow: vkeyLow,
+            vkeyHash: 0x00,
             numClaims: numClaims,
             grantId: grantId,
             root: root,
@@ -209,8 +202,7 @@ contract WorldcoinAggregationV1_RevertTest is WorldcoinAggregationV1Helper {
         vm.expectRevert(IGrant.InvalidGrant.selector);
         aggregation.distributeGrants({
             proof: PROOF,
-            vkeyHigh: vkeyHigh,
-            vkeyLow: vkeyLow,
+            vkeyHash: vkeyHash,
             numClaims: numClaims,
             grantId: 0,
             root: root,
@@ -223,8 +215,7 @@ contract WorldcoinAggregationV1_RevertTest is WorldcoinAggregationV1Helper {
         vm.expectRevert();
         aggregation.distributeGrants({
             proof: PROOF,
-            vkeyHigh: vkeyHigh,
-            vkeyLow: vkeyLow,
+            vkeyHash: vkeyHash,
             numClaims: numClaims,
             grantId: grantId,
             root: 0x00,
@@ -244,8 +235,7 @@ contract WorldcoinAggregationV1_RevertTest is WorldcoinAggregationV1Helper {
         vm.expectRevert(WorldcoinAggregationV1.InsufficientBalance.selector);
         aggregation.distributeGrants({
             proof: PROOF,
-            vkeyHigh: vkeyHigh,
-            vkeyLow: vkeyLow,
+            vkeyHash: vkeyHash,
             numClaims: numClaims,
             grantId: grantId,
             root: root,
@@ -261,8 +251,7 @@ contract WorldcoinAggregationV1_RevertTest is WorldcoinAggregationV1Helper {
         vm.expectRevert(WorldcoinAggregationV1.TooManyClaims.selector);
         aggregation.distributeGrants({
             proof: PROOF,
-            vkeyHigh: vkeyHigh,
-            vkeyLow: vkeyLow,
+            vkeyHash: vkeyHash,
             numClaims: 256,
             grantId: grantId,
             root: root,
@@ -278,8 +267,7 @@ contract WorldcoinAggregationV1_RevertTest is WorldcoinAggregationV1Helper {
         vm.expectRevert(WorldcoinAggregationV1.InvalidProof.selector);
         aggregation.distributeGrants({
             proof: invalidProof,
-            vkeyHigh: vkeyHigh,
-            vkeyLow: vkeyLow,
+            vkeyHash: vkeyHash,
             numClaims: numClaims,
             grantId: grantId,
             root: root,
@@ -296,8 +284,7 @@ contract WorldcoinAggregationV1_RevertTest is WorldcoinAggregationV1Helper {
         vm.expectRevert(WorldcoinAggregationV1.InvalidProof.selector);
         aggregation.distributeGrants({
             proof: invalidProof,
-            vkeyHigh: vkeyHigh,
-            vkeyLow: vkeyLow,
+            vkeyHash: vkeyHash,
             numClaims: numClaims,
             grantId: grantId,
             root: root,
