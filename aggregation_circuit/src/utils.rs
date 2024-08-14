@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use axiom_core::axiom_eth::{
+use axiom_eth::{
     halo2_proofs::plonk::Circuit,
     halo2_proofs::{
         plonk::VerifyingKey,

@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Result};
-use axiom_core::axiom_eth::{
+use axiom_eth::{
     halo2_base::gates::circuit::CircuitBuilderStage,
     halo2_proofs::poly::kzg::commitment::ParamsKZG, halo2curves::bn256::Bn256,
     snark_verifier_sdk::Snark,

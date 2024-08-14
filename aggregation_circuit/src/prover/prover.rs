@@ -9,7 +9,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use axiom_core::axiom_eth::{
+use axiom_eth::{
     halo2_base::{
         gates::circuit::CircuitBuilderStage,
         halo2_proofs::{
@@ -178,17 +178,7 @@ impl ProvingServerState {
         let _mutex_guard = self.acquire_proof_mutex().await;
         log::info!("get_snark:circuit_id={circuit_id}");
         let snark_path = self.snark_path(circuit_id, &req);
-
-        // this can be replaced by DB read
-        // check fs cache
-        #[cfg(feature = "halo2-axiom")]
-        // if let Some(Ok(snark)) = snark_path.as_ref().map(read_snark) {
-        //     log::debug!("snark found at {:?}", snark_path);
-        //     return Ok(EnhancedSnark {
-        //         inner: snark,
-        //         agg_vk_hash_idx: R::AGG_VKEY_HASH_IDX,
-        //     });
-        // }
+        
         log::debug!("build circuit for proof_id={}", req.proof_id());
         log::debug!("circuit_id={}, request={:?}", circuit_id, req);
         let (kzg_params, pk, circuit) = self.build_circuit(circuit_id, req).await?;

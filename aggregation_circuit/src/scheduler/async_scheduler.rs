@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, bail, Result};
 use async_recursion::async_recursion;
-use axiom_core::axiom_eth::snark_verifier_sdk::Snark;
+use axiom_eth::snark_verifier_sdk::Snark;
 
 use futures::future::join_all;
 use rocket::tokio::sync::RwLock;
