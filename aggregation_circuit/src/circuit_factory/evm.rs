@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{keygen::node_params::PinningEvm, prover::prover::ProofRequest};
 
-use serde_with::{base64::Base64, serde_as, DeserializeAs, SerializeAs};
+use serde_with::serde_as;
 
 use axiom_eth::utils::snark_verifier::Base64Bytes;
 

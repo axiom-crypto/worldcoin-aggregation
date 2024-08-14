@@ -28,16 +28,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::constants::*;
 
-use axiom_eth::{keccak::KeccakChip, utils::uint_to_bytes_be};
+use axiom_eth::{
+    keccak::KeccakChip,
+    utils::{hilo::HiLo, uint_to_bytes_be},
+};
 
-use axiom_sdk::{
-    halo2_base::{
-        gates::{GateInstructions, RangeChip, RangeInstructions},
-        utils::biguint_to_fe,
-        AssignedValue, Context,
-        QuantumCell::Constant,
-    },
-    HiLo,
+use axiom_eth::halo2_base::{
+    gates::{GateInstructions, RangeChip, RangeInstructions},
+    utils::biguint_to_fe,
+    AssignedValue, Context,
+    QuantumCell::Constant,
 };
 
 use num_bigint::BigUint;

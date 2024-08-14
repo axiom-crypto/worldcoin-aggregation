@@ -3,7 +3,6 @@ use axiom_core::axiom_eth::{
     halo2_base::gates::circuit::CircuitBuilderStage,
     halo2_proofs::poly::kzg::commitment::ParamsKZG,
     halo2curves::bn256::{Bn256, Fr},
-    utils::DEFAULT_RLC_CACHE_BITS,
 };
 use serde::{Deserialize, Serialize};
 

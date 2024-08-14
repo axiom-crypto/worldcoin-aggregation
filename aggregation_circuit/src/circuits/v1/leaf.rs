@@ -8,12 +8,12 @@ use axiom_eth::{
     mpt::MPTChip,
     rlc::circuit::builder::RlcCircuitBuilder,
     utils::{
-        build_utils::aggregation::CircuitMetadata, eth_circuit::EthCircuitInstructions,
+        build_utils::aggregation::CircuitMetadata, eth_circuit::EthCircuitInstructions, hilo::HiLo,
         keccak::decorator::RlcKeccakCircuitImpl,
     },
     Field,
 };
-use axiom_sdk::HiLo;
+
 use itertools::Itertools;
 
 use axiom_components::{
@@ -28,8 +28,6 @@ use axiom_components::{
 };
 
 use std::{fmt::Debug, vec};
-
-use axiom_circuit::utils::from_hi_lo;
 
 use crate::constants::*;
 use crate::{
@@ -209,8 +207,9 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinInput<F> {
                 NUM_LIMBS,
                 MAX_GROTH16_PI,
             );
-            let success = from_hi_lo(ctx, range, res.1.success);
-            ctx.constrain_equal(&success, &one);
+            let success = res.1.success;
+            ctx.constrain_equal(&success.hi(), &zero);
+            ctx.constrain_equal(&success.lo(), &one);
 
             // nullifier_hash
             public_inputs[1]

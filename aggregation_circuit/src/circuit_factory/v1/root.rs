@@ -4,9 +4,7 @@ use axiom_core::axiom_eth::{
     halo2_proofs::poly::kzg::commitment::ParamsKZG, halo2curves::bn256::Bn256,
     snark_verifier_sdk::Snark,
 };
-use axiom_eth::{
-    snark_verifier_sdk::halo2::aggregation::AggregationCircuit, utils::DEFAULT_RLC_CACHE_BITS,
-};
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -16,7 +14,7 @@ use crate::{
 };
 
 use axiom_eth::utils::snark_verifier::Base64Bytes;
-use serde_with::{base64::Base64, serde_as, DeserializeAs, SerializeAs};
+use serde_with::serde_as;
 
 /// Request for block numbers [start, end).
 #[serde_as]
