@@ -6,23 +6,34 @@ edition = "2021"
 [dependencies]
 itertools = "0.11"
 lazy_static = "1.4.0"
+tokio = "1.38.0"
+
 # serialization
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", default-features = false }
+serde_as = "0.0.1"
+
 # misc
 anyhow = "1.0"
 log = "0.4"
 env_logger = "0.10"
 futures = { version = "=0.3" }
 async-recursion = "1.0.5"
+hex = "0.4.3"
+num-bigint = "0.4.5"
+dirs = "5.0.1"
+uuid = { version = "1.2", features = ["v4"] }
+phf = { version = "0.11.2", features = ["macros"] }
 
 # server endpoint
 rocket = { version = "0.5.0", features = ["json"] }
-clap-num = { version = "1.0.2" }
+clap = { version = "=4.4.7", features = ["derive"]}
+reqwest = { version = "0.11", features = ["json"] }
+reqwest-middleware = "0.1.6"
+reqwest-retry = "0.1.5"
+parking_lot = "0.12.3"
 
-# getting build info
-built = { version = "0.7", features = ["cargo-lock", "dependency-tree", "git2", "chrono", "semver"] }
-
+# axiom
 axiom-components = { git = "ssh://git@github.com/axiom-crypto/axiom-eth.git", branch = "develop" }
 axiom-eth = { git = "ssh://git@github.com/axiom-crypto/axiom-eth.git", branch = "develop", package = "axiom-eth", features = [
     "halo2-axiom",
@@ -32,30 +43,14 @@ axiom-eth = { git = "ssh://git@github.com/axiom-crypto/axiom-eth.git", branch = 
     "aggregation",
 ] }
 
+# ethers
 ethers= { version = "=2.0.14", features = ["optimism"] }
-hex = "0.4.3"
-num-bigint = "0.4.5"
-halo2curves = "0.6.1"
-dirs = "5.0.1"
 
-tokio = "1.38.0"
-phf = { version = "0.11.2", features = ["macros"] }
-
-clap = { version = "=4.4.7", features = ["derive"]}
 # keygen
 blake3 = { version = "=1.5", optional = true }
 serde_yaml = { version = "=0.9.16", optional = true }
 serde_with = "3.9.0"
 async-trait = "0.1.81"
-
-
-reqwest = { version = "0.11", features = ["json"] }
-reqwest-middleware = "0.1.6"
-reqwest-retry = "0.1.5"
-parking_lot = "0.12.3"
-serde_as = "0.0.1"
-
-uuid = { version = "1.2", features = ["v4"] }
 
 [dev-dependencies]
 ark-std = { version = "0.3.0", features = ["print-trace"] }

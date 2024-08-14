@@ -9,4 +9,4 @@ cargo clean
 cargo update
 cargo fetch
 
-docker build -t prover_server .
+docker build -t server .

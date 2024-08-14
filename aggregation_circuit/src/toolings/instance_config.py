@@ -1,8 +1,5 @@
 import json
 import sys
-from typing import Dict, List
-import requests
-import time
 import os
 import boto3
 from botocore.config import Config
@@ -54,12 +51,13 @@ def download_cids(config_path, config_name):
 def select_instance_types(pk_size):
     if pk_size < 20_000_000_000:
         return ["m6a.4xlarge"]
-    elif pk_size <= 35_000_000_000:
+    elif pk_size < 35_000_000_000:
         return ["m6a.4xlarge"]
-    if pk_size > 150_000_000_000:
-        return ["m6a.48xlarge"]
-    if pk_size > 35_000_000_000:
+    if pk_size < 150_000_000_000:
         return ["m6a.12xlarge"]
+    else:
+        return ["m6a.48xlarge"]
+        
 
 static_instances = {
 }

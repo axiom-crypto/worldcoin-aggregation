@@ -23,6 +23,8 @@ RUN apt update \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY --from=builder /code/target/release/prover_server ./
+COPY --from=builder /code/target/release/scheduler_server ./
+
 COPY --from=builder /code/data/vk.json ./data/vk.json
 
 # see https://github.com/jemalloc/jemalloc/blob/dev/TUNING.md

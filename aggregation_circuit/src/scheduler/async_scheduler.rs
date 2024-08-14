@@ -41,13 +41,6 @@ pub struct AsyncScheduler {
     pub execution_summary_path: Arc<PathBuf>,
 }
 
-// query task status from dispatcher every 5000 ms
-const DISPATCHER_POLL_INTERVAL: u64 = 5000;
-// threshold for concurrent tasks
-const DISPATCHER_CONCURRENCY: usize = 100;
-// whether to re-prove in case the input for the circuit already has proof from previous runs
-const FORCE_PROVE: bool = false;
-
 impl AsyncScheduler {
     pub fn new(
         circuit_id_repo: HashMap<NodeParams, String>,
@@ -56,6 +49,13 @@ impl AsyncScheduler {
         task_tracker: SchedulerTaskTracker,
         execution_summary_path: PathBuf,
     ) -> Self {
+        // query task status from dispatcher every 5000 ms
+        const DISPATCHER_POLL_INTERVAL: u64 = 5000;
+        // threshold for concurrent tasks
+        const DISPATCHER_CONCURRENCY: usize = 100;
+        // whether to re-prove in case the input for the circuit already has proof from previous runs
+        const FORCE_PROVE: bool = false;
+
         Self {
             circuit_id_repo: Arc::new(RwLock::new(circuit_id_repo)),
             cid_to_params: Arc::new(RwLock::new(circuit_id_to_params)),
@@ -191,7 +191,6 @@ impl AsyncScheduler {
         request_id: &String,
         req: RecursiveRequest,
     ) -> Result<ProverProof> {
-        println!("Generating proof for {:?}", req);
         let req_router = self
             .handle_recursive_request(request_id, req.clone())
             .await?;

@@ -16,7 +16,7 @@ use crate::{
 use axiom_eth::utils::snark_verifier::Base64Bytes;
 use serde_with::serde_as;
 
-/// Request for block numbers [start, end).
+/// Request for proofs [start, end).
 #[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorldcoinRequestRoot {

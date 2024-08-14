@@ -14,7 +14,7 @@ use crate::{
 
 use crate::circuits::v1::leaf::*;
 
-/// Request for block numbers [start, end).
+/// Request for proofs [start, end).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorldcoinRequestLeaf {
     pub start: u32,

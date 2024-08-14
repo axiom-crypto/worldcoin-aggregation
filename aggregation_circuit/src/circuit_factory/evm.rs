@@ -14,7 +14,6 @@ use serde_with::serde_as;
 
 use axiom_eth::utils::snark_verifier::Base64Bytes;
 
-/// Request for block numbers [start, end) exclusive.
 #[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorldcoinRequestEvm {

@@ -7,8 +7,10 @@
 //! - two [WorldcoinIntermediateAggreagtionCircuit]s.
 //!
 //! The root of the aggregation tree will be a [WorldcoinRootAggregationCircuit].
-//! The difference between Intermediate and Root aggregation circuits has different public outputs.
-//! RootAggregation exposes the hash of outputs.
+//! Intermediate and Root aggregation circuits have different public outputs.
+//! Intermediate Aggregation circuit public outputs: [start, end, vk_hash_hi, vk_hash_lo, grant_id, root, ...receivers, ...nullifier_hashes]
+//! Root Aggregation circuit public outputs: [output_hash_hi, output_hash_lo], where output is 
+//! [vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]
 use anyhow::{bail, Ok, Result};
 use axiom_eth::{
     halo2_base::{

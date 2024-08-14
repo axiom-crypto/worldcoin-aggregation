@@ -178,7 +178,7 @@ impl ProvingServerState {
         let _mutex_guard = self.acquire_proof_mutex().await;
         log::info!("get_snark:circuit_id={circuit_id}");
         let snark_path = self.snark_path(circuit_id, &req);
-        
+
         log::debug!("build circuit for proof_id={}", req.proof_id());
         log::debug!("circuit_id={}, request={:?}", circuit_id, req);
         let (kzg_params, pk, circuit) = self.build_circuit(circuit_id, req).await?;
