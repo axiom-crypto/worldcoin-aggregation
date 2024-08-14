@@ -28,7 +28,7 @@ pub enum NodeType {
     Leaf,
     Intermediate,
     Root,
-    /// The block number range must fit within the specified max depth. `Evm(round)` performs `round + 1`
+    /// The proof number range must fit within the specified max depth. `Evm(round)` performs `round + 1`
     /// rounds of SNARK verification on the final `Root` circuit
     Evm(usize),
 }

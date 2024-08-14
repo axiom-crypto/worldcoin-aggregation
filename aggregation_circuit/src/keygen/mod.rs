@@ -30,7 +30,6 @@ use axiom_eth::{
             pinning::aggregation::{AggTreeId, GenericAggParams, GenericAggPinning},
         },
         merkle_aggregation::keygen::AggIntentMerkle,
-        DEFAULT_RLC_CACHE_BITS,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -75,7 +74,7 @@ impl RecursiveIntent {
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IntentLeaf {
     pub k: u32,
-    /// The leaf layer of the aggregation starts with max number of block headers equal to 2<sup>depth</sup>.
+    /// The leaf layer of the aggregation starts with max number of proofs equal to 2<sup>depth</sup>.
     pub depth: usize,
 }
 
@@ -88,9 +87,9 @@ pub(crate) struct IntentIntermediate {
     pub to_agg: Vec<AggTreeId>,
     /// There are always two children of the same type, so we only specify the intent for one of them
     pub child_intent: AggregationDependencyIntentOwned,
-    /// The maximum number of block headers in the chain at this level of the tree is 2<sup>depth</sup>.
+    /// The maximum number of proofs at this level of the tree is 2<sup>depth</sup>.
     pub depth: usize,
-    /// The leaf layer of the aggregation starts with max number of block headers equal to 2<sup>initial_depth</sup>.
+    /// The leaf layer of the aggregation starts with max number of proofs equal to 2<sup>initial_depth</sup>.
     pub initial_depth: usize,
 }
 
@@ -103,9 +102,9 @@ pub(crate) struct IntentRoot {
     pub to_agg: Vec<AggTreeId>,
     /// There are always two children of the same type, so we only specify the intent for one of them
     pub child_intent: AggregationDependencyIntentOwned,
-    /// The maximum number of block headers in the chain at this level of the tree is 2<sup>depth</sup>.
+    /// The maximum number of proofs at this level of the tree is 2<sup>depth</sup>.
     pub depth: usize,
-    /// The leaf layer of the aggregation starts with max number of block headers equal to 2<sup>initial_depth</sup>.
+    /// The leaf layer of the aggregation starts with max number of proofs equal to 2<sup>initial_depth</sup>.
     pub initial_depth: usize,
 }
 

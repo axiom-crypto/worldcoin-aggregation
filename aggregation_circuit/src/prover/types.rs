@@ -14,13 +14,12 @@ pub struct ProverSnark {
 
 /// Prover task. Circuit id and serialized input.
 #[derive(Debug, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
 pub struct ProverTask {
     pub circuit_id: String,
     pub input: RequestRouter,
 }
 
-/// Prover proof. EvmProof for axiom-aggreagtion-2, Snark for others.
+/// Prover proof. EvmProof for Evm(EXTRA_ROUNDS), Snark for others.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProverProof {
     Snark(ProverSnark),

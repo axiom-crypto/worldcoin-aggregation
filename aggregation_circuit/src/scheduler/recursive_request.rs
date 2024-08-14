@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 
 use crate::{keygen::node_params::NodeParams, types::ClaimNative};
 

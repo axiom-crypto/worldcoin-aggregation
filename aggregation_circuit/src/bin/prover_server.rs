@@ -81,10 +81,12 @@ async fn load_circuit_data(
     } = task.into_inner();
 
     match request {
-        RequestRouter::Leaf(request) => prover.load_pk(&circuit_id, request).await?,
-        RequestRouter::Intermediate(request) => prover.load_pk(&circuit_id, request).await?,
-        RequestRouter::Root(request) => prover.load_pk(&circuit_id, request).await?,
-        RequestRouter::Evm(request) => prover.load_pk(&circuit_id, request).await?,
+        RequestRouter::Leaf(request) => _ = prover.build_circuit(&circuit_id, request).await?,
+        RequestRouter::Intermediate(request) => {
+            _ = prover.build_circuit(&circuit_id, request).await?
+        }
+        RequestRouter::Root(request) => _ = prover.build_circuit(&circuit_id, request).await?,
+        RequestRouter::Evm(request) => _ = prover.build_circuit(&circuit_id, request).await?,
     };
 
     Ok(())

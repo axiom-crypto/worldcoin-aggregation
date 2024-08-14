@@ -1,12 +1,7 @@
-use anyhow::bail;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 
-use crate::{
-    keygen::node_params::NodeParams,
-    prover::types::ProverProof,
-    scheduler::types::{current_timstamp_sec, SchedulerTaskStatus},
-};
+use crate::keygen::node_params::NodeParams;
 
 #[derive(Debug)]
 pub struct SchedulerTaskTracker {
