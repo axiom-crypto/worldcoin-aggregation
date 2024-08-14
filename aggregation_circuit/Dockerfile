@@ -16,7 +16,7 @@ COPY . .
 # see https://github.com/jemalloc/jemalloc/blob/dev/TUNING.md
 # this sets decay to 1GB, DO NOT USE narenas=1
 
-RUN cargo build --release --features "halo2-axiom,asm,jemallocator" --bin prover_server
+RUN cargo build --release --features "asm" --bin prover_server
 
 FROM debian:stable-slim
 WORKDIR /code

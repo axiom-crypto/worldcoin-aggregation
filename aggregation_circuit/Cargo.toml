@@ -13,32 +13,25 @@ serde_json = { version = "1.0", default-features = false }
 anyhow = "1.0"
 log = "0.4"
 env_logger = "0.10"
-# generating circuit inputs from blockchain
-#ethers-providers = { version = "2.0.14" }
 futures = { version = "=0.3" }
 async-recursion = "1.0.5"
 
 # server endpoint
 rocket = { version = "0.5.0", features = ["json"] }
-#clap = { version = "=4.4.7", features = ["derive"] }
 clap-num = { version = "1.0.2" }
 
 # getting build info
 built = { version = "0.7", features = ["cargo-lock", "dependency-tree", "git2", "chrono", "semver"] }
 
-#ethers-core = { version = "=2.0.14", features = ["optimism"] }
-
 axiom-components = { git = "ssh://git@github.com/axiom-crypto/axiom-eth.git", branch = "develop" }
-axiom-eth = { git = "ssh://git@github.com/axiom-crypto/axiom-eth.git", branch = "develop", package = "axiom-eth",  default-features = true, features = [
-  "jemallocator",
-  "providers",
-  "aggregation",
-  "evm",
-  "keygen",
+axiom-eth = { git = "ssh://git@github.com/axiom-crypto/axiom-eth.git", branch = "develop", package = "axiom-eth", features = [
+    "halo2-axiom",
+    "jemallocator",
+    "providers",
+    "display",
+    "aggregation",
 ] }
-axiom-core = { git = "ssh://git@github.com/axiom-crypto/axiom-eth.git",  branch = "develop", package = "axiom-core", default-features = false, features = ["jemallocator", "keygen"] }
 
-#ethers = "2.0.14"
 ethers= { version = "=2.0.14", features = ["optimism"] }
 hex = "0.4.3"
 num-bigint = "0.4.5"
@@ -48,8 +41,8 @@ dirs = "5.0.1"
 tokio = "1.38.0"
 phf = { version = "0.11.2", features = ["macros"] }
 
+clap = { version = "=4.4.7", features = ["derive"]}
 # keygen
-clap = { version = "=4.4.7", features = ["derive"], optional = true }
 blake3 = { version = "=1.5", optional = true }
 serde_yaml = { version = "=0.9.16", optional = true }
 serde_with = "3.9.0"
@@ -61,6 +54,7 @@ reqwest-middleware = "0.1.6"
 reqwest-retry = "0.1.5"
 parking_lot = "0.12.3"
 serde_as = "0.0.1"
+
 uuid = { version = "1.2", features = ["v4"] }
 
 [dev-dependencies]
@@ -69,14 +63,9 @@ test-log = "0.2.11"
 test-case = "3.1.0"
 
 [features]
-default = ["halo2-axiom", "jemallocator", "keygen", "display"]
-display = ["axiom-eth/display"]
 asm = ["axiom-eth/asm"]
 revm = ["axiom-eth/revm"]
-halo2-pse = ["axiom-eth/halo2-pse"]
-halo2-axiom = ["axiom-eth/halo2-axiom"]
-jemallocator = ["axiom-eth/jemallocator"]
-keygen = ["axiom-eth/keygen", "dep:clap", "dep:serde_yaml"]
+keygen = ["axiom-eth/keygen", "dep:serde_yaml"]
 
 [profile.dev]
 opt-level = 3

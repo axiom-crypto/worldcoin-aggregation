@@ -435,26 +435,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "axiom-core"
-version = "2.0.13"
-source = "git+ssh://git@github.com/axiom-crypto/axiom-eth.git?branch=develop#9cf007d11e6e43b2799abb771e2ee8af7f75798f"
-dependencies = [
- "anyhow",
- "axiom-eth",
- "clap",
- "env_logger 0.10.2",
- "ethers-core",
- "hex",
- "itertools 0.11.0",
- "lazy_static",
- "log",
- "serde",
- "serde_json",
- "serde_with 3.9.0",
- "serde_yaml",
-]
-
-[[package]]
 name = "axiom-eth"
 version = "0.4.3"
 source = "git+ssh://git@github.com/axiom-crypto/axiom-eth.git?branch=develop#9cf007d11e6e43b2799abb771e2ee8af7f75798f"
@@ -482,8 +462,8 @@ dependencies = [
  "rlp",
  "serde",
  "serde_json",
- "serde_with 3.9.0",
- "sha3 0.10.8",
+ "serde_with",
+ "sha3",
  "snark-verifier",
  "snark-verifier-sdk",
  "static_assertions",
@@ -647,28 +627,12 @@ dependencies = [
 
 [[package]]
 name = "block-buffer"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
-dependencies = [
- "block-padding",
- "generic-array",
-]
-
-[[package]]
-name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array",
 ]
-
-[[package]]
-name = "block-padding"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "blst"
@@ -986,7 +950,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "sha2",
- "sha3 0.10.8",
+ "sha3",
  "thiserror",
 ]
 
@@ -1324,7 +1288,7 @@ version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
- "block-buffer 0.10.4",
+ "block-buffer",
  "const-oid",
  "crypto-common",
  "subtle",
@@ -1449,7 +1413,7 @@ dependencies = [
  "rand",
  "rlp",
  "serde",
- "sha3 0.10.8",
+ "sha3",
  "zeroize",
 ]
 
@@ -1531,7 +1495,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "sha3 0.10.8",
+ "sha3",
  "thiserror",
  "uuid 0.8.2",
 ]
@@ -1548,7 +1512,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "sha3 0.10.8",
+ "sha3",
  "thiserror",
  "uint",
 ]
@@ -2208,7 +2172,7 @@ dependencies = [
  "rand",
  "rand_core",
  "rustc-hash",
- "sha3 0.10.8",
+ "sha3",
  "tracing",
 ]
 
@@ -2220,7 +2184,6 @@ dependencies = [
  "ark-std 0.3.0",
  "getset",
  "halo2-axiom",
- "halo2_proofs",
  "itertools 0.11.0",
  "jemallocator",
  "log",
@@ -2256,22 +2219,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "halo2_proofs"
-version = "0.3.0"
-source = "git+https://github.com/privacy-scaling-explorations/halo2.git?tag=v0.3.0#73408a140737d8336490452193b21f5a7a94e7de"
-dependencies = [
- "blake2b_simd",
- "ff",
- "group",
- "halo2curves",
- "rand_chacha",
- "rand_core",
- "rayon",
- "sha3 0.9.1",
- "tracing",
-]
-
-[[package]]
 name = "halo2curves"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2280,7 +2227,6 @@ dependencies = [
  "blake2b_simd",
  "ff",
  "group",
- "hex",
  "lazy_static",
  "num-bigint",
  "num-traits",
@@ -2290,8 +2236,6 @@ dependencies = [
  "rand",
  "rand_core",
  "rayon",
- "serde",
- "serde_arrays",
  "static_assertions",
  "subtle",
 ]
@@ -3174,12 +3118,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
 
 [[package]]
-name = "opaque-debug"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
-
-[[package]]
 name = "open-fastrlp"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3338,10 +3276,8 @@ dependencies = [
  "blake2b_simd",
  "ff",
  "group",
- "hex",
  "lazy_static",
  "rand",
- "serde",
  "static_assertions",
  "subtle",
 ]
@@ -4532,22 +4468,6 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "2.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07ff71d2c147a7b57362cead5e22f772cd52f6ab31cfcd9edcd7f6aeb2a0afbe"
-dependencies = [
- "base64 0.13.1",
- "chrono",
- "hex",
- "indexmap 1.9.3",
- "serde",
- "serde_json",
- "serde_with_macros 2.3.3",
- "time",
-]
-
-[[package]]
-name = "serde_with"
 version = "3.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69cecfa94848272156ea67b2b1a53f20fc7bc638c4a46d2f8abde08f05f4b857"
@@ -4560,20 +4480,8 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "serde_with_macros 3.9.0",
+ "serde_with_macros",
  "time",
-]
-
-[[package]]
-name = "serde_with_macros"
-version = "2.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "881b6f881b17d13214e5d494c939ebab463d01264ce1811e9d4ac3a882e7695f"
-dependencies = [
- "darling",
- "proc-macro2",
- "quote",
- "syn 2.0.74",
 ]
 
 [[package]]
@@ -4621,18 +4529,6 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest 0.10.7",
-]
-
-[[package]]
-name = "sha3"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f81199417d4e5de3f04b1e871023acea7389672c4135918f05aa9cbf2f2fa809"
-dependencies = [
- "block-buffer 0.9.0",
- "digest 0.9.0",
- "keccak",
- "opaque-debug",
 ]
 
 [[package]]
@@ -4730,7 +4626,7 @@ dependencies = [
  "revm",
  "ruint",
  "serde",
- "sha3 0.10.8",
+ "sha3",
 ]
 
 [[package]]
@@ -4753,7 +4649,6 @@ dependencies = [
  "rand_chacha",
  "serde",
  "serde_json",
- "serde_with 2.3.3",
  "snark-verifier",
 ]
 
@@ -5955,7 +5850,6 @@ dependencies = [
  "async-recursion",
  "async-trait",
  "axiom-components",
- "axiom-core",
  "axiom-eth",
  "blake3",
  "built",
@@ -5980,7 +5874,7 @@ dependencies = [
  "serde",
  "serde_as",
  "serde_json",
- "serde_with 3.9.0",
+ "serde_with",
  "serde_yaml",
  "test-case",
  "test-log",
@@ -6108,7 +6002,7 @@ dependencies = [
  "rand",
  "rayon",
  "serde",
- "sha3 0.10.8",
+ "sha3",
  "snark-verifier-sdk",
  "type-map",
 ]
