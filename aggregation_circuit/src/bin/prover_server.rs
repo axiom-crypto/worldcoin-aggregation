@@ -1,14 +1,10 @@
-use std::{collections::HashMap, fs::File, path::PathBuf};
-
 use anyhow::anyhow;
 use clap::Parser;
 use rocket::{get, http::Status, launch, post, routes, serde::json::Json, Build, Rocket, State};
 
 use worldcoin_aggregation::{
-    keygen::node_params::NodeParams,
     prover::{
-        prover::ProverConfig,
-        prover::ProvingServerState,
+        prover::{ProofRequest, ProverConfig, ProvingServerState},
         types::{ProverProof, ProverSnark, ProverTask, ProverTaskResponse},
     },
     scheduler::types::RequestRouter,
@@ -17,7 +13,6 @@ use worldcoin_aggregation::{
 
 #[get("/build_info")]
 async fn serve_build_info() -> String {
-    // TODO: this endpoint is just for heartbeat for now. Change it to return build info.
     "alive".to_string()
 }
 
@@ -47,38 +42,52 @@ async fn serve(
                         payload: ProverProof::EvmProof(evm_proof),
                     }));
                 }
-                0 => {
-                    let snark = prover.get_snark(&circuit_id, request).await.unwrap();
-                    return Ok(Json(ProverTaskResponse {
-                        payload: ProverProof::Snark(ProverSnark { circuit_id, snark }),
-                    }));
-                }
+                0 => return_snark(prover, circuit_id, request).await,
                 _ => {
-                    return Err(anyhow!("incorrect rounds!")
+                    return Err(anyhow!("incorrect rounds for evm proofs!")
                         .context(InvalidInputContext)
                         .into())
                 }
             }
         }
-        RequestRouter::Intermediate(request) => {
-            let snark = prover.get_snark(&circuit_id, request).await.unwrap();
-            return Ok(Json(ProverTaskResponse {
-                payload: ProverProof::Snark(ProverSnark { circuit_id, snark }),
-            }));
-        }
-        RequestRouter::Leaf(request) => {
-            let snark = prover.get_snark(&circuit_id, request).await.unwrap();
-            return Ok(Json(ProverTaskResponse {
-                payload: ProverProof::Snark(ProverSnark { circuit_id, snark }),
-            }));
-        }
-        RequestRouter::Root(request) => {
-            let snark = prover.get_snark(&circuit_id, request).await.unwrap();
-            return Ok(Json(ProverTaskResponse {
-                payload: ProverProof::Snark(ProverSnark { circuit_id, snark }),
-            }));
-        }
+        RequestRouter::Intermediate(request) => return_snark(prover, circuit_id, request).await,
+        RequestRouter::Leaf(request) => return_snark(prover, circuit_id, request).await,
+        RequestRouter::Root(request) => return_snark(prover, circuit_id, request).await,
     }
+}
+
+async fn return_snark<R: ProofRequest>(
+    prover: &ProvingServerState,
+    circuit_id: String,
+    request: R,
+) -> Result<Json<ProverTaskResponse>> {
+    let snark = prover.get_snark(&circuit_id, request).await.unwrap();
+    return Ok(Json(ProverTaskResponse {
+        payload: ProverProof::Snark(ProverSnark {
+            circuit_id: circuit_id,
+            snark,
+        }),
+    }));
+}
+
+#[post("/internal/circuit-data", format = "json", data = "<task>")]
+async fn load_circuit_data(
+    task: Json<ProverTask>,
+    prover: &State<ProvingServerState>,
+) -> Result<()> {
+    let ProverTask {
+        circuit_id,
+        input: request,
+    } = task.into_inner();
+
+    match request {
+        RequestRouter::Leaf(request) => prover.load_pk(&circuit_id, request).await?,
+        RequestRouter::Intermediate(request) => prover.load_pk(&circuit_id, request).await?,
+        RequestRouter::Root(request) => prover.load_pk(&circuit_id, request).await?,
+        RequestRouter::Evm(request) => prover.load_pk(&circuit_id, request).await?,
+    };
+
+    Ok(())
 }
 
 #[derive(Parser, Clone, Debug)]
@@ -93,6 +102,9 @@ fn rocket() -> Rocket<Build> {
     let prover = ProvingServerState::new(cli.prover_config);
 
     rocket::build()
-        .mount("/", routes![serve, reset, serve_build_info])
+        .mount(
+            "/",
+            routes![serve, reset, serve_build_info, load_circuit_data],
+        )
         .manage(prover)
 }
