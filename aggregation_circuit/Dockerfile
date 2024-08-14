@@ -31,6 +31,6 @@ COPY --from=builder /code/data/vk.json ./data/vk.json
 # this sets decay to 1GB, DO NOT USE narenas=1
 ENV JEMALLOC_SYS_WITH_MALLOC_CONF="background_thread:true,metadata_thp:always,dirty_decay_ms:1000000,muzzy_decay_ms:1000000,abort_conf:true"
 
-# default entrance, can be overriden by --entrypoint
+# default entrance, can be overridden by --entrypoint
 CMD ["/code/prover_server"]
 EXPOSE 8000
