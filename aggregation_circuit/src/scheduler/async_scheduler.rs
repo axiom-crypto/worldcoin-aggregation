@@ -39,7 +39,7 @@ pub struct AsyncScheduler {
     // tracker for existing tasks
     pub task_tracker: Arc<SchedulerTaskTracker>,
     pub execution_summary_path: Arc<PathBuf>,
-    // the client to interact wit the smart contract
+    // the client to interact with the smart contract
     pub contract_client: Arc<ContractClient>,
 }
 
