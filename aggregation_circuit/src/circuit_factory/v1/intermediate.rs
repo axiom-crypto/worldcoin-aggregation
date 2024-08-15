@@ -34,8 +34,12 @@ impl ProofRequest for WorldcoinRequestIntermediate {
     /// Legacy filename convention
     fn proof_id(&self) -> String {
         format!(
-            "worldcoin_{:06x}_{:06x}_{}_{}_inter",
-            self.start, self.end, self.depth, self.initial_depth
+            "worldcoin_{}_{:06x}_{:06x}_{}_{}_inter",
+            self.hash(),
+            self.start,
+            self.end,
+            self.depth,
+            self.initial_depth
         )
     }
     fn build(

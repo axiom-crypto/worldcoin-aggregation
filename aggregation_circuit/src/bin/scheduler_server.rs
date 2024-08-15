@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, io::Write, path::PathBuf};
+use std::{collections::HashMap, env, fs::File, io::Write, path::PathBuf, str::FromStr};
 
 use anyhow::anyhow;
 use clap::Parser;
@@ -11,6 +11,7 @@ use worldcoin_aggregation::{
     prover::types::ProverProof,
     scheduler::{
         async_scheduler::AsyncScheduler,
+        contract_client::{ContractClient, V1ClaimParams},
         recursive_request::*,
         task_tracker::SchedulerTaskTracker,
         types::{SchedulerTaskRequest, SchedulerTaskResponse},
@@ -76,18 +77,22 @@ async fn serve(
     let request_id = Uuid::new_v4().to_string();
     let request_id_clone = request_id.clone();
 
+    let contract_client = Arc::clone(&scheduler.contract_client);
+
     task::spawn(async move {
-        // Call the method on the cloned scheduler
         let proof = scheduler
-            .recursive_gen_proof(&request_id, req)
+            .recursive_gen_proof(&request_id, req.clone())
             .await
             .unwrap();
+
         match proof {
             ProverProof::EvmProof(final_proof) => {
                 log::info!("Successfully generated proof! {:?}", final_proof);
 
-                let request_id_to_tasks = scheduler.task_tracker.request_id_to_tasks.lock();
-                let tasks = request_id_to_tasks.get(&request_id).unwrap();
+                let request_id_to_tasks = scheduler.task_tracker.request_id_to_tasks.lock().await;
+
+                let tasks: &Vec<(String, NodeParams)> =
+                    request_id_to_tasks.get(&request_id).unwrap();
                 // dump execution summary
                 let json_string =
                     serde_json::to_string_pretty(tasks).expect("Failed to serialize data to JSON");
@@ -98,7 +103,35 @@ async fn serve(
                 )
                 .unwrap();
                 file.write_all(json_string.as_bytes()).unwrap();
-                // TODO: fulfill final_proof
+
+                let retry_send_threshold = 5;
+
+                // the vk_hash for the corresponding vk.json
+                const VK_HASH: &str =
+                    "0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec";
+
+                let v1claim_params =
+                    V1ClaimParams::new(VK_HASH, &req.grant_id, &req.root, &req.claims, final_proof);
+
+                for _i in 0..retry_send_threshold {
+                    let ret = contract_client
+                        .distribute_grants(v1claim_params.clone())
+                        .await;
+                    match ret {
+                        Ok(tx_hash) => {
+                            println!("fulfilled query {}, tx_hash {}", request_id, tx_hash);
+                            return;
+                        }
+                        Err(_) => {
+                            println!("Failed to fulfill request {}, retrying", request_id);
+                            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                        }
+                    }
+                }
+                println!(
+                    "Failed to fulfill request {} after {} retries",
+                    request_id, retry_send_threshold
+                );
             }
             _ => unreachable!(),
         }
@@ -140,12 +173,29 @@ fn rocket() -> Rocket<Build> {
     }
 
     let task_tracker = SchedulerTaskTracker::new();
+
+    const V1_128_ADDRESS: &str = "0x39521692fD1E29A397f347D8Ee171b9AE2394be6";
+    const CHAIN_ID: u64 = 11155111;
+    let keystore_path = env::var("KEYSTORE_PATH").expect("KEYSTORE_PATH must be set");
+    let keystore_password = env::var("KEYSTORE_PASSWORD").expect("KEYSTORE_PASSWORD must be set");
+    let provider_uri = env::var("PROVIDER_URI").expect("PROVIDER_URL must be set");
+
+    let contract_client = ContractClient::new(
+        &keystore_path,
+        &keystore_password,
+        &provider_uri,
+        V1_128_ADDRESS,
+        CHAIN_ID,
+    )
+    .unwrap();
+
     let scheduler: AsyncScheduler = AsyncScheduler::new(
         cids_repo,
         cid_to_params,
         cli.executor_url,
         task_tracker,
         cli.execution_summary_path,
+        contract_client,
     );
 
     rocket::build()

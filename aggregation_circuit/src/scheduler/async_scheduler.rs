@@ -26,7 +26,7 @@ use crate::{
     types::ClaimNative,
 };
 
-use super::task_tracker::SchedulerTaskTracker;
+use super::{contract_client::ContractClient, task_tracker::SchedulerTaskTracker};
 
 #[derive(Clone)]
 pub struct AsyncScheduler {
@@ -39,6 +39,8 @@ pub struct AsyncScheduler {
     // tracker for existing tasks
     pub task_tracker: Arc<SchedulerTaskTracker>,
     pub execution_summary_path: Arc<PathBuf>,
+    // the client to interact wit the smart contract
+    pub contract_client: Arc<ContractClient>,
 }
 
 impl AsyncScheduler {
@@ -48,6 +50,7 @@ impl AsyncScheduler {
         executor_url: String,
         task_tracker: SchedulerTaskTracker,
         execution_summary_path: PathBuf,
+        contract_client: ContractClient,
     ) -> Self {
         // query task status from dispatcher every 5000 ms
         const DISPATCHER_POLL_INTERVAL: u64 = 5000;
@@ -70,6 +73,7 @@ impl AsyncScheduler {
             ),
             task_tracker: Arc::new(task_tracker),
             execution_summary_path: Arc::new(execution_summary_path),
+            contract_client: Arc::new(contract_client),
         }
     }
 
@@ -221,6 +225,7 @@ impl AsyncScheduler {
                     .unwrap()
                     .clone(),
             )
+            .await
             .unwrap();
         let proof = result.proof;
         Ok(proof)

@@ -51,8 +51,11 @@ impl ProofRequest for WorldcoinRequestLeaf {
 
     fn proof_id(&self) -> String {
         format!(
-            "worldcoin_{:06x}_{:06x}_{}_leaf",
-            self.start, self.end, self.depth
+            "worldcoin_{}_{:06x}_{:06x}_{}_leaf",
+            self.hash(),
+            self.start,
+            self.end,
+            self.depth
         )
     }
 

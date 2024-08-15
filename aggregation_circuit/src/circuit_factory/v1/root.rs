@@ -37,8 +37,12 @@ impl ProofRequest for WorldcoinRequestRoot {
 
     fn proof_id(&self) -> String {
         format!(
-            "worldcoin_{:06x}_{:06x}_{}_{}_root",
-            self.start, self.end, self.depth, self.initial_depth
+            "worldcoin_{}_{:06x}_{:06x}_{}_{}_root",
+            self.hash(),
+            self.start,
+            self.end,
+            self.depth,
+            self.initial_depth
         )
     }
     fn build(
