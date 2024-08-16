@@ -9,10 +9,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     keygen::node_params::PinningLeaf,
     prover::prover::ProofRequest,
-    types::{ClaimNative, VkNative, WorldcoinLeafInput},
+    types::{ClaimNative, VkNative},
+    WorldcoinLeafCircuit,
 };
-
-use crate::circuits::v1::leaf::*;
 
 /// Request for proofs [start, end).
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -24,22 +23,6 @@ pub struct WorldcoinRequestLeaf {
     pub root: String,
     pub grant_id: String,
     pub claims: Vec<ClaimNative>,
-}
-
-impl From<WorldcoinRequestLeaf> for WorldcoinLeafInput<Fr> {
-    fn from(input: WorldcoinRequestLeaf) -> Self {
-        let WorldcoinRequestLeaf {
-            vk,
-            root,
-            grant_id,
-            start,
-            end,
-            depth,
-            claims,
-        } = input;
-        let vk_str = serde_json::to_string(&vk).unwrap();
-        WorldcoinLeafInput::new(vk_str, root, grant_id, start, end, depth, claims)
-    }
 }
 
 impl ProofRequest for WorldcoinRequestLeaf {

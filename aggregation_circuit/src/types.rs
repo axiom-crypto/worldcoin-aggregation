@@ -146,150 +146,11 @@ pub struct WorldcoinGroth16Input<T: Copy> {
     pub public_inputs: Vec<T>,
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct WorldcoinLeafInput<T: Copy> {
-    pub root: T,
-    pub grant_id: T,
-    pub start: u32,
-    pub end: u32,
-    pub receivers: Vec<T>,
-    pub groth16_inputs: Vec<Groth16VerifierInput<T>>,
-    pub max_depth: usize,
-}
-
 #[derive(Clone, Debug, Serialize)]
 pub struct Groth16Input<T: Copy> {
     pub vkey_bytes: Vec<T>,
     pub proof_bytes: Vec<T>,
     pub public_inputs: Vec<T>,
-}
-
-impl WorldcoinLeafInput<Fr> {
-    pub fn new(
-        vk_str: String,
-        root: String,
-        grant_id: String,
-        start: u32,
-        end: u32,
-        max_depth: usize,
-        claims: Vec<ClaimNative>,
-    ) -> Self {
-        let num_proofs = (end - start) as usize;
-        assert!(claims.len() == num_proofs);
-        assert!(num_proofs > 0);
-        let max_proofs: usize = 1 << max_depth;
-
-        let mut pf_strings: Vec<String> = Vec::new();
-        let mut pub_strings: Vec<String> = Vec::new();
-        let mut receivers: Vec<Fr> = Vec::new();
-        let mut receivers_native: Vec<Address> = Vec::new();
-
-        for _i in 0..num_proofs {
-            let pf_string = get_pf_string(&claims[_i].proof);
-            let pub_string = get_pub_string(
-                &root,
-                &grant_id,
-                &claims[_i].nullifier_hash,
-                &claims[_i].receiver,
-            );
-            pf_strings.push(pf_string);
-            pub_strings.push(pub_string);
-            receivers_native.push(claims[_i].receiver);
-        }
-
-        pf_strings.resize(max_proofs, pf_strings[0].clone());
-        pub_strings.resize(max_proofs, pub_strings[0].clone());
-        receivers_native.resize(max_proofs, receivers_native[0].clone());
-
-        let mut groth16_inputs: Vec<Groth16VerifierInput<Fr>> = Vec::new();
-
-        // Currently vk parsing is coupled with pf and pub, we should refactor
-        // to have a separate function for parsing vk
-        for _i in 0..max_proofs {
-            let groth16_input: Groth16VerifierInput<Fr> = parse_input(
-                vk_str.clone(),
-                pf_strings[_i].clone(),
-                pub_strings[_i].clone(),
-                MAX_GROTH16_PI,
-            );
-
-            groth16_inputs.push(groth16_input);
-
-            let receiver_fe = encode_addr_to_field(&receivers_native[_i]);
-            receivers.push(receiver_fe);
-        }
-
-        let root_fe = biguint_to_fe(&BigUint::from_str(root.as_str()).unwrap());
-
-        let grant_id_fe = biguint_to_fe(&BigUint::from_str(grant_id.as_str()).unwrap());
-
-        Self {
-            root: root_fe,
-            grant_id: grant_id_fe,
-            receivers,
-            start,
-            end,
-            max_depth,
-            groth16_inputs,
-        }
-    }
-}
-
-pub struct WorldcoinAssignedInput<F: Field> {
-    pub start: AssignedValue<F>,
-    pub end: AssignedValue<F>,
-    pub root: AssignedValue<F>,
-    pub grant_id: AssignedValue<F>,
-    pub receivers: Vec<AssignedValue<F>>,
-    pub groth16_verifier_inputs: Vec<Groth16VerifierInput<AssignedValue<F>>>,
-}
-
-impl<F: Field> WorldcoinLeafInput<F> {
-    pub fn assign(&self, ctx: &mut Context<F>) -> WorldcoinAssignedInput<F> {
-        let start = ctx.load_witness(F::from(self.start as u64));
-
-        let end = ctx.load_witness(F::from(self.end as u64));
-        let root = ctx.load_witness(self.root);
-        let grant_id = ctx.load_witness(self.grant_id);
-
-        // receivers and groth16_inputs should have the same length
-        assert_eq!(self.receivers.len(), self.groth16_inputs.len());
-
-        let receivers = ctx.assign_witnesses(self.receivers.clone());
-
-        let mut groth16_verifier_inputs: Vec<Groth16VerifierInput<AssignedValue<F>>> = Vec::new();
-        let num_public_inputs = ctx.load_witness(F::from(MAX_GROTH16_PI as u64 + 1));
-        let constants = get_groth16_consts_from_max_pi(MAX_GROTH16_PI);
-
-        for groth16_input in self.groth16_inputs.iter() {
-            let input: Groth16Input<F> = groth16_input.clone().into();
-            let vk = ctx.assign_witnesses(input.vkey_bytes);
-            let proof = ctx.assign_witnesses(input.proof_bytes);
-            let public_inputs = ctx.assign_witnesses(input.public_inputs);
-
-            let groth16_verifier_input: Groth16VerifierInput<AssignedValue<F>> =
-                Groth16VerifierInput {
-                    vk: Groth16VerifierComponentVerificationKey::unflatten(
-                        vk,
-                        constants.gamma_abc_g1_len,
-                    ),
-                    proof: Groth16VerifierComponentProof::unflatten(proof).unwrap(),
-                    public_inputs,
-                    num_public_inputs,
-                };
-
-            groth16_verifier_inputs.push(groth16_verifier_input);
-        }
-
-        WorldcoinAssignedInput {
-            start,
-            end,
-            root,
-            grant_id,
-            receivers,
-            groth16_verifier_inputs,
-        }
-    }
 }
 
 impl<F: Field> From<Groth16Input<F>> for Groth16VerifierInput<F> {
@@ -310,6 +171,15 @@ impl<F: Field> From<Groth16Input<F>> for Groth16VerifierInput<F> {
             public_inputs: input.public_inputs,
         }
     }
+}
+
+pub struct WorldcoinAssignedInput<F: Field> {
+    pub start: AssignedValue<F>,
+    pub end: AssignedValue<F>,
+    pub root: AssignedValue<F>,
+    pub grant_id: AssignedValue<F>,
+    pub receivers: Vec<AssignedValue<F>>,
+    pub groth16_verifier_inputs: Vec<Groth16VerifierInput<AssignedValue<F>>>,
 }
 
 impl<T: Copy> From<Groth16VerifierInput<T>> for Groth16Input<T> {

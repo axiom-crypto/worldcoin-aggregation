@@ -7,8 +7,12 @@ use axiom_eth::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::circuits::v1::intermediate::WorldcoinIntermediateAggregationInput;
 use crate::{keygen::node_params::PinningIntermediate, prover::prover::ProofRequest};
+use crate::{
+    keygen::node_params::PinningIntermediateV2, WorldcoinIntermediateAggregationCircuit,
+    WorldcoinIntermediateAggregationInput, WorldcoinRootAggregationCircuit,
+    WorldcoinRootAggregationInput,
+};
 
 use axiom_eth::utils::snark_verifier::Base64Bytes;
 use serde_with::serde_as;
@@ -26,10 +30,24 @@ pub struct WorldcoinRequestIntermediate {
 }
 
 impl ProofRequest for WorldcoinRequestIntermediate {
+    #[cfg(feature = "v1")]
+
     type Circuit = AggregationCircuit;
+    #[cfg(feature = "v1")]
+
     type Pinning = PinningIntermediate;
+
+    #[cfg(feature = "v2")]
+    type Circuit = WorldcoinIntermediateAggregationCircuit;
+    #[cfg(feature = "v2")]
+    type Pinning = PinningIntermediateV2;
+
     fn get_k(pinning: &Self::Pinning) -> u32 {
-        pinning.params.degree
+        #[cfg(feature = "v1")]
+        return pinning.params.degree;
+
+        #[cfg(feature = "v2")]
+        return pinning.params.k() as u32;
     }
     /// Legacy filename convention
     fn proof_id(&self) -> String {
@@ -50,16 +68,38 @@ impl ProofRequest for WorldcoinRequestIntermediate {
     ) -> Result<Self::Circuit> {
         let kzg_params = kzg_params.ok_or_else(|| anyhow!("kzg_params not provided"))?;
         let num_proofs = self.end - self.start;
-        let input = WorldcoinIntermediateAggregationInput::new(
-            self.snarks,
-            num_proofs,
-            self.depth,
-            self.initial_depth,
-        );
-        let mut circuit = input.build(stage, pinning.params, kzg_params)?.0;
-        if stage.witness_gen_only() {
-            circuit.set_break_points(pinning.break_points);
+
+        #[cfg(feature = "v1")]
+        {
+            let input = WorldcoinIntermediateAggregationInput::new(
+                self.snarks,
+                num_proofs,
+                self.depth,
+                self.initial_depth,
+            );
+            let mut circuit = input.build(stage, pinning.params, kzg_params)?.0;
+            if stage.witness_gen_only() {
+                circuit.set_break_points(pinning.break_points);
+            }
+            Ok(circuit)
         }
-        Ok(circuit)
+
+        #[cfg(feature = "v2")]
+        {
+            let input = WorldcoinIntermediateAggregationInput::new(
+                self.snarks,
+                num_proofs,
+                self.depth,
+                self.initial_depth,
+                kzg_params,
+            )?;
+
+            let circuit =
+                WorldcoinIntermediateAggregationCircuit::new_impl(stage, input, pinning.params, 0);
+            if stage.witness_gen_only() {
+                circuit.set_break_points(pinning.break_points);
+            }
+            Ok(circuit)
+        }
     }
 }

@@ -6,6 +6,7 @@ use axiom_eth::{
         safe_types::SafeBool,
         AssignedValue, Context,
     },
+    halo2curves::bn256::Fr,
     mpt::MPTChip,
     rlc::circuit::builder::RlcCircuitBuilder,
     utils::{
@@ -24,7 +25,10 @@ use axiom_components::groth16::{
 
 use std::{fmt::Debug, vec};
 
-use crate::{constants::*, utils::compute_keccak_merkle_tree};
+use crate::{
+    circuit_factory::leaf::WorldcoinRequestLeaf, circuits::v1::leaf::WorldcoinLeafInput,
+    constants::*, utils::compute_keccak_merkle_tree,
+};
 use crate::{
     types::*,
     utils::{get_signal_hash, get_vk_hash},
@@ -53,7 +57,14 @@ pub struct WorldcoinWitnessV2<F: Field> {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct WorldcoinLeafInputV2<T: Copy>(WorldcoinLeafInput<T>);
+pub struct WorldcoinLeafInputV2<T: Copy>(pub WorldcoinLeafInput<T>);
+
+impl From<WorldcoinRequestLeaf> for WorldcoinLeafInputV2<Fr> {
+    fn from(input: WorldcoinRequestLeaf) -> Self {
+        let input: WorldcoinLeafInput<Fr> = input.into();
+        Self(input)
+    }
+}
 
 impl<F: Field> CircuitMetadata for WorldcoinLeafInputV2<F> {
     const HAS_ACCUMULATOR: bool = false;
