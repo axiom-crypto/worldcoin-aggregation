@@ -7,6 +7,7 @@ use axiom_eth::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    circuit_factory::v1::leaf::WorldcoinRequestLeaf,
     keygen::node_params::PinningLeaf,
     prover::prover::ProofRequest,
     types::{ClaimNative, VkNative, WorldcoinLeafInput},
@@ -16,18 +17,10 @@ use crate::circuits::v1::leaf::*;
 
 /// Request for proofs [start, end).
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct WorldcoinRequestLeaf {
-    pub start: u32,
-    pub end: u32,
-    pub depth: usize,
-    pub vk: VkNative,
-    pub root: String,
-    pub grant_id: String,
-    pub claims: Vec<ClaimNative>,
-}
+pub struct WorldcoinRequestLeafV2(WorldcoinRequestLeaf);
 
-impl From<WorldcoinRequestLeaf> for WorldcoinLeafInput<Fr> {
-    fn from(input: WorldcoinRequestLeaf) -> Self {
+impl From<WorldcoinRequestLeafV2> for WorldcoinLeafInput<Fr> {
+    fn from(input: WorldcoinRequestLeafV2) -> Self {
         let WorldcoinRequestLeaf {
             vk,
             root,
@@ -36,13 +29,13 @@ impl From<WorldcoinRequestLeaf> for WorldcoinLeafInput<Fr> {
             end,
             depth,
             claims,
-        } = input;
+        } = input.0;
         let vk_str = serde_json::to_string(&vk).unwrap();
         WorldcoinLeafInput::new(vk_str, root, grant_id, start, end, depth, claims)
     }
 }
 
-impl ProofRequest for WorldcoinRequestLeaf {
+impl ProofRequest for WorldcoinRequestLeafV2 {
     type Circuit = WorldcoinLeafCircuit<Fr>;
     type Pinning = PinningLeaf;
     fn get_k(pinning: &Self::Pinning) -> u32 {

@@ -12,7 +12,11 @@ use axiom_components::{
     },
     utils::flatten::InputFlatten,
 };
-use axiom_eth::{utils::encode_addr_to_field, zkevm_hashes::util::eth_types::Field};
+use axiom_eth::{
+    halo2_base::{AssignedValue, Context},
+    utils::encode_addr_to_field,
+    zkevm_hashes::util::eth_types::Field,
+};
 use ethers::utils::keccak256;
 use serde::Deserialize;
 use std::fmt::Debug;
@@ -143,7 +147,7 @@ pub struct WorldcoinGroth16Input<T: Copy> {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct WorldcoinInput<T: Copy> {
+pub struct WorldcoinLeafInput<T: Copy> {
     pub root: T,
     pub grant_id: T,
     pub start: u32,
@@ -160,7 +164,7 @@ pub struct Groth16Input<T: Copy> {
     pub public_inputs: Vec<T>,
 }
 
-impl WorldcoinInput<Fr> {
+impl WorldcoinLeafInput<Fr> {
     pub fn new(
         vk_str: String,
         root: String,
@@ -227,6 +231,63 @@ impl WorldcoinInput<Fr> {
             end,
             max_depth,
             groth16_inputs,
+        }
+    }
+}
+
+pub struct WorldcoinAssignedInput<F: Field> {
+    pub start: AssignedValue<F>,
+    pub end: AssignedValue<F>,
+    pub root: AssignedValue<F>,
+    pub grant_id: AssignedValue<F>,
+    pub receivers: Vec<AssignedValue<F>>,
+    pub groth16_verifier_inputs: Vec<Groth16VerifierInput<AssignedValue<F>>>,
+}
+
+impl<F: Field> WorldcoinLeafInput<F> {
+    pub fn assign(&self, ctx: &mut Context<F>) -> WorldcoinAssignedInput<F> {
+        let start = ctx.load_witness(F::from(self.start as u64));
+
+        let end = ctx.load_witness(F::from(self.end as u64));
+        let root = ctx.load_witness(self.root);
+        let grant_id = ctx.load_witness(self.grant_id);
+
+        // receivers and groth16_inputs should have the same length
+        assert_eq!(self.receivers.len(), self.groth16_inputs.len());
+
+        let receivers = ctx.assign_witnesses(self.receivers.clone());
+
+        let mut groth16_verifier_inputs: Vec<Groth16VerifierInput<AssignedValue<F>>> = Vec::new();
+        let num_public_inputs = ctx.load_witness(F::from(MAX_GROTH16_PI as u64 + 1));
+        let constants = get_groth16_consts_from_max_pi(MAX_GROTH16_PI);
+
+        for groth16_input in self.groth16_inputs.iter() {
+            let input: Groth16Input<F> = groth16_input.clone().into();
+            let vk = ctx.assign_witnesses(input.vkey_bytes);
+            let proof = ctx.assign_witnesses(input.proof_bytes);
+            let public_inputs = ctx.assign_witnesses(input.public_inputs);
+
+            let groth16_verifier_input: Groth16VerifierInput<AssignedValue<F>> =
+                Groth16VerifierInput {
+                    vk: Groth16VerifierComponentVerificationKey::unflatten(
+                        vk,
+                        constants.gamma_abc_g1_len,
+                    ),
+                    proof: Groth16VerifierComponentProof::unflatten(proof).unwrap(),
+                    public_inputs,
+                    num_public_inputs,
+                };
+
+            groth16_verifier_inputs.push(groth16_verifier_input);
+        }
+
+        WorldcoinAssignedInput {
+            start,
+            end,
+            root,
+            grant_id,
+            receivers,
+            groth16_verifier_inputs,
         }
     }
 }

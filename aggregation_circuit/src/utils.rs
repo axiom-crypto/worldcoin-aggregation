@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 use axiom_eth::{
-    halo2_proofs::plonk::Circuit,
+    halo2_base::safe_types::SafeByte,
     halo2_proofs::{
-        plonk::VerifyingKey,
+        plonk::{Circuit, VerifyingKey},
         poly::{commitment::ParamsProver, kzg::commitment::ParamsKZG},
     },
     halo2curves::bn256::{Bn256, Fr, G1Affine},
@@ -174,4 +174,37 @@ pub fn get_signal_hash<F: Field>(
         Constant(range.gate.pow_of_two()[128]),
         signal_hash_lo,
     )
+}
+
+// construct a merkle tree from leaves
+// return vec is [root, ...[depth 1 nodes], ...[depth 2 nodes], ..., ...[leaves]]
+pub fn compute_keccak_merkle_tree<F: Field>(
+    ctx: &mut Context<F>,
+    range: &RangeChip<F>,
+    keccak: &KeccakChip<F>,
+    leaves: Vec<HiLo<AssignedValue<F>>>,
+) -> Vec<HiLo<AssignedValue<F>>> {
+    let len = leaves.len();
+    // Also implicit len > 0
+    assert!(len.is_power_of_two());
+    if len == 1 {
+        return leaves;
+    }
+    let next_level = leaves
+        .chunks(2)
+        .map(|c| {
+            let mut bytes: Vec<SafeByte<F>> = Vec::new();
+            bytes.extend(uint_to_bytes_be(ctx, range, &c[0].hi(), 16));
+            bytes.extend(uint_to_bytes_be(ctx, range, &c[0].lo(), 16));
+            bytes.extend(uint_to_bytes_be(ctx, range, &c[1].hi(), 16));
+            bytes.extend(uint_to_bytes_be(ctx, range, &c[1].lo(), 16));
+
+            let keccak_hash = keccak.keccak_fixed_len(ctx, bytes);
+            HiLo::from_hi_lo([keccak_hash.output_hi, keccak_hash.output_lo])
+        })
+        .collect();
+    let mut ret: Vec<HiLo<AssignedValue<F>>> =
+        compute_keccak_merkle_tree(ctx, range, keccak, next_level);
+    ret.extend(leaves);
+    ret
 }

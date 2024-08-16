@@ -3,69 +3,67 @@ use std::iter;
 use axiom_eth::{
     halo2_base::{
         gates::{flex_gate::threads::parallelize_core, GateInstructions, RangeInstructions},
+        safe_types::SafeBool,
         AssignedValue, Context,
     },
     mpt::MPTChip,
     rlc::circuit::builder::RlcCircuitBuilder,
     utils::{
-        build_utils::aggregation::CircuitMetadata, eth_circuit::EthCircuitInstructions, hilo::HiLo,
-        keccak::decorator::RlcKeccakCircuitImpl,
+        build_utils::aggregation::CircuitMetadata, circuit_utils::unsafe_lt_mask,
+        eth_circuit::EthCircuitInstructions, hilo::HiLo, keccak::decorator::RlcKeccakCircuitImpl,
+        uint_to_bytes_be,
     },
     Field,
 };
 
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 
-use axiom_components::{
-    groth16::{
-        get_groth16_consts_from_max_pi, handle_single_groth16verify,
-        types::{
-            Groth16VerifierComponentProof, Groth16VerifierComponentVerificationKey,
-            Groth16VerifierInput,
-        },
-    },
-    utils::flatten::InputFlatten,
+use axiom_components::groth16::{
+    get_groth16_consts_from_max_pi, handle_single_groth16verify, types::Groth16VerifierInput,
 };
 
 use std::{fmt::Debug, vec};
 
-use crate::constants::*;
+use crate::{constants::*, utils::compute_keccak_merkle_tree};
 use crate::{
     types::*,
     utils::{get_signal_hash, get_vk_hash},
 };
 
-pub type WorldcoinLeafCircuit<F> = RlcKeccakCircuitImpl<F, WorldcoinLeafInput<F>>;
+pub type WorldcoinLeafCircuitV2<F> = RlcKeccakCircuitImpl<F, WorldcoinLeafInputV2<F>>;
 
 /// Data passed from phase0 to phase1
 /// instances:
 /// [0] start
 /// [1] end
-/// [2, 4) vkey_hash
+/// [2, 3] vkey_hash
 /// [4] grant_id
 /// [5] root
-/// [6, 6 + 1 << max_depth) receiver_i
-/// [6 + 1 << max_depth, 6 + 2 * (1 << max_depth)) nullifier_hash_i
+/// [6, 7] claim_root
+/// leaves being keccak256(abi.encodePacked(receiver_i, nullifierHash_i))
+/// Leaves with indices greater than num_proofs - 1 are given by keccak246(abi.encodePacked(address(0), bytes32(0)))
 #[derive(Clone, Debug)]
-pub struct WorldcoinWitness<F: Field> {
+pub struct WorldcoinWitnessV2<F: Field> {
     pub start: AssignedValue<F>,
     pub end: AssignedValue<F>,
     pub vkey_hash: HiLo<AssignedValue<F>>,
     pub grant_id: AssignedValue<F>,
     pub root: AssignedValue<F>,
-    pub receivers: Vec<AssignedValue<F>>,
-    pub nullifier_hashes: Vec<AssignedValue<F>>,
+    pub claim_root: HiLo<AssignedValue<F>>,
 }
 
-impl<F: Field> CircuitMetadata for WorldcoinLeafInput<F> {
+#[derive(Clone, Debug, Default)]
+pub struct WorldcoinLeafInputV2<T: Copy>(WorldcoinLeafInput<T>);
+
+impl<F: Field> CircuitMetadata for WorldcoinLeafInputV2<F> {
     const HAS_ACCUMULATOR: bool = false;
     fn num_instance(&self) -> Vec<usize> {
-        vec![6 + 2 * (1 << self.max_depth)]
+        vec![8]
     }
 }
 
-impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInput<F> {
-    type FirstPhasePayload = WorldcoinWitness<F>;
+impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
+    type FirstPhasePayload = WorldcoinWitnessV2<F>;
 
     fn virtual_assign_phase0(
         &self,
@@ -76,6 +74,7 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInput<F> {
         // ======== FIRST PHASE ===========
         let ctx = builder.base.main(0);
         let range = mpt.range();
+        let gate = range.gate();
 
         // ==== Assign =====
         let zero = ctx.load_zero();
@@ -87,7 +86,7 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInput<F> {
             grant_id,
             receivers,
             groth16_verifier_inputs,
-        } = self.assign(ctx);
+        } = self.0.assign(ctx);
 
         // ==== Constraints ====
 
@@ -96,9 +95,9 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInput<F> {
         range.range_check(ctx, end, 253);
         range.check_less_than(ctx, start, end, 253);
 
-        let num_proofs = range.gate().sub(ctx, end, start);
-        let max_proofs = ctx.load_witness(F::from(1 << self.max_depth));
-        let max_proofs_plus_one = range.gate().add(ctx, max_proofs, one);
+        let num_proofs = gate.sub(ctx, end, start);
+        let max_proofs = ctx.load_witness(F::from(1 << self.0.max_depth));
+        let max_proofs_plus_one = gate.add(ctx, max_proofs, one);
 
         // constrain 0 < num_proofs <= max_proofs
         range.check_less_than(ctx, zero, num_proofs, 64);
@@ -111,15 +110,28 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInput<F> {
 
         let vk_hash: HiLo<AssignedValue<F>> = get_vk_hash(ctx, range, keccak, vk_bytes.clone());
 
-        // Vec<Groth16VerifierInput, receiver>
-        let inputs: Vec<(Groth16VerifierInput<AssignedValue<F>>, &AssignedValue<F>)> =
-            groth16_verifier_inputs
-                .into_iter()
-                .zip(&receivers)
-                .collect_vec();
+        let selector: Vec<SafeBool<F>> =
+            unsafe_lt_mask(ctx, gate, num_proofs, 1 << self.0.max_depth);
 
-        let nullifier_hashes = parallelize_core(builder.base.pool(0), inputs, |ctx, input| {
-            let (groth16_verifier_input, receiver) = input;
+        assert_eq!(
+            groth16_verifier_inputs.len(),
+            receivers.len(),
+            "Collections must be of the same length"
+        );
+        assert_eq!(
+            receivers.len(),
+            selector.len(),
+            "Collections must be of the same length"
+        );
+
+        let inputs: Vec<(
+            Groth16VerifierInput<AssignedValue<F>>,
+            AssignedValue<F>,
+            SafeBool<F>,
+        )> = izip!(groth16_verifier_inputs, receivers, selector).collect();
+
+        let leaves = parallelize_core(builder.base.pool(0), inputs, |ctx, input| {
+            let (groth16_verifier_input, receiver, mask) = input;
 
             // constrain proofs using the same vkey
             let flattened_vk: Vec<AssignedValue<F>> = groth16_verifier_input.vk.flatten();
@@ -154,28 +166,41 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInput<F> {
             ctx.constrain_equal(&success.hi(), &zero);
             ctx.constrain_equal(&success.lo(), &one);
 
-            // nullifier_hash
-            public_inputs[1]
+            // use mask to calculate the correct leaf
+            // Leaves: keccak256(abi.encodePacked(receiver_i, nullifierHash_i))
+            // Leaves with indices greater than num_proofs - 1 are given by keccak256(abi.encodePacked(address(0), bytes32(0)))
+            let mut bytes = Vec::new();
+            let masked_receiver = gate.mul(ctx, receiver, mask);
+            let receiver_bytes = uint_to_bytes_be(ctx, range, &masked_receiver, 20);
+            let masked_nullifier_hash = gate.mul(ctx, public_inputs[1], mask);
+            let nullifier_hash_bytes = uint_to_bytes_be(ctx, range, &masked_nullifier_hash, 32);
+            bytes.extend(receiver_bytes);
+            bytes.extend(nullifier_hash_bytes);
+
+            let keccak_hash = keccak.keccak_fixed_len(ctx, bytes);
+
+            HiLo::from_hi_lo([keccak_hash.output_hi, keccak_hash.output_lo])
         });
+
+        let merkle_tree = compute_keccak_merkle_tree(ctx, range, keccak, leaves);
+        let claim_root = merkle_tree[0];
 
         let assigned_instances = iter::empty()
             .chain([start, end])
-            .chain([vk_hash.hi(), vk_hash.lo()])
+            .chain(vk_hash.hi_lo())
             .chain([grant_id, root])
-            .chain(receivers.clone())
-            .chain(nullifier_hashes.clone())
+            .chain(claim_root.hi_lo())
             .collect_vec();
 
         builder.base.assigned_instances[0] = assigned_instances;
 
-        WorldcoinWitness {
+        WorldcoinWitnessV2 {
             start,
             end,
             vkey_hash: vk_hash,
             grant_id,
             root,
-            receivers,
-            nullifier_hashes,
+            claim_root,
         }
     }
 
