@@ -174,8 +174,8 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
             let receiver_bytes = uint_to_bytes_be(ctx, range, &masked_receiver, 20);
             let masked_nullifier_hash = gate.mul(ctx, public_inputs[1], mask);
             let nullifier_hash_bytes = uint_to_bytes_be(ctx, range, &masked_nullifier_hash, 32);
-            bytes.extend(receiver_bytes);
-            bytes.extend(nullifier_hash_bytes);
+            bytes.extend(receiver_bytes.iter().map(|sb| *sb.as_ref()));
+            bytes.extend(nullifier_hash_bytes.iter().map(|sb| *sb.as_ref()));
 
             let keccak_hash = keccak.keccak_fixed_len(ctx, bytes);
 

@@ -277,8 +277,8 @@ pub fn join_previous_instances<F: Field>(
 
     // generate claim root
     // if the 2nd snark is not dummy, we simply calculate keccak(claim_root_left| claim_root_right)
-    // if the 2nd snark is dummy, we need to calculate the claim_root at max_depth with keccak256(abi.encodePacked(address(0), bytes32(0))) as leave
-    // since this is aggregation layer, max_depth always - 1 >= 0
+    // if the 2nd snark is dummy, we need to calculate the right child at (max_depth - 1) with keccak256(abi.encodePacked(address(0), bytes32(0))) as leaves
+    // since this is aggregation layer, max_depth - 1 >= 0
     let dummy_claim_root = calculate_dummy_merkle_root_at_depth(ctx, range, keccak, max_depth - 1);
 
     let claim_root_left = HiLo::from_hi_lo([instance0[6], instance0[7]]);
@@ -298,10 +298,10 @@ pub fn join_previous_instances<F: Field>(
     );
 
     claim_root_right = HiLo::from_hi_lo([claim_root_right_hi, claim_root_right_lo]);
-    
-    // keccak(claim_root_left| claim_root_right)
-    let claim_root = compute_keccak_for_branch_nodes(ctx, range, keccak, &claim_root_left, &claim_root_right);
 
+    // keccak(claim_root_left| claim_root_right)
+    let claim_root =
+        compute_keccak_for_branch_nodes(ctx, range, keccak, &claim_root_left, &claim_root_right);
 
     // new instances for the aggregation layer
     // [start, end, vk_hash_hi, vk_hash_lo, grant_id, root, claim_root_hi, claim_root_lo]
@@ -324,11 +324,20 @@ pub fn calculate_dummy_merkle_root_at_depth<F: Field>(
     let mut bytes = uint_to_bytes_be(ctx, range, &zero, 52);
     let mut bytes: Vec<AssignedValue<F>> = bytes.iter().map(|sb| *sb.as_ref()).collect();
     let mut keccak_hash = keccak.keccak_fixed_len(ctx, bytes);
+    //  keccak256(abi.encodePacked(address(0), bytes32(0)))
     let mut keccak_hash = HiLo::from_hi_lo([keccak_hash.output_hi, keccak_hash.output_lo]);
     for _i in 0..depth {
         bytes.clear();
-        bytes.extend(uint_to_bytes_be(ctx, range, &keccak_hash.hi(), 16));
-        bytes.extend(uint_to_bytes_be(ctx, range, &keccak_hash.lo(), 16));
+        bytes.extend(
+            uint_to_bytes_be(ctx, range, &keccak_hash.hi(), 16)
+                .iter()
+                .map(|sb| *sb.as_ref()),
+        );
+        bytes.extend(
+            uint_to_bytes_be(ctx, range, &keccak_hash.lo(), 16)
+                .iter()
+                .map(|sb| *sb.as_ref()),
+        );
         bytes.extend_from_slice(&bytes[..32]);
         let keccak_depth_i = keccak.keccak_fixed_len(ctx, bytes);
         keccak_hash = HiLo::from_hi_lo([keccak_depth_i.output_hi, keccak_depth_i.output_lo]);
