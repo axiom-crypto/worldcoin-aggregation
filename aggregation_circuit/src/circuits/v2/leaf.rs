@@ -182,6 +182,8 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
             HiLo::from_hi_lo([keccak_hash.output_hi, keccak_hash.output_lo])
         });
 
+        let ctx = builder.base.main(0);
+
         let merkle_tree = compute_keccak_merkle_tree(ctx, range, keccak, leaves);
         let claim_root = merkle_tree[0];
 

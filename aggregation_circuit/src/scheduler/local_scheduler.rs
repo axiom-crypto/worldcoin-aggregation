@@ -9,7 +9,7 @@ use rocket::tokio::sync::RwLock;
 use crate::{
     circuit_factory::{
         evm::*,
-        v1::{
+        {
             intermediate::WorldcoinRequestIntermediate, leaf::WorldcoinRequestLeaf,
             root::WorldcoinRequestRoot,
         },

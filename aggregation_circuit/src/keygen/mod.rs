@@ -35,14 +35,14 @@ use axiom_eth::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    circuit_factory::v1::leaf::*,
+    circuit_factory::leaf::*,
     circuits::v1::{
         intermediate::WorldcoinIntermediateAggregationInput,
         leaf::WorldcoinLeafCircuit,
         root::{WorldcoinRootAggregationCircuit, WorldcoinRootAggregationInput},
     },
     constants::VK,
-    types::{WorldcoinInput, WorldcoinRequest},
+    types::{WorldcoinLeafInput, WorldcoinRequest},
 };
 
 pub mod node_params;
@@ -143,7 +143,7 @@ impl KeygenCircuitIntent<Fr> for IntentLeaf {
             end: request.num_proofs as u32,
         };
 
-        let input: WorldcoinInput<Fr> = request_leaf.into();
+        let input: WorldcoinLeafInput<Fr> = request_leaf.into();
 
         let circuit_params = get_dummy_rlc_keccak_params(self.k as usize, self.k as usize - 1);
         let mut circuit =

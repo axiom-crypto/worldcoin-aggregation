@@ -32,11 +32,7 @@ use axiom_eth::{
         Snark, SHPLONK,
     },
     utils::{
-        build_utils::aggregation::CircuitMetadata,
-        eth_circuit::EthCircuitInstructions,
-        hilo::HiLo,
-        snark_verifier::{get_accumulator_indices, AggregationCircuitParams, NUM_FE_ACCUMULATOR},
-        uint_to_bytes_be,
+        build_utils::aggregation::CircuitMetadata, eth_circuit::EthCircuitInstructions, hilo::HiLo, keccak::decorator::RlcKeccakCircuitImpl, snark_verifier::{get_accumulator_indices, AggregationCircuitParams, NUM_FE_ACCUMULATOR}, uint_to_bytes_be
     },
     Field,
 };
@@ -44,15 +40,8 @@ use itertools::Itertools;
 
 use crate::utils::compute_keccak_for_branch_nodes;
 
-pub struct WorldcoinIntermediateAggregationCircuitV2(pub AggregationCircuit);
-
-impl WorldcoinIntermediateAggregationCircuitV2 {
-    /// The number of instances NOT INCLUDING the accumulator
-    pub fn get_num_instance(max_depth: usize, initial_depth: usize) -> usize {
-        assert!(max_depth >= initial_depth);
-        8
-    }
-}
+pub type WorldcoinIntermediateAggregationCircuitV2 =
+    RlcKeccakCircuitImpl<Fr, WorldcoinIntermediateAggregationInputV2>;
 
 #[derive(Clone, Debug)]
 pub struct WorldcoinIntermediateAggregationInputV2 {
@@ -63,6 +52,7 @@ pub struct WorldcoinIntermediateAggregationInputV2 {
     pub svk: Svk,
     pub prev_acc_indices: Vec<Vec<usize>>,
 }
+
 
 impl WorldcoinIntermediateAggregationInputV2 {
     pub fn new(
@@ -114,7 +104,7 @@ impl WorldcoinIntermediateAggregationInputV2 {
             pool,
             range,
             self.svk,
-            self.snarks,
+            self.snarks.clone(),
             VerifierUniversality::None,
         );
 
@@ -159,6 +149,11 @@ impl WorldcoinIntermediateAggregationInputV2 {
             assigned_instances.extend_from_slice(&new_instances[0..8]);
             assert_eq!(assigned_instances.len(), NUM_FE_ACCUMULATOR + 8);
         }
+    }
+
+    // num_instance excluding the accumulator, it's the same number as leaf circuit num_instance
+    pub fn get_num_instance() -> usize {
+        8
     }
 }
 
@@ -220,7 +215,7 @@ pub fn join_previous_instances<F: Field>(
 ) -> Vec<AssignedValue<F>> {
     let prev_depth = max_depth - 1;
     let num_instance_prev_depth =
-        WorldcoinIntermediateAggregationCircuitV2::get_num_instance(prev_depth, initial_depth);
+        WorldcoinIntermediateAggregationInputV2::get_num_instance();
     assert_eq!(num_instance_prev_depth, prev_instances[0].len());
     assert_eq!(num_instance_prev_depth, prev_instances[1].len());
 
@@ -265,7 +260,7 @@ pub fn join_previous_instances<F: Field>(
     ctx.constrain_equal(&boundary_num_diff, &num_proofs);
 
     let num_instance =
-        WorldcoinIntermediateAggregationCircuitV2::get_num_instance(max_depth, initial_depth);
+        WorldcoinIntermediateAggregationInputV2::get_num_instance();
 
     let mut instances = Vec::with_capacity(num_instance);
 
@@ -282,7 +277,7 @@ pub fn join_previous_instances<F: Field>(
     let dummy_claim_root = calculate_dummy_merkle_root_at_depth(ctx, range, keccak, max_depth - 1);
 
     let claim_root_left = HiLo::from_hi_lo([instance0[6], instance0[7]]);
-    let claim_root_right = HiLo::from_hi_lo([instance1[6], instance1[7]]);
+    let mut claim_root_right = HiLo::from_hi_lo([instance1[6], instance1[7]]);
 
     let claim_root_right_hi = range.gate().select(
         ctx,
@@ -321,26 +316,13 @@ pub fn calculate_dummy_merkle_root_at_depth<F: Field>(
 ) -> HiLo<AssignedValue<F>> {
     let zero = ctx.load_zero();
     // 20 bytes for address + 32 bytes for bytes32
-    let mut bytes = uint_to_bytes_be(ctx, range, &zero, 52);
-    let mut bytes: Vec<AssignedValue<F>> = bytes.iter().map(|sb| *sb.as_ref()).collect();
-    let mut keccak_hash = keccak.keccak_fixed_len(ctx, bytes);
+    let bytes = uint_to_bytes_be(ctx, range, &zero, 52);
+    let bytes: Vec<AssignedValue<F>> = bytes.iter().map(|sb| *sb.as_ref()).collect();
+    let keccak_hash = keccak.keccak_fixed_len(ctx, bytes);
     //  keccak256(abi.encodePacked(address(0), bytes32(0)))
     let mut keccak_hash = HiLo::from_hi_lo([keccak_hash.output_hi, keccak_hash.output_lo]);
     for _i in 0..depth {
-        bytes.clear();
-        bytes.extend(
-            uint_to_bytes_be(ctx, range, &keccak_hash.hi(), 16)
-                .iter()
-                .map(|sb| *sb.as_ref()),
-        );
-        bytes.extend(
-            uint_to_bytes_be(ctx, range, &keccak_hash.lo(), 16)
-                .iter()
-                .map(|sb| *sb.as_ref()),
-        );
-        bytes.extend_from_slice(&bytes[..32]);
-        let keccak_depth_i = keccak.keccak_fixed_len(ctx, bytes);
-        keccak_hash = HiLo::from_hi_lo([keccak_depth_i.output_hi, keccak_depth_i.output_lo]);
+        keccak_hash = compute_keccak_for_branch_nodes(ctx, range, keccak, &keccak_hash, &keccak_hash)
     }
     keccak_hash
 }
