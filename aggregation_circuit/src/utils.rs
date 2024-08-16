@@ -193,18 +193,29 @@ pub fn compute_keccak_merkle_tree<F: Field>(
     let next_level = leaves
         .chunks(2)
         .map(|c| {
-            let mut bytes: Vec<SafeByte<F>> = Vec::new();
-            bytes.extend(uint_to_bytes_be(ctx, range, &c[0].hi(), 16));
-            bytes.extend(uint_to_bytes_be(ctx, range, &c[0].lo(), 16));
-            bytes.extend(uint_to_bytes_be(ctx, range, &c[1].hi(), 16));
-            bytes.extend(uint_to_bytes_be(ctx, range, &c[1].lo(), 16));
-
-            let keccak_hash = keccak.keccak_fixed_len(ctx, bytes);
-            HiLo::from_hi_lo([keccak_hash.output_hi, keccak_hash.output_lo])
+            compute_keccak_for_branch_nodes(ctx, range, keccak, &c[0], &c[1])
         })
         .collect();
     let mut ret: Vec<HiLo<AssignedValue<F>>> =
         compute_keccak_merkle_tree(ctx, range, keccak, next_level);
     ret.extend(leaves);
     ret
+}
+
+// compute keecak hash for branch nodes.
+pub fn compute_keccak_for_branch_nodes<F: Field>(
+    ctx: &mut Context<F>,
+    range: &RangeChip<F>,
+    keccak: &KeccakChip<F>,
+    left_child: &HiLo<AssignedValue<F>>,
+    right_child: &HiLo<AssignedValue<F>>,
+) -> HiLo<AssignedValue<F>> {
+    let mut bytes: Vec<SafeByte<F>> = Vec::new();
+    bytes.extend(uint_to_bytes_be(ctx, range, &left_child.hi(), 16));
+    bytes.extend(uint_to_bytes_be(ctx, range, &left_child.lo(), 16));
+    bytes.extend(uint_to_bytes_be(ctx, range, &right_child.hi(), 16));
+    bytes.extend(uint_to_bytes_be(ctx, range, &right_child.lo(), 16));
+
+    let keccak_hash = keccak.keccak_fixed_len(ctx, bytes);
+    HiLo::from_hi_lo([keccak_hash.output_hi, keccak_hash.output_lo])
 }

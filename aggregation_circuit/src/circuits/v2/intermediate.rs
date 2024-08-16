@@ -42,6 +42,8 @@ use axiom_eth::{
 };
 use itertools::Itertools;
 
+use crate::utils::compute_keccak_for_branch_nodes;
+
 pub struct WorldcoinIntermediateAggregationCircuitV2(pub AggregationCircuit);
 
 impl WorldcoinIntermediateAggregationCircuitV2 {
@@ -273,19 +275,14 @@ pub fn join_previous_instances<F: Field>(
         ctx.constrain_equal(&instance0[_i], &instance1[_i]);
     }
 
-    // new instances for the aggregation layer
-    instances.push(start_idx);
-    instances.push(end_idx);
-    instances.extend_from_slice(&instance0[2..6]);
-
     // generate claim root
-    // if both snarks are not dummy, we simply calculate keccak(claim_root_0 | claim_root_1)
+    // if the 2nd snark is not dummy, we simply calculate keccak(claim_root_left| claim_root_right)
     // if the 2nd snark is dummy, we need to calculate the claim_root at max_depth with keccak256(abi.encodePacked(address(0), bytes32(0))) as leave
     // since this is aggregation layer, max_depth always - 1 >= 0
     let dummy_claim_root = calculate_dummy_merkle_root_at_depth(ctx, range, keccak, max_depth - 1);
 
-    let claim_root_left = HiLo::from_hi_lo(instances[6..8]);
-    let claim_root_right = HiLo::from_hi_lo(instance1[6..8]);
+    let claim_root_left = HiLo::from_hi_lo([instance0[6], instance0[7]]);
+    let claim_root_right = HiLo::from_hi_lo([instance1[6], instance1[7]]);
 
     let claim_root_right_hi = range.gate().select(
         ctx,
@@ -300,7 +297,18 @@ pub fn join_previous_instances<F: Field>(
         is_2nd_shard_dummy,
     );
 
-    instances.extend([claim_root_right_hi, claim_root_right_lo]);
+    claim_root_right = HiLo::from_hi_lo([claim_root_right_hi, claim_root_right_lo]);
+    
+    // keccak(claim_root_left| claim_root_right)
+    let claim_root = compute_keccak_for_branch_nodes(ctx, range, keccak, &claim_root_left, &claim_root_right);
+
+
+    // new instances for the aggregation layer
+    // [start, end, vk_hash_hi, vk_hash_lo, grant_id, root, claim_root_hi, claim_root_lo]
+    instances.push(start_idx);
+    instances.push(end_idx);
+    instances.extend_from_slice(&instance0[2..6]);
+    instances.extend(claim_root.hi_lo());
 
     instances
 }
