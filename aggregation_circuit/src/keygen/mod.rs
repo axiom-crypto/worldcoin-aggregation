@@ -180,10 +180,10 @@ impl KeygenAggregationCircuitIntent for IntentIntermediate {
     fn build_keygen_circuit_from_snarks(self, snarks: Vec<Snark>) -> Self::AggregationCircuit {
         assert_eq!(snarks.len(), 2);
 
-        let circuit_params = get_dummy_aggregation_params(self.k as usize);
-
         #[cfg(feature = "v1")]
         {
+            let circuit_params: axiom_eth::snark_verifier_sdk::halo2::aggregation::AggregationConfigParams = get_dummy_aggregation_params(self.k as usize);
+
             let input: WorldcoinIntermediateAggregationInput =
                 WorldcoinIntermediateAggregationInput::new(
                     snarks,

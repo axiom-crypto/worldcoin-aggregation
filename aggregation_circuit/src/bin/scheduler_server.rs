@@ -104,34 +104,46 @@ async fn serve(
                 .unwrap();
                 file.write_all(json_string.as_bytes()).unwrap();
 
-                let retry_send_threshold = 5;
+                #[cfg(feature = "v1")]
+                {
+                    // fulfill example only works for v1 size 128 proofs
+                    if req.max_proofs != 128 {
+                        return;
+                    }
+                    let retry_send_threshold = 5;
 
-                // the vk_hash for the corresponding vk.json
-                const VK_HASH: &str =
-                    "0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec";
+                    // the vk_hash for the corresponding vk.json
+                    const VK_HASH: &str =
+                        "0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec";
 
-                let v1claim_params =
-                    V1ClaimParams::new(VK_HASH, &req.grant_id, &req.root, &req.claims, final_proof);
+                    let v1claim_params = V1ClaimParams::new(
+                        VK_HASH,
+                        &req.grant_id,
+                        &req.root,
+                        &req.claims,
+                        final_proof,
+                    );
 
-                for _i in 0..retry_send_threshold {
-                    let ret = contract_client
-                        .distribute_grants(v1claim_params.clone())
-                        .await;
-                    match ret {
-                        Ok(tx_hash) => {
-                            println!("fulfilled query {}, tx_hash {}", request_id, tx_hash);
-                            return;
-                        }
-                        Err(_) => {
-                            println!("Failed to fulfill request {}, retrying", request_id);
-                            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                    for _i in 0..retry_send_threshold {
+                        let ret = contract_client
+                            .distribute_grants(v1claim_params.clone())
+                            .await;
+                        match ret {
+                            Ok(tx_hash) => {
+                                println!("fulfilled query {}, tx_hash {}", request_id, tx_hash);
+                                return;
+                            }
+                            Err(_) => {
+                                println!("Failed to fulfill request {}, retrying", request_id);
+                                tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                            }
                         }
                     }
+                    println!(
+                        "Failed to fulfill request {} after {} retries",
+                        request_id, retry_send_threshold
+                    );
                 }
-                println!(
-                    "Failed to fulfill request {} after {} retries",
-                    request_id, retry_send_threshold
-                );
             }
             _ => unreachable!(),
         }
