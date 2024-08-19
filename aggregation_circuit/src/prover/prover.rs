@@ -189,7 +189,6 @@ impl ProvingServerState {
         let snark_path = self.snark_path(circuit_id, &req);
 
         log::debug!("build circuit for proof_id={}", req.proof_id());
-        log::debug!("circuit_id={}, request={:?}", circuit_id, req);
         let (kzg_params, pk, circuit) = self.build_circuit(circuit_id, req).await?;
         log::debug!("gen_snark start");
 

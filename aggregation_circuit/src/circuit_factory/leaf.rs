@@ -1,58 +1,53 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use axiom_eth::{
     halo2_base::gates::circuit::CircuitBuilderStage,
-    halo2_proofs::poly::kzg::commitment::ParamsKZG, halo2curves::bn256::Bn256,
-    snark_verifier_sdk::Snark,
+    halo2_proofs::poly::kzg::commitment::ParamsKZG,
+    halo2curves::bn256::{Bn256, Fr},
 };
-
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    circuits::v1::root::{WorldcoinRootAggregationCircuit, WorldcoinRootAggregationInput},
-    keygen::node_params::PinningRoot,
+    keygen::node_params::PinningLeaf,
     prover::prover::ProofRequest,
+    types::{ClaimNative, VkNative},
+    WorldcoinLeafCircuit,
 };
 
-use axiom_eth::utils::snark_verifier::Base64Bytes;
-use serde_with::serde_as;
-
 /// Request for proofs [start, end).
-#[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct WorldcoinRequestRoot {
+pub struct WorldcoinRequestLeaf {
     pub start: u32,
     pub end: u32,
     pub depth: usize,
-    pub initial_depth: usize,
-    #[serde_as(as = "Vec<Base64Bytes>")]
-    pub snarks: Vec<Snark>,
+    pub vk: VkNative,
+    pub root: String,
+    pub grant_id: String,
+    pub claims: Vec<ClaimNative>,
 }
 
-impl ProofRequest for WorldcoinRequestRoot {
-    type Circuit = WorldcoinRootAggregationCircuit;
-    type Pinning = PinningRoot;
+impl ProofRequest for WorldcoinRequestLeaf {
+    type Circuit = WorldcoinLeafCircuit<Fr>;
+    type Pinning = PinningLeaf;
     fn get_k(pinning: &Self::Pinning) -> u32 {
         pinning.params.k() as u32
     }
 
     fn proof_id(&self) -> String {
         format!(
-            "worldcoin_{}_{:06x}_{:06x}_{}_{}_root",
+            "worldcoin_{}_{:06x}_{:06x}_{}_leaf",
             self.hash(),
             self.start,
             self.end,
-            self.depth,
-            self.initial_depth
+            self.depth
         )
     }
+
     fn build(
         self,
         stage: CircuitBuilderStage,
         pinning: Self::Pinning,
-        kzg_params: Option<&ParamsKZG<Bn256>>,
+        _: Option<&ParamsKZG<Bn256>>,
     ) -> Result<Self::Circuit> {
-        let kzg_params = kzg_params.ok_or_else(|| anyhow!("kzg_params not provided"))?;
-
         if self.end < self.start {
             bail!("Invalid index range: [{}, {}]", self.start, self.end);
         }
@@ -65,15 +60,8 @@ impl ProofRequest for WorldcoinRequestRoot {
             );
         }
 
-        let input = WorldcoinRootAggregationInput::new(
-            self.snarks,
-            num_proofs,
-            self.depth,
-            self.initial_depth,
-            kzg_params,
-        )?;
-
-        let circuit = WorldcoinRootAggregationCircuit::new_impl(stage, input, pinning.params, 0);
+        let input = self.into();
+        let circuit = WorldcoinLeafCircuit::new_impl(stage, input, pinning.params, 0);
         if stage.witness_gen_only() {
             circuit.set_break_points(pinning.break_points);
         }
