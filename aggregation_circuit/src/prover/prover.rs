@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     fmt::Debug,
     fs::{self, File},
+    hash::{DefaultHasher, Hash, Hasher},
     io::BufReader,
     ops::Deref,
     path::{Path, PathBuf},
@@ -27,14 +28,14 @@ use axiom_eth::{
 use clap::Parser;
 use ethers::utils::hex;
 use rocket::tokio;
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use tokio::sync::{Mutex, RwLock};
 
 use crate::{types::InvalidInputContext, CircuitId};
 
 /// This is an identifier for a specific proof request, consisting of the circuit type together with any data necessary to create the circuit inputs.
 /// It should be thought of as a node in a DAG (directed acyclic graph), where the edges specify previous SNARKs this one depends on.
-pub trait ProofRequest: Clone + Debug + Send {
+pub trait ProofRequest: Clone + Debug + Send + Serialize {
     type Circuit: CircuitExt<Fr>;
     // Not using CircuitPinningInstructions for more control / avoid rust orphan rule
     type Pinning: Clone + DeserializeOwned;
@@ -43,6 +44,14 @@ pub trait ProofRequest: Clone + Debug + Send {
     fn get_k(pinning: &Self::Pinning) -> u32;
 
     fn proof_id(&self) -> String;
+
+    fn hash(&self) -> u64 {
+        let json_string = serde_json::to_string(&self).expect("Failed to serialize to JSON");
+
+        let mut hasher = DefaultHasher::new();
+        json_string.hash(&mut hasher);
+        hasher.finish()
+    }
 
     fn build(
         self,
@@ -180,7 +189,6 @@ impl ProvingServerState {
         let snark_path = self.snark_path(circuit_id, &req);
 
         log::debug!("build circuit for proof_id={}", req.proof_id());
-        log::debug!("circuit_id={}, request={:?}", circuit_id, req);
         let (kzg_params, pk, circuit) = self.build_circuit(circuit_id, req).await?;
         log::debug!("gen_snark start");
 

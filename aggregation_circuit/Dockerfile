@@ -1,5 +1,7 @@
 FROM rustlang/rust:nightly AS builder
 
+ARG VERSION=v1
+
 RUN apt-get update && apt-get install -y \
     git \
     openssh-client \
@@ -13,7 +15,7 @@ WORKDIR /code
 ENV CARGO_HOME=/code/.cargo
 COPY . .
 
-RUN cargo build --release --features "asm, revm" --bin prover_server --bin scheduler_server
+RUN cargo build --release --features "asm, revm, ${VERSION}" --bin prover_server --bin scheduler_server
 
 FROM debian:stable-slim
 WORKDIR /code

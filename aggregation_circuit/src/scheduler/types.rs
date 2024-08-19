@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     circuit_factory::{
         evm::WorldcoinRequestEvm,
-        v1::{
+        {
             intermediate::WorldcoinRequestIntermediate, leaf::WorldcoinRequestLeaf,
             root::WorldcoinRequestRoot,
         },
