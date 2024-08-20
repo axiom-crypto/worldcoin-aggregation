@@ -84,10 +84,10 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
         } = self.0.assign(ctx);
 
         // ==== Constraints ====
-        // 0 <= start < end < 2^253
-        range.range_check(ctx, start, 253);
-        range.range_check(ctx, end, 253);
-        range.check_less_than(ctx, start, end, 253);
+        // 0 <= start < end < 2^64
+        range.range_check(ctx, start, 64);
+        range.range_check(ctx, end, 64);
+        range.check_less_than(ctx, start, end, 64);
 
         let num_proofs = gate.sub(ctx, end, start);
         let max_proofs = ctx.load_constant(F::from(1 << self.0.max_depth));
