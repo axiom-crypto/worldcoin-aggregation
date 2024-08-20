@@ -32,11 +32,11 @@ jobs:
         working-directory: ./axiom_circuit
         run: |
           cargo test
-      - name: Build Standalone circuit
+      - name: Build Standalone circuit V1
         working-directory: ./standalone_circuit
         run: |
-          cargo build --verbose
-      - name: Test Standalone circuit
+          cargo build --features "v1, keygen" --verbose
+      - name: Build Standalone circuit V2
         working-directory: ./standalone_circuit
         run: |
-          cargo test
+          cargo build --features "v2, keygen" --verbose
