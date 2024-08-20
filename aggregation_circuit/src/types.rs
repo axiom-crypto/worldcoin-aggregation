@@ -7,35 +7,25 @@ use rocket::{
 
 use axiom_components::{
     groth16::{
-        types::{
-            Groth16VerifierComponentProof, Groth16VerifierComponentVerificationKey,
-            Groth16VerifierInput,
-        },
+        types::{Groth16VerifierComponentProof, Groth16VerifierComponentVerificationKey},
         utils::{vec_to_hilo_pair, vec_to_hilo_point, HiLoPair, HiLoPoint},
     },
     utils::flatten::InputFlatten,
 };
 use axiom_eth::{
-    halo2_base::{AssignedValue, Context},
-    utils::encode_addr_to_field,
-    utils::hilo::HiLo,
-    zkevm_hashes::util::eth_types::Field,
+    halo2_base::AssignedValue, utils::hilo::HiLo, zkevm_hashes::util::eth_types::Field,
 };
-use ethers::utils::keccak256;
 use serde::Deserialize;
 use std::fmt::Debug;
 
-use axiom_components::groth16::{get_groth16_consts_from_max_pi, test::parse_input};
+use axiom_components::groth16::get_groth16_consts_from_max_pi;
 
-use axiom_eth::{halo2_base::utils::biguint_to_fe, halo2curves::bn256::Fr};
+use axiom_eth::halo2curves::bn256::Fr;
 
-use crate::constants::*;
-use ethers::{abi::Address, types::U256};
+use ethers::abi::Address;
 use itertools::Itertools;
-use num_bigint::BigUint;
 use serde::Serialize;
 use serde_json::json;
-use std::str::FromStr;
 
 macro_rules! deserialize_key {
     ($json: expr, $val: expr) => {
@@ -114,6 +104,9 @@ pub struct VkNative {
 
 // https://optimistic.etherscan.io/tx/0x857068d4fbc4434b11e49bcbeb3663ba2b3b89770a5d20203bf206ff0645f104
 // https://optimistic.etherscan.io/tx/0xe5ae2511577a857b34efa8a1795f47b875d2885b1b8855775c4d409ae52a9a2b
+// NOTE: ethers Address is case in-sensitive and the checksummed address string
+// will be parsed into lowercase. So the signal_hash is always from lowercase
+// address, make sure the proof public input is also from lowercased address
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct WorldcoinNativeInput {
     pub vk: VkNative,
@@ -186,15 +179,6 @@ pub fn parse_proof(pf_string: String) -> Vec<Fr> {
     let pf = Groth16VerifierComponentProof { a, b, c };
 
     pf.flatten_vec()
-}
-
-fn get_signal_hash(signal: &Address) -> U256 {
-    // solidity:  uint256(keccak256(abi.encodePacked(signal))) >> 8
-    // NOTE: ethers Address is case in-sensitive and the checksummed address string
-    // will be parsed into lowercase. So the signal_hash is always from lowercase
-    // address, make sure the proof public input is also from lowercased address
-    let keccak_hash = keccak256(signal.as_bytes());
-    U256::from_big_endian(&keccak_hash) >> 8
 }
 
 pub struct WorldcoinAssignedInput<F: Field> {

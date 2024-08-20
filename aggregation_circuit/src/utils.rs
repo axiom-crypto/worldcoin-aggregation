@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
 use axiom_eth::{
-    halo2_base::safe_types::SafeByte,
     halo2_proofs::{
         plonk::{Circuit, VerifyingKey},
         poly::{commitment::ParamsProver, kzg::commitment::ParamsKZG},

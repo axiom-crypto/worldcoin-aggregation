@@ -4,7 +4,7 @@ use axiom_eth::{
     halo2_base::{
         gates::{flex_gate::threads::parallelize_core, GateInstructions, RangeInstructions},
         safe_types::SafeBool,
-        AssignedValue, Context,
+        AssignedValue,
     },
     halo2curves::bn256::Fr,
     mpt::MPTChip,

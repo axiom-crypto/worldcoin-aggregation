@@ -6,10 +6,7 @@ use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::{Deserialize, Serialize};
 use tokio::{sync::Semaphore, time::Duration};
 
-use crate::{
-    prover::types::{ProverProof, ProverTask, ProverTaskResponse},
-    scheduler::types::RequestRouter,
-};
+use crate::prover::types::{ProverProof, ProverTask, ProverTaskResponse, TaskInput};
 
 use super::ProofExecutor;
 
@@ -17,7 +14,7 @@ use super::ProofExecutor;
 #[serde(rename_all = "camelCase")]
 struct TasksRequest {
     pub circuit_id: String,
-    pub input: RequestRouter,
+    pub input: TaskInput,
     pub force_prove: bool,
 }
 

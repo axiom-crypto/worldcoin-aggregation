@@ -14,7 +14,7 @@
 use anyhow::{bail, Ok, Result};
 use axiom_eth::{
     halo2_base::{
-        gates::{circuit::CircuitBuilderStage, GateInstructions, RangeChip, RangeInstructions},
+        gates::{GateInstructions, RangeChip, RangeInstructions},
         AssignedValue, Context,
         QuantumCell::Constant,
     },
@@ -26,18 +26,15 @@ use axiom_eth::{
     mpt::MPTChip,
     rlc::circuit::builder::RlcCircuitBuilder,
     snark_verifier_sdk::{
-        halo2::aggregation::{
-            aggregate_snarks, AggregationCircuit, SnarkAggregationOutput, Svk, VerifierUniversality,
-        },
+        halo2::aggregation::{aggregate_snarks, SnarkAggregationOutput, Svk, VerifierUniversality},
         Snark, SHPLONK,
     },
     utils::{
         build_utils::aggregation::CircuitMetadata,
-        bytes_be_to_u128,
         eth_circuit::EthCircuitInstructions,
         hilo::HiLo,
         keccak::decorator::RlcKeccakCircuitImpl,
-        snark_verifier::{get_accumulator_indices, AggregationCircuitParams, NUM_FE_ACCUMULATOR},
+        snark_verifier::{get_accumulator_indices, NUM_FE_ACCUMULATOR},
         uint_to_bytes_be,
     },
     Field,
@@ -216,7 +213,7 @@ pub fn join_previous_instances<F: Field>(
     prev_instances: [Vec<AssignedValue<F>>; 2],
     num_proofs: AssignedValue<F>,
     max_depth: usize,
-    initial_depth: usize,
+    _initial_depth: usize,
 ) -> Vec<AssignedValue<F>> {
     let prev_depth = max_depth - 1;
     let num_instance_prev_depth = WorldcoinIntermediateAggregationInputV2::get_num_instance();

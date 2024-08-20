@@ -17,14 +17,12 @@ use axiom_eth::{
     Field,
 };
 
-use ethers::types::Address;
 use itertools::Itertools;
 use std::str::FromStr;
 
 use axiom_components::{
     groth16::{
         get_groth16_consts_from_max_pi, handle_single_groth16verify,
-        test::parse_input,
         types::{
             Groth16VerifierComponentProof, Groth16VerifierComponentVerificationKey,
             Groth16VerifierInput,

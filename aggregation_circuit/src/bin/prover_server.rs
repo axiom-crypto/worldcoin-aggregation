@@ -4,7 +4,7 @@ use rocket::{get, http::Status, launch, post, routes, serde::json::Json, Build, 
 
 use worldcoin_aggregation::{
     prover::{
-        types::{ProverProof, ProverSnark, ProverTask, ProverTaskResponse},
+        types::{ProverProof, ProverSnark, ProverTask, ProverTaskResponse, TaskInput},
         ProofRequest, ProverConfig, ProvingServerState,
     },
     scheduler::types::RequestRouter,
@@ -27,27 +27,22 @@ async fn serve(
     task: Json<ProverTask>,
     prover: &State<ProvingServerState>,
 ) -> Result<Json<ProverTaskResponse>> {
-    let ProverTask {
-        circuit_id,
-        input: request,
-    } = task.into_inner();
+    let ProverTask { circuit_id, input } = task.into_inner();
+
+    let TaskInput {
+        is_evm_proof,
+        request,
+    } = input;
 
     match request {
         RequestRouter::Evm(request) => {
-            let round = request.round;
-            match round {
-                1 => {
-                    let evm_proof = prover.get_evm_proof(&circuit_id, request).await.unwrap();
-                    return Ok(Json(ProverTaskResponse {
-                        payload: ProverProof::EvmProof(evm_proof),
-                    }));
-                }
-                0 => return_snark(prover, circuit_id, request).await,
-                _ => {
-                    return Err(anyhow!("incorrect rounds for evm proofs!")
-                        .context(InvalidInputContext)
-                        .into())
-                }
+            if is_evm_proof {
+                let evm_proof = prover.get_evm_proof(&circuit_id, request).await.unwrap();
+                return Ok(Json(ProverTaskResponse {
+                    payload: ProverProof::EvmProof(evm_proof),
+                }));
+            } else {
+                return_snark(prover, circuit_id, request).await
             }
         }
         RequestRouter::Intermediate(request) => return_snark(prover, circuit_id, request).await,

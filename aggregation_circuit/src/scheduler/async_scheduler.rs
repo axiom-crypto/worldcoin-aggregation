@@ -9,15 +9,12 @@ use rocket::tokio::sync::RwLock;
 
 use crate::{
     circuit_factory::{
-        evm::*,
-        {
-            intermediate::WorldcoinRequestIntermediate, leaf::WorldcoinRequestLeaf,
-            root::WorldcoinRequestRoot,
-        },
+        evm::*, intermediate::WorldcoinRequestIntermediate, leaf::WorldcoinRequestLeaf,
+        root::WorldcoinRequestRoot,
     },
     constants::VK,
     keygen::node_params::{NodeParams, NodeType},
-    prover::types::{ProverProof, ProverTask},
+    prover::types::{ProverProof, ProverTask, TaskInput},
     scheduler::{
         executor::{dispatcher::DispatcherExecutor, ProofExecutor},
         recursive_request::RecursiveRequest,
@@ -106,11 +103,15 @@ impl AsyncScheduler {
         &self,
         request_id: &String,
         req: RecursiveRequest,
+        is_evm_proof: bool,
     ) -> Result<RequestRouter> {
         // Recursively generate the SNARKs for the dependencies of this task.
         let mut futures = vec![];
         for dep in req.dependencies() {
-            let future = async move { self.recursive_gen_proof(request_id, dep).await };
+            let future = async move {
+                self.recursive_gen_proof(request_id, dep, is_evm_proof)
+                    .await
+            };
             futures.push(future);
         }
 
@@ -119,13 +120,12 @@ impl AsyncScheduler {
         let mut snarks: Vec<Snark> = results
             .into_iter()
             .map(|result| {
-                let snark = result.unwrap();
-                match snark {
+                result.map(|snark| match snark {
                     ProverProof::Snark(snark) => snark.snark.inner,
                     ProverProof::EvmProof(_) => unreachable!(),
-                }
+                })
             })
-            .collect();
+            .collect::<Result<Vec<Snark>, _>>()?;
 
         let RecursiveRequest {
             start,
@@ -194,9 +194,10 @@ impl AsyncScheduler {
         &self,
         request_id: &String,
         req: RecursiveRequest,
+        is_evm_proof: bool,
     ) -> Result<ProverProof> {
         let req_router = self
-            .handle_recursive_request(request_id, req.clone())
+            .handle_recursive_request(request_id, req.clone(), false)
             .await?;
         let circuit_id = self
             .circuit_id_repo
@@ -209,7 +210,10 @@ impl AsyncScheduler {
 
         let task = ProverTask {
             circuit_id: circuit_id.clone(),
-            input: req_router,
+            input: TaskInput {
+                is_evm_proof,
+                request: req_router,
+            },
         };
 
         let result = self.executor.execute(task).await.unwrap();

@@ -10,8 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::{keygen::node_params::PinningIntermediate, prover::ProofRequest};
 use crate::{
     keygen::node_params::PinningIntermediateV2, WorldcoinIntermediateAggregationCircuit,
-    WorldcoinIntermediateAggregationInput, WorldcoinRootAggregationCircuit,
-    WorldcoinRootAggregationInput,
+    WorldcoinIntermediateAggregationInput,
 };
 
 use axiom_eth::utils::snark_verifier::Base64Bytes;

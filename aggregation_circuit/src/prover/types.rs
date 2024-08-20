@@ -16,7 +16,13 @@ pub struct ProverSnark {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProverTask {
     pub circuit_id: String,
-    pub input: RequestRouter,
+    pub input: TaskInput,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TaskInput {
+    pub is_evm_proof: bool,
+    pub request: RequestRouter,
 }
 
 /// Prover proof. EvmProof for Evm(EXTRA_ROUNDS), Snark for others.

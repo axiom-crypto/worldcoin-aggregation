@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, fs::File, io::Write, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, env, fs::File, io::Write, path::PathBuf};
 
 use anyhow::anyhow;
 use clap::Parser;
@@ -81,7 +81,7 @@ async fn serve(
 
     task::spawn(async move {
         let proof = scheduler
-            .recursive_gen_proof(&request_id, req.clone())
+            .recursive_gen_proof(&request_id, req.clone(), true)
             .await
             .unwrap();
 
