@@ -6,45 +6,44 @@ This subdirectory implements circuits for batch WorldID proof verification.
 
 ```
 ├── data
-│   ├──  vk.json                        The json for the vk
+│   ├──  vk.json                        The json for the verification key
 │   └──  generated_proofs_{size}.json   Example inputs for different sizes
 ├── src
 |   └── bin
 |         ├── keygen.rs                 The entry point for starting keygen
-|         |── local_server.rs           The entry point for starting server which generates SNARKs locally
-|         |── prover_server.rs          The entry point for starting prover which generates SNARKs based on request
+|         |── local_server.rs           The entry point for starting a server which generates SNARKs locally
+|         |── prover_server.rs          The entry point for starting a prover which generates SNARKs based on request
 |         └── scheduler_server.rs       The entry point for starting a scheduler that coordinates execution across remote infrastructure
 |   ├── circuit_factory                 The factories to build circuits
-|   ├── circuits                        The circuit implementations for the V1 circuit and the V2 circuit
+|   ├── circuits                        The circuit implementations for the aggregation circuits
 |   ├── keygen                          The functions to conduct keygen
 |   ├── prover                          A Prover struct that can load and manage proving keys, build circuits, and generate SNARKs.
 |   └── scheduler                       The schedulers that break down tasks and coordinate the executions
-|         ├── local_scheduler.rs        A scheduler that generate SNARKS synchronously in local
+|         ├── local_scheduler.rs        A scheduler that generates SNARKS synchronously in local
 |         ├── async_scheduler.rs        A scheduler that talks to remote executors for execution
 |         └── executor                  An executor which talks to a dispatcher service for executing the proving tasks, and 
-|                                       polls results until the tasks reached terminal statuses
-|   └── toolings                        The toolings for select instance types for the prover
+|                                       polls results until the tasks reach terminal statuses
+|   └── toolings                        Tooling to select instance types for the prover
 ├── Cargo.toml
 └── README.md
 ```
 
 ## V1 circuit
 
-The V1 circuit verifies the WorldID Groth16 proofs in batch, and exposes the keccak hash of the following outputs
+The V1 circuit verifies the WorldID Groth16 proofs in batch, and exposes as a public output the Keccak hash of the following quantities.
 
 ```
 - vkeyHash - the Keccak hash of the flattened vk
+- num_proofs - the number of proofs we care about the outputs from, which should satisfy 1 <= num_proofs <= max_proofs
 - grantId
 - root
-- num_proofs - the number of proofs which we care about the outputs from, should satisfy 1 <= num_proofs <= max_proofs
 - receiver_i for i = 1, ..., max_proofs
 - nullifierHash_i for i = 1, ..., max_proofs
 ```
 As a convenience to the user, fewer than `max_proofs` claims can be submitted to the prover binary and the binary will appropriately pad to satisfy the circuit.
 
+To implement the V1 circuit, we use the following 4 types of circuits:
 
-### High level approach ###
-There are 4 types of circuits
 - **WorldcoinLeafCircuit** -  It has `max_depth` which decides the max capacity to be  `2**depth` claims. It has `start` (inclusive) and `end` (exclusive) indexes for the claims this circuit is handling. It constrains
     - `start` and `end` are in `[0, 2**64)`
     - `num_proofs (end - start)` falls between `(0, 2**max_depth]`
@@ -59,7 +58,8 @@ There are 4 types of circuits
 The claim verification task is divided into WorldcoinLeafCircuits and then aggregated until we have one single WorldcoinRootAggregationCircuit. The final public output is the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]`.
 
 ## V2 circuit
-The V2 circuit set up is similar to the V1 circuit, it has public outputs
+
+The V2 circuit design is similar to the V1 circuit.  It has public outputs
 
 ```
 - vkeyHash – the Keccak hash of the flattened Groth16 vk
@@ -67,6 +67,8 @@ The V2 circuit set up is similar to the V1 circuit, it has public outputs
 - root
 - claimRoot – the Keccak Merkle root of the tree whose leaves are keccak256(abi.encodePacked(receiver_i, nullifierHash_i)). Leaves with indices greater than num_proofs - 1 are given by keccak256(abi.encodePacked(address(0), bytes32(0)))
 ```
+
+The V2 design is implemented through the following circuits:
 
 - **WorldcoinLeafCircuitV2** -  It has all the constraints that the V1 circuit has.
     - In addition, it calculates the claim root for the subtree.
