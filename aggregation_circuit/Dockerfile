@@ -15,7 +15,7 @@ WORKDIR /code
 ENV CARGO_HOME=/code/.cargo
 COPY . .
 
-RUN cargo build --release --features "revm, ${VERSION}" --bin prover_server --bin scheduler_server
+RUN cargo build --release --features "asm, ${VERSION}" --bin prover_server --bin scheduler_server
 
 FROM debian:stable-slim
 WORKDIR /code
