@@ -58,7 +58,7 @@ contract WorldcoinAggregationV1Helper is Test {
     address wldToken = 0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9;
     address rootValidator = 0x928a514350A403e2f5e3288C102f6B1CCABeb37C;
 
-    string inputPath = "circuit/data/worldcoin_input.json";
+    string inputPath = "axiom_circuit/data/worldcoin_input.json";
 
     function setUp() public virtual {
         vm.createSelectFork("provider");

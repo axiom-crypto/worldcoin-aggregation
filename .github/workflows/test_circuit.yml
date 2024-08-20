@@ -10,7 +10,7 @@ on:
 
 jobs:
   rust-circuit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16core-64ram 
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: true
     steps:
@@ -24,11 +24,19 @@ jobs:
             ${{ secrets.AXIOM_ETH_DEPLOY_PRIVATE_KEY }}
             ${{ secrets.AXIOM_TOOLS_DEPLOY_PRIVATE_KEY }}
 
-      - name: Build circuit
-        working-directory: ./circuit
+      - name: Build Axiom circuit
+        working-directory: ./axiom_circuit
         run: |
           cargo build --verbose
-      - name: Test circuit
-        working-directory: ./circuit
+      - name: Test Axiom circuit
+        working-directory: ./axiom_circuit
         run: |
           cargo test
+      - name: Build Standalone circuit V1
+        working-directory: ./standalone_circuit
+        run: |
+          cargo build --features "v1, keygen" --verbose
+      - name: Build Standalone circuit V2
+        working-directory: ./standalone_circuit
+        run: |
+          cargo build --features "v2, keygen" --verbose
