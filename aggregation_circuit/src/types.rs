@@ -6,15 +6,19 @@ use rocket::{
 };
 
 use axiom_components::{
-    groth16::types::{
-        Groth16VerifierComponentProof, Groth16VerifierComponentVerificationKey,
-        Groth16VerifierInput,
+    groth16::{
+        types::{
+            Groth16VerifierComponentProof, Groth16VerifierComponentVerificationKey,
+            Groth16VerifierInput,
+        },
+        utils::{vec_to_hilo_pair, vec_to_hilo_point, HiLoPair, HiLoPoint},
     },
     utils::flatten::InputFlatten,
 };
 use axiom_eth::{
     halo2_base::{AssignedValue, Context},
     utils::encode_addr_to_field,
+    utils::hilo::HiLo,
     zkevm_hashes::util::eth_types::Field,
 };
 use ethers::utils::keccak256;
@@ -27,10 +31,17 @@ use axiom_eth::{halo2_base::utils::biguint_to_fe, halo2curves::bn256::Fr};
 
 use crate::constants::*;
 use ethers::{abi::Address, types::U256};
+use itertools::Itertools;
 use num_bigint::BigUint;
 use serde::Serialize;
 use serde_json::json;
 use std::str::FromStr;
+
+macro_rules! deserialize_key {
+    ($json: expr, $val: expr) => {
+        serde_json::from_value($json[$val].clone()).unwrap()
+    };
+}
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -85,6 +96,13 @@ pub struct ClaimNative {
     pub proof: Vec<String>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ClaimInput<T: Copy> {
+    pub receiver: T,
+    pub nullifier_hash: T,
+    pub proof_bytes: Vec<T>,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct VkNative {
     vk_alpha_1: [String; 3],
@@ -106,6 +124,39 @@ pub struct WorldcoinNativeInput {
     pub claims: Vec<ClaimNative>,
 }
 
+pub fn parse_vk(vk_string: String, max_pi: usize) -> Vec<Fr> {
+    let input_constants = get_groth16_consts_from_max_pi(max_pi);
+    let verification_key_file: serde_json::Value =
+        serde_json::from_str(vk_string.as_str()).unwrap();
+
+    let vk_alpha_1: [String; 3] = deserialize_key!(verification_key_file, "vk_alpha_1");
+    let vk_beta_2: [[String; 2]; 3] = deserialize_key!(verification_key_file, "vk_beta_2");
+    let vk_gamma_2: [[String; 2]; 3] = deserialize_key!(verification_key_file, "vk_gamma_2");
+    let vk_delta_2: [[String; 2]; 3] = deserialize_key!(verification_key_file, "vk_delta_2");
+
+    let alpha_g1: HiLoPoint<Fr> = vec_to_hilo_point(&vk_alpha_1);
+    let beta_g2: HiLoPair<Fr> = vec_to_hilo_pair(&vk_beta_2);
+    let gamma_g2: HiLoPair<Fr> = vec_to_hilo_pair(&vk_gamma_2);
+    let delta_g2: HiLoPair<Fr> = vec_to_hilo_pair(&vk_delta_2);
+
+    let ic: Vec<[String; 3]> = deserialize_key!(verification_key_file, "IC");
+    let mut ic_vec: Vec<HiLoPoint<Fr>> =
+        ic.into_iter().map(|s| vec_to_hilo_point(&s)).collect_vec();
+    ic_vec.resize(
+        input_constants.gamma_abc_g1_len,
+        (HiLo::default(), HiLo::default()),
+    );
+
+    let vk = Groth16VerifierComponentVerificationKey {
+        alpha_g1,
+        beta_g2,
+        gamma_g2,
+        delta_g2,
+        gamma_abc_g1: ic_vec,
+    };
+    vk.flatten()
+}
+
 pub fn get_pf_string(proof: &[String]) -> String {
     json!({
         "pi_a": [proof[0], proof[1], "1"],
@@ -120,14 +171,21 @@ pub fn get_pf_string(proof: &[String]) -> String {
     .to_string()
 }
 
-pub fn get_pub_string(
-    root: &str,
-    external_nullifier_hash: &str,
-    nullfiier_hash: &str,
-    signal: &Address,
-) -> String {
-    let signal_hash = get_signal_hash(signal).to_string();
-    json!([root, nullfiier_hash, signal_hash, external_nullifier_hash]).to_string()
+pub fn parse_proof(pf_string: String) -> Vec<Fr> {
+    let proof_file: serde_json::Value = serde_json::from_str(pf_string.as_str()).unwrap();
+
+    // get proof
+    let a: [String; 3] = deserialize_key!(proof_file, "pi_a");
+    let b: [[String; 2]; 3] = deserialize_key!(proof_file, "pi_b");
+    let c: [String; 3] = deserialize_key!(proof_file, "pi_c");
+
+    let a: HiLoPoint<Fr> = vec_to_hilo_point(&a);
+    let b: HiLoPair<Fr> = vec_to_hilo_pair(&b);
+    let c: HiLoPoint<Fr> = vec_to_hilo_point(&c);
+
+    let pf = Groth16VerifierComponentProof { a, b, c };
+
+    pf.flatten_vec()
 }
 
 fn get_signal_hash(signal: &Address) -> U256 {
@@ -139,59 +197,14 @@ fn get_signal_hash(signal: &Address) -> U256 {
     U256::from_big_endian(&keccak_hash) >> 8
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct WorldcoinGroth16Input<T: Copy> {
-    pub vkey_bytes: Vec<T>,
-    pub proof_bytes: Vec<T>,
-    pub public_inputs: Vec<T>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct Groth16Input<T: Copy> {
-    pub vkey_bytes: Vec<T>,
-    pub proof_bytes: Vec<T>,
-    pub public_inputs: Vec<T>,
-}
-
-impl<F: Field> From<Groth16Input<F>> for Groth16VerifierInput<F> {
-    fn from(input: Groth16Input<F>) -> Self {
-        let constants = get_groth16_consts_from_max_pi(MAX_GROTH16_PI);
-
-        let vk = Groth16VerifierComponentVerificationKey::unflatten(
-            input.vkey_bytes,
-            constants.gamma_abc_g1_len,
-        );
-        let proof = Groth16VerifierComponentProof::unflatten(input.proof_bytes).unwrap();
-        let num_public_inputs = F::from((MAX_GROTH16_PI + 1) as u64);
-
-        Groth16VerifierInput {
-            vk,
-            proof,
-            num_public_inputs,
-            public_inputs: input.public_inputs,
-        }
-    }
-}
-
 pub struct WorldcoinAssignedInput<F: Field> {
     pub start: AssignedValue<F>,
     pub end: AssignedValue<F>,
     pub root: AssignedValue<F>,
     pub grant_id: AssignedValue<F>,
-    pub receivers: Vec<AssignedValue<F>>,
-    pub groth16_verifier_inputs: Vec<Groth16VerifierInput<AssignedValue<F>>>,
-}
-
-impl<T: Copy> From<Groth16VerifierInput<T>> for Groth16Input<T> {
-    fn from(input: Groth16VerifierInput<T>) -> Self {
-        let flattened_vkey = input.vk.flatten();
-        let flattened_proof = input.proof.flatten_vec();
-        Groth16Input {
-            vkey_bytes: flattened_vkey,
-            proof_bytes: flattened_proof,
-            public_inputs: input.public_inputs,
-        }
-    }
+    pub vk_bytes: Vec<AssignedValue<F>>,
+    pub claims: Vec<ClaimInput<AssignedValue<F>>>,
+    pub num_public_inputs: AssignedValue<F>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

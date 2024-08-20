@@ -33,6 +33,7 @@ use axiom_eth::{
     },
     utils::{
         build_utils::aggregation::CircuitMetadata,
+        bytes_be_to_u128,
         eth_circuit::EthCircuitInstructions,
         hilo::HiLo,
         keccak::decorator::RlcKeccakCircuitImpl,

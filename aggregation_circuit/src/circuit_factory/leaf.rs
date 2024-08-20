@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     keygen::node_params::PinningLeaf,
-    prover::prover::ProofRequest,
+    prover::ProofRequest,
     types::{ClaimNative, VkNative},
     WorldcoinLeafCircuit,
 };
@@ -48,7 +48,7 @@ impl ProofRequest for WorldcoinRequestLeaf {
         pinning: Self::Pinning,
         _: Option<&ParamsKZG<Bn256>>,
     ) -> Result<Self::Circuit> {
-        if self.end < self.start {
+        if self.end <= self.start {
             bail!("Invalid index range: [{}, {}]", self.start, self.end);
         }
         let num_proofs = self.end - self.start;

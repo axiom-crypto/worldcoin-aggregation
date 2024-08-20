@@ -8,7 +8,7 @@ use axiom_eth::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{keygen::node_params::PinningEvm, prover::prover::ProofRequest};
+use crate::{keygen::node_params::PinningEvm, prover::ProofRequest};
 
 use serde_with::serde_as;
 

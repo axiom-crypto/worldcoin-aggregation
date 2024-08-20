@@ -7,7 +7,7 @@ use axiom_eth::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{keygen::node_params::PinningIntermediate, prover::prover::ProofRequest};
+use crate::{keygen::node_params::PinningIntermediate, prover::ProofRequest};
 use crate::{
     keygen::node_params::PinningIntermediateV2, WorldcoinIntermediateAggregationCircuit,
     WorldcoinIntermediateAggregationInput, WorldcoinRootAggregationCircuit,
@@ -31,10 +31,8 @@ pub struct WorldcoinRequestIntermediate {
 
 impl ProofRequest for WorldcoinRequestIntermediate {
     #[cfg(feature = "v1")]
-
     type Circuit = AggregationCircuit;
     #[cfg(feature = "v1")]
-
     type Pinning = PinningIntermediate;
 
     #[cfg(feature = "v2")]

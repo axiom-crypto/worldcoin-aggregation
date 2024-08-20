@@ -107,7 +107,7 @@ async fn serve(
                 #[cfg(feature = "v1")]
                 {
                     // fulfill example only works for v1 size 128 proofs
-                    if req.max_proofs != 128 {
+                    if max_proofs != 128 {
                         return;
                     }
                     let retry_send_threshold = 5;

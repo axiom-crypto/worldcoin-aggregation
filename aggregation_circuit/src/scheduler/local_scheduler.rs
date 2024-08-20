@@ -15,7 +15,7 @@ use crate::{
         },
     },
     keygen::node_params::{NodeParams, NodeType},
-    prover::prover::ProvingServerState,
+    prover::ProvingServerState,
     scheduler::types::RequestRouter,
     types::{ClaimNative, VkNative},
 };

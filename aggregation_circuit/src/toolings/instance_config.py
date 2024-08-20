@@ -100,7 +100,7 @@ def main():
     global prover_image_tag
 
     if len(sys.argv) < 4:
-        print("Usage: python tree_crawler.py <config file> <circuit data dir> <output file> <s3_bucket>[optional] <s3_folder>[optional] prover_image_tag[optional]")
+        print("Usage: python instance_config.py <config file> <circuit data dir> <output file> <s3_bucket>[optional] <s3_folder>[optional] prover_image_tag[optional]")
         print("INFO: Log into AWS for s3 read access first.")
         print("INFO: All proof tree and pinning files will be auto downloaded to the circuit data dir.")
         sys.exit(1)

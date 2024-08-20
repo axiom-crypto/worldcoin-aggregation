@@ -20,10 +20,11 @@ use axiom_eth::{
 use itertools::{izip, Itertools};
 
 use axiom_components::groth16::{
-    get_groth16_consts_from_max_pi, handle_single_groth16verify, types::Groth16VerifierInput,
+    get_groth16_consts_from_max_pi, handle_single_groth16verify,
+    types::{Groth16VerifierComponentProof, Groth16VerifierInput},
 };
 
-use std::{fmt::Debug, vec};
+use axiom_components::utils::flatten::InputFlatten;
 
 use crate::{
     circuit_factory::leaf::WorldcoinRequestLeaf, circuits::v1::leaf::WorldcoinLeafInput,
@@ -33,28 +34,10 @@ use crate::{
     types::*,
     utils::{get_signal_hash, get_vk_hash},
 };
+use axiom_components::groth16::types::Groth16VerifierComponentVerificationKey;
+use std::{fmt::Debug, vec};
 
 pub type WorldcoinLeafCircuitV2<F> = RlcKeccakCircuitImpl<F, WorldcoinLeafInputV2<F>>;
-
-/// Data passed from phase0 to phase1
-/// instances:
-/// [0] start
-/// [1] end
-/// [2, 3] vkey_hash
-/// [4] grant_id
-/// [5] root
-/// [6, 7] claim_root
-/// leaves being keccak256(abi.encodePacked(receiver_i, nullifierHash_i))
-/// Leaves with indices greater than num_proofs - 1 are given by keccak246(abi.encodePacked(address(0), bytes32(0)))
-#[derive(Clone, Debug)]
-pub struct WorldcoinWitnessV2<F: Field> {
-    pub start: AssignedValue<F>,
-    pub end: AssignedValue<F>,
-    pub vkey_hash: HiLo<AssignedValue<F>>,
-    pub grant_id: AssignedValue<F>,
-    pub root: AssignedValue<F>,
-    pub claim_root: HiLo<AssignedValue<F>>,
-}
 
 #[derive(Clone, Debug, Default)]
 pub struct WorldcoinLeafInputV2<T: Copy>(pub WorldcoinLeafInput<T>);
@@ -74,7 +57,7 @@ impl<F: Field> CircuitMetadata for WorldcoinLeafInputV2<F> {
 }
 
 impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
-    type FirstPhasePayload = WorldcoinWitnessV2<F>;
+    type FirstPhasePayload = ();
 
     fn virtual_assign_phase0(
         &self,
@@ -95,74 +78,65 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
             end,
             root,
             grant_id,
-            receivers,
-            groth16_verifier_inputs,
+            num_public_inputs,
+            claims,
+            vk_bytes,
         } = self.0.assign(ctx);
 
         // ==== Constraints ====
-
         // 0 <= start < end < 2^253
         range.range_check(ctx, start, 253);
         range.range_check(ctx, end, 253);
         range.check_less_than(ctx, start, end, 253);
 
         let num_proofs = gate.sub(ctx, end, start);
-        let max_proofs = ctx.load_witness(F::from(1 << self.0.max_depth));
+        let max_proofs = ctx.load_constant(F::from(1 << self.0.max_depth));
         let max_proofs_plus_one = gate.add(ctx, max_proofs, one);
 
         // constrain 0 < num_proofs <= max_proofs
-        range.check_less_than(ctx, zero, num_proofs, 64);
+        range.range_check(ctx, num_proofs, 64);
         range.check_less_than(ctx, num_proofs, max_proofs_plus_one, 64);
 
         let constants = get_groth16_consts_from_max_pi(MAX_GROTH16_PI);
-        let vk_bytes: Vec<AssignedValue<F>> = groth16_verifier_inputs[0].vk.flatten();
 
         assert_eq!(vk_bytes.len(), constants.num_fe_hilo_vkey);
 
         let vk_hash: HiLo<AssignedValue<F>> = get_vk_hash(ctx, range, keccak, vk_bytes.clone());
 
+        let vk = Groth16VerifierComponentVerificationKey::unflatten(
+            vk_bytes,
+            constants.gamma_abc_g1_len,
+        );
+
         let selector: Vec<SafeBool<F>> =
             unsafe_lt_mask(ctx, gate, num_proofs, 1 << self.0.max_depth);
 
         assert_eq!(
-            groth16_verifier_inputs.len(),
-            receivers.len(),
-            "Collections must be of the same length"
-        );
-        assert_eq!(
-            receivers.len(),
+            claims.len(),
             selector.len(),
             "Collections must be of the same length"
         );
 
-        let inputs: Vec<(
-            Groth16VerifierInput<AssignedValue<F>>,
-            AssignedValue<F>,
-            SafeBool<F>,
-        )> = izip!(groth16_verifier_inputs, receivers, selector).collect();
+        let inputs: Vec<(ClaimInput<AssignedValue<F>>, SafeBool<F>)> =
+            izip!(claims, selector).collect();
 
         let leaves = parallelize_core(builder.base.pool(0), inputs, |ctx, input| {
-            let (groth16_verifier_input, receiver, mask) = input;
+            let (claim, mask) = input;
 
-            // constrain proofs using the same vkey
-            let flattened_vk: Vec<AssignedValue<F>> = groth16_verifier_input.vk.flatten();
-            assert_eq!(flattened_vk.len(), constants.num_fe_hilo_vkey);
-            flattened_vk
-                .iter()
-                .zip(&vk_bytes)
-                .for_each(|(a, b)| ctx.constrain_equal(a, b));
+            let signal_hash = get_signal_hash(ctx, range, keccak, &claim.receiver);
 
-            // constrain the public inputs
             // pi[0] root
             // pi[1] nullifier_hash
             // pi[2] signal_hash from receiver
             // pi[3] grant_id
-            let public_inputs = groth16_verifier_input.public_inputs.clone();
-            ctx.constrain_equal(&public_inputs[0], &root);
-            ctx.constrain_equal(&public_inputs[3], &grant_id);
-            let receiver = receiver;
-            let signal_hash = get_signal_hash(ctx, range, keccak, &receiver);
-            ctx.constrain_equal(&signal_hash, &public_inputs[2]);
+            let public_inputs = [root, claim.nullifier_hash, signal_hash, grant_id].to_vec();
+
+            let groth16_verifier_input = Groth16VerifierInput {
+                vk: vk.clone(),
+                proof: Groth16VerifierComponentProof::unflatten(claim.proof_bytes).unwrap(),
+                num_public_inputs,
+                public_inputs: public_inputs.clone(),
+            };
 
             // constrain groth16 verify success
             let res = handle_single_groth16verify(
@@ -181,7 +155,7 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
             // Leaves: keccak256(abi.encodePacked(receiver_i, nullifierHash_i))
             // Leaves with indices greater than num_proofs - 1 are given by keccak256(abi.encodePacked(address(0), bytes32(0)))
             let mut bytes = Vec::new();
-            let masked_receiver = gate.mul(ctx, receiver, mask);
+            let masked_receiver = gate.mul(ctx, claim.receiver, mask);
             let receiver_bytes = uint_to_bytes_be(ctx, range, &masked_receiver, 20);
             let masked_nullifier_hash = gate.mul(ctx, public_inputs[1], mask);
             let nullifier_hash_bytes = uint_to_bytes_be(ctx, range, &masked_nullifier_hash, 32);
@@ -198,6 +172,15 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
         let merkle_tree = compute_keccak_merkle_tree(ctx, range, keccak, leaves);
         let claim_root = merkle_tree[0];
 
+        // instances:
+        // [0] start
+        // [1] end
+        // [2, 3] vkey_hash
+        // [4] grant_id
+        // [5] root
+        // [6, 7] claim_root
+        // leaves being keccak256(abi.encodePacked(receiver_i, nullifierHash_i))
+        // Leaves with indices greater than num_proofs - 1 are given by keccak246(abi.encodePacked(address(0), bytes32(0)))
         let assigned_instances = iter::empty()
             .chain([start, end])
             .chain(vk_hash.hi_lo())
@@ -207,14 +190,7 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
 
         builder.base.assigned_instances[0] = assigned_instances;
 
-        WorldcoinWitnessV2 {
-            start,
-            end,
-            vkey_hash: vk_hash,
-            grant_id,
-            root,
-            claim_root,
-        }
+        ()
     }
 
     fn virtual_assign_phase1(

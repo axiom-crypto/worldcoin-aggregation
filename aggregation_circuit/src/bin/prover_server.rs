@@ -4,8 +4,8 @@ use rocket::{get, http::Status, launch, post, routes, serde::json::Json, Build, 
 
 use worldcoin_aggregation::{
     prover::{
-        prover::{ProofRequest, ProverConfig, ProvingServerState},
         types::{ProverProof, ProverSnark, ProverTask, ProverTaskResponse},
+        ProofRequest, ProverConfig, ProvingServerState,
     },
     scheduler::types::RequestRouter,
     types::*,

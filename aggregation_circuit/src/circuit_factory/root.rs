@@ -8,8 +8,8 @@ use axiom_eth::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    keygen::node_params::PinningRoot, prover::prover::ProofRequest,
-    WorldcoinRootAggregationCircuit, WorldcoinRootAggregationInput,
+    keygen::node_params::PinningRoot, prover::ProofRequest, WorldcoinRootAggregationCircuit,
+    WorldcoinRootAggregationInput,
 };
 
 use axiom_eth::utils::snark_verifier::Base64Bytes;

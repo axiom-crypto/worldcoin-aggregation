@@ -64,7 +64,7 @@ impl RecursiveRequest {
         } else {
             let child_params = params.child().unwrap();
             let child_depth = child_params.depth;
-            // TODO: double check here, claims should be split
+
             (start..end)
                 .step_by(1 << child_depth)
                 .map(|i| {
