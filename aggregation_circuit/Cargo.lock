@@ -4324,12 +4324,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_as"
-version = "0.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ee4afe4c5c3b69699c4267ae42b838e911466d7ca0005046adc93ac95bb16dd"
-
-[[package]]
 name = "serde_derive"
 version = "1.0.208"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5286,9 +5280,9 @@ dependencies = [
 
 [[package]]
 name = "unicode-xid"
-version = "0.2.4"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f962df74c8c05a667b5ee8bcf162993134c104e96440b663c8daa176dc772d8c"
+checksum = "229730647fbc343e3a80e463c1db7f78f3855d3f3739bee0dda773c9a037c90a"
 
 [[package]]
 name = "unroll"
@@ -5733,9 +5727,7 @@ dependencies = [
  "async-trait",
  "axiom-components",
  "axiom-eth",
- "blake3",
  "clap",
- "dirs",
  "env_logger 0.10.2",
  "ethers",
  "futures",
@@ -5744,14 +5736,11 @@ dependencies = [
  "lazy_static",
  "log",
  "num-bigint",
- "parking_lot",
- "phf",
  "reqwest",
  "reqwest-middleware",
  "reqwest-retry",
  "rocket",
  "serde",
- "serde_as",
  "serde_json",
  "serde_with",
  "serde_yaml",
