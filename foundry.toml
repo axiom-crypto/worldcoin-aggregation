@@ -5,7 +5,7 @@ solc = "0.8.19"
 libs = ["node_modules", "lib"]
 remappings = ["@axiom-crypto/axiom-std/=lib/axiom-std/src/"]
 ffi = true
-fs_permissions = [{ access = "read", path = "./circuit"}, { access = "read", path = "./script/config"}]
+fs_permissions = [{ access = "read", path = "./axiom_circuit"}, { access = "read", path = "./script/config"}]
 optimizer = true
 optimizer_runs = 1000000
 ast = true
