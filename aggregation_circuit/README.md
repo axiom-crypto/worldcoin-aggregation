@@ -6,24 +6,24 @@ This subdirectory implements circuits for batch WorldID proof verification.
 
 ```
 ├── data
-│   ├──  vk.json                        the json for the vk
-│   └──  generated_proofs_{size}.json   example input for different sizes
+│   ├──  vk.json                        The json for the vk
+│   └──  generated_proofs_{size}.json   Example inputs for different sizes
 ├── src
 |   └── bin
-|         ├── keygen.rs                 entry point for starting keygen
-|         |── local_server.rs           entry point for starting server which generates snarks locally
-|         |── prover_server.rs          entry point for starting prover which generates snark based on request
-|         └── scheduler_server.rs       entry point for starting scheduler which coordinates the execution on remote infra
-|   ├── circuit_factory                 factories to build circuits
-|   ├── circuits                        circuit implementation for the V1 circuit and the V2 circuit
-|   ├── keygen                          functions to conduct keygen
-|   ├── prover                          prover struct which can load/manage pk, build circuit and generate snark
-|   └── scheduler                       schedulers that can coordinate the executions
-|         ├── local_scheduler.rs        a scheduler that generate snarks synchronously in local
-|         ├── async_scheduler.rs        a scheduler that talks to remote dispatcher services or provers asynchronously 
-|         └── executor                  an executor which talks to a dispatcher service for executing the proving tasks, and 
-|                                       polls results until the tasks reached terminal status (DONE of FAILED)
-|   └── toolings                        toolings for select instance types for prover
+|         ├── keygen.rs                 The entry point for starting keygen
+|         |── local_server.rs           The entry point for starting server which generates SNARKs locally
+|         |── prover_server.rs          The entry point for starting prover which generates SNARKs based on request
+|         └── scheduler_server.rs       The entry point for starting a scheduler that coordinates execution across remote infrastructure
+|   ├── circuit_factory                 The factories to build circuits
+|   ├── circuits                        The circuit implementations for the V1 circuit and the V2 circuit
+|   ├── keygen                          The functions to conduct keygen
+|   ├── prover                          A Prover struct that can load and manage proving keys, build circuits, and generate SNARKs.
+|   └── scheduler                       The schedulers that break down tasks and coordinate the executions
+|         ├── local_scheduler.rs        A scheduler that generate SNARKS synchronously in local
+|         ├── async_scheduler.rs        A scheduler that talks to remote executors for execution
+|         └── executor                  An executor which talks to a dispatcher service for executing the proving tasks, and 
+|                                       polls results until the tasks reached terminal statuses
+|   └── toolings                        The toolings for select instance types for the prover
 ├── Cargo.toml
 └── README.md
 ```
@@ -45,18 +45,18 @@ As a convenience to the user, fewer than `max_proofs` claims can be submitted to
 
 ### High level approach ###
 There are 4 types of circuits
-- **WorldcoinLeafCircuit** -  It has `max_depth` which decides the max capacity to be  `2**depth` claims. It has `start` (inclusive) and `end` (exclusive) index to indicates the indexes of claims this circuit is handling. It constraints constrains
+- **WorldcoinLeafCircuit** -  It has `max_depth` which decides the max capacity to be  `2**depth` claims. It has `start` (inclusive) and `end` (exclusive) indexes for the claims this circuit is handling. It constrains
     - `start` and `end` are in `[0, 2**64)`
-    - `num_proofs (end - start)` falls between `[0, 2**max_depth]`
-    - each claim verifies with the loaded `vk` and public inputs `[root, nullifier_hash, signal_hash, grant_id]`, where ` signalHash = uint256(keccak256(abi.encodePacked(receiver))) >> 8`
+    - `num_proofs (end - start)` falls between `(0, 2**max_depth]`
+    - each claim verifies with the `vk` and public inputs `[root, nullifier_hash, signal_hash, grant_id]`, where `signalHash = uint256(keccak256(abi.encodePacked(receiver))) >> 8`
     - The public outputs are `[start, end, vk_hash_hi, vk_hash_lo, grant_id, root, ...receivers, ...nullifier_hashes]`
 - **WorldcoinIntermediateAggregationCircuit** - It aggregates either two WorldcoinLeafCircuits or WorldcoinIntermediateAggregationCircuits, and also enforce constraints between the children snarks
-    - The two children either link together, where the `end` of the 1st shard equal `start` of the 2nd shard, or the second shard is a dummy shard
-    - It check vkey, grant_id, root are the same for both shards
+    - The two children either link together, where the `end` of the 1st shard equal the `start` of the 2nd shard, or the 2nd shard is a dummy shard
+    - It check vkey, grant_id, root are the same in both shards
     - It has the same format of public outputs as the leaf circuit.
 - **WorldcoinRootAggregationCircuit** - It is similar to WorldcoinIntermediateAggregationCircuit in terms of aggregation, but it exposes the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]` as public outputs.
 - **WorldcoinEvmCircuit** - It is a passthrough circuit for the onchain verifier.
-The claims are divided into WorldcoinLeafCircuits and then aggregated until we have one single WorldcoinRootAggregationCircuit. The final public output is the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]`.
+The claim verification task is divided into WorldcoinLeafCircuits and then aggregated until we have one single WorldcoinRootAggregationCircuit. The final public output is the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]`.
 
 ## V2 circuit
 The V2 circuit set up is similar to the V1 circuit, it has public outputs
@@ -67,8 +67,6 @@ The V2 circuit set up is similar to the V1 circuit, it has public outputs
 - root
 - claimRoot – the Keccak Merkle root of the tree whose leaves are keccak256(abi.encodePacked(receiver_i, nullifierHash_i)). Leaves with indices greater than num_proofs - 1 are given by keccak256(abi.encodePacked(address(0), bytes32(0)))
 ```
-
-The configuration parameter `max_proofs` specifies the maximum number of claims in a single circuit, and must be a power of two. 
 
 - **WorldcoinLeafCircuitV2** -  It has all the constraints that the V1 circuit has.
     - In addition, it calculates the claim root for the subtree.
@@ -120,7 +118,7 @@ Then run keygen using the following command
 cargo run --release --bin keygen --features "keygen, v1(or v2)" -- --srs-dir ${SRS_DIR} --intent ${INTENT_YML_PATH} --tag ${CIDS_NAME} --data-dir ${CIRCUIT_DATA_DIR}
 ```
 
-- You need to have the corresponding `kzg_bn254_{k}`.srs under the ${SRS_DIR}, you can download the srs from the [Axiom](s3://axiom-crypto/challenge_0085/) public s3 bucket
+- You need to have the corresponding `kzg_bn254_{k}`.srs under the ${SRS_DIR}. You can download the srs from the [Axiom](s3://axiom-crypto/challenge_0085/) public s3 bucket
 - You pks, vks and .sol will be written to ${CIRCUIT_DATA_DIR}, together with a ${CIDS_NAME}.cids file which shows the computation tree.
 
 ### Start Scheduler and Sample Request
