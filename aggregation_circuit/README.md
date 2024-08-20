@@ -164,3 +164,35 @@ To start prover_server
 cargo run --release --bin prover_server  --features "asm, v1(or v2)" -- --circuit-data-dir ${CIRCUIT_DATA_DIR} --srs-dir ${SRS_DIR} --cids-path ${CIDS_PATH}
 ```
 
+### Dispatcher APIs
+The dispatcher needs to implement the following APIs
+
+#### POST /tasks
+
+**Request Body:**
+
+- **circuitId**: Uniquely identifies a circuit. 
+- **input**: Accepts a JSON object for flexibility. The Dispatcher should forward it to the proving binary without processing its content.
+
+- **[Optional] ForceProve**:  
+  A snark can be uniquely identified by `(circuitId, Hash(input))`. By default, all snarks are cached. If the Dispatcher receives a request, it will return the cached snark directly.  
+  If this field is set to `true`, the system will force a new proof generation even if a cached snark already exists.
+
+**Response:**
+- **taskId**: Uniquely identifies the proof task. The Scheduler will poll `/tasks/:taskId/status` every 5-10 seconds to check if the task is completed.
+
+#### GET /tasks/:taskId/status
+**Response:**
+- **status**: Indicates the current task status. Possible values:
+  - `PENDING`: Task is created but waiting for resources.
+  - `PREPARING`: An instance is allocated, but setup is still in progress (e.g., downloading pkey).
+  - `PROVING`: The proving job is currently running.
+  - `DONE`: The job is completed, and the snark is available.
+  - `FAILED`: The task failed.
+- **createdAt**: Timestamp when the task was created.
+- **updatedAt**: Timestamp when the task status was last updated.
+
+#### GET /tasks/:taskId/snark
+**Response:**
+- **snark**: Returns the snark file.
+
