@@ -25,10 +25,10 @@ jobs:
             ${{ secrets.AXIOM_TOOLS_DEPLOY_PRIVATE_KEY }}
 
       - name: Build circuit
-        working-directory: ./circuit
+        working-directory: ./axiom_circuit
         run: |
           cargo build --verbose
       - name: Test circuit
-        working-directory: ./circuit
+        working-directory: ./axiom_circuit
         run: |
           cargo test
