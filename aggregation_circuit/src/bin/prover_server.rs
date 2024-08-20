@@ -72,8 +72,13 @@ async fn load_circuit_data(
 ) -> Result<()> {
     let ProverTask {
         circuit_id,
-        input: request,
+        input,
     } = task.into_inner();
+
+    let TaskInput {
+        is_evm_proof,
+        request,
+    } = input;
 
     match request {
         RequestRouter::Leaf(request) => _ = prover.build_circuit(&circuit_id, request).await?,
