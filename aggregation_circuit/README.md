@@ -59,7 +59,6 @@ There are 4 types of circuits
 The claims are divided into WorldcoinLeafCircuits and then aggregated until we have one single WorldcoinRootAggregationCircuit. The final public output is the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]`.
 
 ## V2 circuit
-
 The V2 circuit set up is similar to the V1 circuit, it has public outputs
 
 ```
@@ -81,11 +80,31 @@ The configuration parameter `max_proofs` specifies the maximum number of claims 
 - **WorldcoinEvmCircuit** - It is a passthrough circuit for the onchain verifier.
 The claims are divided into `WorldcoinLeafCircuitV2`s and then aggregated until we have one single `WorldcoinRootAggregationCircuitV2`. The final public outputs are `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, claim_root_hi, claim_root_lo]`.
 
-## Keygen
-Run keygen will generated proving keys, verifying keys and on-chain verifier contract
+## Scheduler and Prover Infrastructure
+To generate proofs in parallel, we define three key roles:
 
-### Intents
-Before starting keygen, define an intent like `configs/intents/128.yml`, it has the following format
+- **Scheduler**
+The scheduler receives a task and handles the process of breaking the task into smaller subtasks, resolving dependencies and necessary input data between the tasks, and then sending concurrent proof requests to the dispatcher, waiting for task completion, and using completed tasks to start downstream tasks. 
+
+- **Dispatcher**
+The dispatcher handles container orchestration by receiving tasks, allocating necessary infrastructure resources (such as EC2 instances or Kubernetes pods), starting containers for the prover, executing the tasks, and retrieving the resulting proofs.
+
+- **Prover**
+ prover is designed to be serverless and can be run from a blind docker container as long as it is given the correct auxiliary files (pinning JSON and proving key large files, identified by circuit ID).
+
+This repository includes implementations for the Scheduler and Prover. The Dispatcher component is designed to be flexible, allowing users to plug in and integrate their own infrastructure solutions as needed.
+
+## Configuration Parameters
+
+### Maximum Batch Size
+
+The `max_proofs` configuration parameter is the maximum number of WorldID proofs which can be verified at once. It can be set in the input JSON file; see `data/generated_proofs_128.json` for an example.
+
+## Development and Testing
+### Keygen
+Run keygen will generate proving keys, verifying keys and the on-chain verifier contract.
+
+Before starting keygen, define an intent like `configs/intents/2.yml`, it has the following format
 ```
 k_at_depth: [20, 20, 20, 20]   -> the K used in each depth, where the final evm round uses k_at_depth[0] and leaf circuit uses k_at_depth[k_at_depth.len() - 1]
 params:
@@ -104,33 +123,17 @@ cargo run --release --bin keygen --features "keygen, v1(or v2)" -- --srs-dir ${S
 - You need to have the corresponding `kzg_bn254_{k}`.srs under the ${SRS_DIR}, you can download the srs from the [Axiom](s3://axiom-crypto/challenge_0085/) public s3 bucket
 - You pks, vks and .sol will be written to ${CIRCUIT_DATA_DIR}, together with a ${CIDS_NAME}.cids file which shows the computation tree.
 
-## Scheduler and Prover Infrastructure
-To generate proofs in parallel, we define three roles 
-
-- **Scheduler**
-TODO
-- **Dispatcher**
-TODO
-- **Prover**
-TODO
-
-## Configuration Parameters
-
-### Maximum Batch Size
-
-The `max_proofs` configuration parameter is the maximum number of WorldID proofs which can be verified at once. It can be set in the input JSON file; see `data/generated_proofs_128.json` for an example.
-
-## Development and Testing
-
-## Request endpoints
-At present, requests with `max_proofs=128` for the V1 circuit are supported by the demo endpoints.
-
-Sample requests:
+### Start Scheduler and Sample Request
+To start scheduler_server
 ```
-curl -X POST  -H "Content-Type: application/json" -d @data/generated_proofs_128.json localhost:8000/tasks
+cargo run --release --features "v1(or v2)" --bin scheduler_server -- --cids-path ${CIDS_PATH} --executor-url ${DISPATCHER_URL}
+```
+To send sample request:
+```
+curl -X POST http://localhost:8000/tasks -H "Content-Type: application/json" -d  @data/generated_proofs_128.json 
 ```
 
-Each [request](./src/server_types.rs#L13) should have `root`, `grant_id`, `num_proofs`, `max_proofs` and the list of `claims`, where each claim contains `receiver` address, `nullfilier_hash` and `proof`. One example:
+Each request should have `root`, `grant_id`, `num_proofs`, `max_proofs` and the list of `claims`, where each claim contains `receiver` address, `nullfilier_hash` and `proof`. One example:
 ```
 {
   "root": "12439333144543028190433995054436939846410560778857819700795779720142743070295",
@@ -156,3 +159,10 @@ Each [request](./src/server_types.rs#L13) should have `root`, `grant_id`, `num_p
   ]
 }
 ```
+
+### Start Prover
+To start prover_server
+``` 
+cargo run --release --bin prover_server  --features "asm, v1(or v2)" -- --circuit-data-dir ${CIRCUIT_DATA_DIR} --srs-dir ${SRS_DIR} --cids-path ${CIDS_PATH}
+```
+
