@@ -1,14 +1,18 @@
 # Batch WorldID proof verification with Axiom
 
-This repo integrates [WorldID](https://worldcoin.org/world-id) proof verification into [Axiom](https://docs.axiom.xyz/) to enable:
+This repo implements two types of batch [WorldID](https://worldcoin.org/world-id) proof verification:
 
-- Cheaper batch claims of WLD grants by aggregating multiple WorldID proofs at once.
-- Composition of WorldID proofs with facts about on-chain history enabled by Axiom.
+- Integration of WorldID proof verification into [Axiom](https://docs.axiom.xyz/) to enable:
+  - Cheaper batch claims of WLD grants by aggregating multiple WorldID proofs at once.
+  - Composition of WorldID proofs with facts about on-chain history enabled by Axiom.
+- A standalone implementation of batch WorldID proof verification to enable batch claims of WLD grants.
 
 These are implemented via two components:
 
-- Axiom client circuits written using the [Axiom Rust SDK](https://docs.axiom.xyz/sdk/rust-sdk/axiom-rust) that make use of newly added Groth16 verification and ECDSA primitives.
-- Smart contracts implementing WLD grant claims based on batch-verified WorldID proof results from Axiom.
+- Two implementations of ZK circuits for batch WorldID proof verification:
+  - Using Axiom client circuits written using the [Axiom Rust SDK](https://docs.axiom.xyz/sdk/rust-sdk/axiom-rust) that make use of newly added Groth16 verification and ECDSA primitives.
+  - Using Axiom's ZK circuit libraries.
+- Smart contracts implementing WLD grant claims based on batch-verified WorldID proof results.
 
 In what follows, we describe two different flows for WLD grants using this integration.
 
@@ -19,26 +23,26 @@ We implement two versions of WLD grants based on batch verification of WorldID p
 - `WorldcoinAggregationV1`: After proof verification, all the receivers in the batch immediately have their grant transferred to them.
 - `WorldcoinAggregationV2`: After proof verification, the receivers (or someone on their behalf) can prove into a Merkle root and transfer the grant to the receiver.
 
-These two versions trade off UX and cost to the grantee, and we will recommend a final design after benchmarking concrete costs.
+The V1 grant protocol can either be integrated with Axiom V2 or implemented in a standalone fashion. We recommend **WLD Grant Protocol V1 deployed standalone** for the best UX and cost for the grantee. We describe each variation below.
 
-### Grant Protocol V1
+### WLD Grant Protocol V1 (Standalone)
 
 In the V1 design, the grant contract automatically transfers the grant amount to each of the users in the batch in the same transaction as the verification. This design means users do not need to make an additional on-chain transaction to receive the grant, but incurs additional calldata and transfer cost for each grantee.
 
-The V1 grant contract supports at most `MAX_NUM_CLAIMS` at once, and receives the following `4 + 2 * MAX_NUM_CLAIMS` ZK-verified quantities in a callback from Axiom:
+The V1 grant contract supports at most `MAX_NUM_CLAIMS` at once, and receives as part of the claim transaction a ZK proof whose unique public output is a Keccak hash of the `4 + 2 * MAX_NUM_CLAIMS` ZK-verified quantities:
 
 ```
-- axiomResults[0]: vkeyHash
-- axiomResults[1]: grantId
-- axiomResults[2]: root
-- axiomResults[3]: numClaims
-- axiomResults[idx] for idx in [4, 4 + numClaims): receivers
-- axiomResults[idx] for idx in [4 + MAX_NUM_CLAIMS, 4 + MAX_NUM_CLAIMS + numClaims): claimedNullifierHashes
+- vkeyHash - the Keccak hash of the flattened vk
+- numClaims - the number of claims, which should satisfy 1 <= numClaims <= MAX_NUM_CLAIMS
+- grantId
+- root
+- receiver_i for i = 1, ..., MAX_NUM_CLAIMS
+- nullifierHash_i for i = 1, ..., MAX_NUM_CLAIMS
 ```
 
-Axiom verifies in ZK that:
+The ZK proof verifies in ZK that:
 
-1. For `0 <= idx < numClaims`, there are valid WorldID proofs corresponding to `(grantId, receivers[idx], root, claimedNullifierHashes[idx])`.
+1. For `0 <= idx < numClaims`, there are valid WorldID proofs corresponding to `(grantId, receivers[idx], root, claimedNullifierHashes[idx])` with the given Groth16 `vkeyHash`.
 
 The V1 grants contract then:
 
@@ -49,7 +53,22 @@ The V1 grants contract then:
 
 To simplify re-execution in the case of insufficient `WLD` balance, claims are all-or-nothing -- if the contract has insufficient `WLD` to fulfill the entire batch, the entire claim transaction will be reverted.
 
-### Grant Protocol V2
+### WLD Grant Protocol V1 (Integrated with Axiom)
+
+We also implement a version of the V1 design using Axiom, where the V1 grant contract receives the following `4 + 2 * MAX_NUM_CLAIMS` ZK-verified quantities in a callback from Axiom:
+
+```
+- axiomResults[0]: vkeyHash
+- axiomResults[1]: grantId
+- axiomResults[2]: root
+- axiomResults[3]: numClaims
+- axiomResults[idx] for idx in [4, 4 + numClaims): receivers
+- axiomResults[idx] for idx in [4 + MAX_NUM_CLAIMS, 4 + MAX_NUM_CLAIMS + numClaims): claimedNullifierHashes
+```
+
+The remainder of the flow proceeds in the same way as the standalone protocol.
+
+### WLD Grant Protocol V2 (Integrated with Axiom)
 
 In the V2 design, the grant contract implements a two-step process to distribute the grant. Axiom is used to verify a Keccak Merkle root of a tree of eligible grant recipients with leaves given by `abi.encodePacked(receiver, nullifierHash)`. This Merkle root is stored on-chain, and grantees use ordinary Merkle proofs to prove eligibility and claim their grants.
 
@@ -96,7 +115,23 @@ To benchmark gas usage and give an end-to-end demo, we deployed `WorldcoinAggreg
 
 Test data was generated using [semaphore-rs](https://github.com/worldcoin/semaphore-rs) with `depth_30` feature flag. Our profiling assumes that the grantees have a 0 balance for WLD. If the grantees are existing WLD holders, the WLD transfer will take 17.1K less gas, with the difference (20K - 2.9K) coming from the cost of the `SSTORE` opcode for updating grantee balances.
 
-### Grant Protocol V1
+### WLD Grant Protocol V1 (Standalone)
+
+We deployed Grant Protocol V1 in a standalone way on Sepolia for batch size 128 at the address below and also made a [sample fulfill transaction](https://sepolia.etherscan.io/tx/0x3d7488e27ba42f02bc15a2228364fa202b50d94e9fdeffbfcd9fb0b0b950b3c1).
+
+| Batch Size | Sepolia Address                                                                                                               |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 128        | [0x39521692fd1e29a397f347d8ee171b9ae2394be6](https://sepolia.etherscan.io/address/0x39521692fd1e29a397f347d8ee171b9ae2394be6) |
+
+We measured gas and calldata usage, shown in the table below. We also show gas attributed to proof verification, which excludes gas used for WLD token transfers and other business logic. On-chain \$ includes L1 and L2 gas. Our dollar cost estimates are based on an L2 gas cost of 0.06 gwei, L1 blob base fee of 1wei, and \$3000 ETH.
+
+| # Claims | L2 Gas/Claim | Proof Gas/Claim | Calldata/Claim | On-chain \$/Claim |
+| -------- | ------------ | --------------- | -------------- | ----------------- |
+| 128      | 54K          | 4K              | 80             | \$0.0099          |
+
+We recommend this standalone configuration setting for the best cost and UX.
+
+### WLD Grant Protocol V1 (Integrated with Axiom)
 
 We deployed Grant Protocol V1 on Sepolia for different sizes at the addresses below and also made a [sample fulfill transaction](https://sepolia.etherscan.io/tx/0xc8fca0877cfad47e85e2c12541ad7f843e6c8dea852606d5bdedfa3a897ddee3).
 
@@ -119,7 +154,7 @@ We measured gas and calldata usage, shown in the table below. We also show gas a
 | 64       | 58K          | 8K              | 123            | \$0.0107          |
 | 128      | 54K          | 4K              | 96             | \$0.0099          |
 
-### Grant Protocol V2
+### WLD Grant Protocol V2 (Integrated with Axiom)
 
 We deployed Grant Protocol V2 on Sepolia for different sizes at the addresses below and also made a [sample fulfill Transaction](https://sepolia.etherscan.io/tx/0x063c0731e7feda726ff08a662fbe7361be66a323e5f9dd62b620fd509847310a) and [sample claim transaction](https://sepolia.etherscan.io/tx/0x94e34370d657d8c081effdab0a074f74815178d28f15546ca10702deb3a79cc3).
 
@@ -159,6 +194,8 @@ We deployed the following other contracts to mock different aspects of the World
 
 ### Repository Overview
 
+- `aggregation_circuit/`
+  - `README.md`: Documentation for the standalone WorldID aggregation circuits for WLD grants can be found in their own README.
 - `circuit/`
   - `README.md`: The client circuit documentation can be found in its own README.
 - `src/`
