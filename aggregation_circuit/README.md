@@ -1,6 +1,6 @@
 # WorldID Proof Aggregation
 
-This subdirectory implements circuits for batch WorldID proof verification.
+This subdirectory implements ZK circuits and backend prover endpoints for batch WorldID proof verification.
 
 ## Folder structure
 
@@ -28,7 +28,7 @@ This subdirectory implements circuits for batch WorldID proof verification.
 └── README.md
 ```
 
-## V1 circuit
+## V1 Aggregation Circuit Design
 
 The V1 circuit verifies the WorldID Groth16 proofs in batch, and exposes as a public output the Keccak hash of the following quantities.
 
@@ -57,7 +57,7 @@ To implement the V1 circuit, we use the following 4 types of circuits:
 - **WorldcoinEvmCircuit** - It is a passthrough circuit for the onchain verifier.
 The claim verification task is divided into WorldcoinLeafCircuits and then aggregated until we have one single WorldcoinRootAggregationCircuit. The final public output is the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]`.
 
-## V2 circuit
+## V2 Aggregation Circuit Design
 
 The V2 circuit design is similar to the V1 circuit.  It has public outputs
 
@@ -80,8 +80,9 @@ The V2 design is implemented through the following circuits:
 - **WorldcoinEvmCircuit** - It is a passthrough circuit for the onchain verifier.
 The claims are divided into `WorldcoinLeafCircuitV2`s and then aggregated until we have one single `WorldcoinRootAggregationCircuitV2`. The final public outputs are `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, claim_root_hi, claim_root_lo]`.
 
-## Scheduler and Prover Infrastructure
-To generate proofs in parallel, we define three key roles:
+## Backend Proving Infrastructure
+
+We provide tooling for an external operator to generate aggregation proofs in parallel. This involves three key roles:
 
 - **Scheduler**
 The scheduler receives a task and handles the process of breaking the task into smaller subtasks, resolving dependencies and necessary input data between the tasks, and then sending concurrent proof requests to the dispatcher, waiting for task completion, and using completed tasks to start downstream tasks. 
@@ -92,19 +93,45 @@ The dispatcher handles container orchestration by receiving tasks, allocating ne
 - **Prover**
  prover is designed to be serverless and can be run from a blind docker container as long as it is given the correct auxiliary files (pinning JSON and proving key large files, identified by circuit ID).
 
-This repository includes implementations for the Scheduler and Prover. The Dispatcher component is designed to be flexible, allowing users to plug in and integrate their own infrastructure solutions as needed.
+This repository includes implementations for the Scheduler and Prover.  These can interoperate with an operator-written Dispatcher, which will need to integrate with the operator's on-prem or cloud infrastructure solution. 
 
-## Configuration Parameters
+### Dispatcher API Interface
 
-### Maximum Batch Size
+The Dispatcher must be implemented as a web server conforming to the following APIs.
 
-The `max_proofs` configuration parameter is the maximum number of WorldID proofs which can be verified at once. It can be set in the input JSON file; see `data/generated_proofs_128.json` for an example.
+#### POST `/tasks`
 
-## Development and Testing
+**Request Body:**
+
+- **circuitId**: Uniquely identifies a circuit. 
+- **input**: Accepts a JSON object for flexibility. The Dispatcher should forward it to the proving binary without processing its content.
+
+- **[Optional] ForceProve**:  
+  A snark can be uniquely identified by `(circuitId, Hash(input))`. By default, all snarks are cached. If the Dispatcher receives a request, it will return the cached snark directly.  
+  If this field is set to `true`, the system will force a new proof generation even if a cached snark already exists.
+
+**Response:**
+- **taskId**: Uniquely identifies the proof task. The Scheduler will poll `/tasks/:taskId/status` every 5-10 seconds to check if the task is completed.
+
+#### GET `/tasks/:taskId/status`
+**Response:**
+- **status**: Indicates the current task status. Possible values:
+  - `PENDING`: Task is created but waiting for resources.
+  - `PREPARING`: An instance is allocated, but setup is still in progress (e.g., downloading pkey).
+  - `PROVING`: The proving job is currently running.
+  - `DONE`: The job is completed, and the snark is available.
+  - `FAILED`: The task failed.
+- **createdAt**: Timestamp when the task was created.
+- **updatedAt**: Timestamp when the task status was last updated.
+
+#### GET `/tasks/:taskId/snark`
+**Response:**
+- **snark**: Returns the snark file.
+
 ### Keygen
-Run keygen will generate proving keys, verifying keys and the on-chain verifier contract.
 
-Before starting keygen, define an intent like `configs/intents/2.yml`, it has the following format
+Before setting up the proving backend, you must first run keygen, which will generate proving keys, verifying keys and the on-chain verifier contract. To run keygen, define an intent like `configs/intents/2.yml`, which has the following format:
+
 ```
 k_at_depth: [20, 20, 20, 20]   -> the K used in each depth, where the final evm round uses k_at_depth[0] and leaf circuit uses k_at_depth[k_at_depth.len() - 1]
 params:
@@ -112,19 +139,18 @@ params:
     Evm: 1  -> extra round we are doing WorldcoinEvmCircuit, it is typically set to 1
   depth: 1  -> 1 << depth is the max_proofs we are handling
   initial_depth: 0  -> 1 << initial_depth is the max_proofs a single leaf circuit can handle
-
 ``` 
 
-Then run keygen using the following command
+Next, download the corresponding trusted setup file to `${SRS_DIR}` as `kzg_bn254_{k}.srs`.  For a default Phase 1 trusted setup, you can use the files provided by [Axiom](s3://axiom-crypto/challenge_0085/) in a public S3 bucket.  You can now run keygen using the following command:
 ```
 cargo run --release --bin keygen --features "keygen, v1(or v2)" -- --srs-dir ${SRS_DIR} --intent ${INTENT_YML_PATH} --tag ${CIDS_NAME} --data-dir ${CIRCUIT_DATA_DIR}
 ```
 
-- You need to have the corresponding `kzg_bn254_{k}`.srs under the ${SRS_DIR}. You can download the srs from the [Axiom](s3://axiom-crypto/challenge_0085/) public s3 bucket
-- You pks, vks and .sol will be written to ${CIRCUIT_DATA_DIR}, together with a ${CIDS_NAME}.cids file which shows the computation tree.
+The resulting proving keys, verification keys, and on-chain verification contract will be written to `${CIRCUIT_DATA_DIR}`, together with a `${CIDS_NAME}.cids` file which encodes the computation tree.
 
-### Start Scheduler and Sample Request
-To start scheduler_server
+### Scheduler
+
+To start the Scheduler, run the command:
 ```
 cargo run --release --features "v1(or v2)" --bin scheduler_server -- --cids-path ${CIDS_PATH} --executor-url ${DISPATCHER_URL}
 ```
@@ -160,41 +186,12 @@ Each request should have `root`, `grant_id`, `num_proofs`, `max_proofs` and the 
 }
 ```
 
-### Start Prover
-To start prover_server
+### Prover
+To start the Prover, run the command:
 ``` 
 cargo run --release --bin prover_server  --features "asm, v1(or v2)" -- --circuit-data-dir ${CIRCUIT_DATA_DIR} --srs-dir ${SRS_DIR} --cids-path ${CIDS_PATH}
 ```
 
-### Dispatcher APIs
-The dispatcher needs to implement the following APIs
+## Configuration Parameters
 
-#### POST /tasks
-
-**Request Body:**
-
-- **circuitId**: Uniquely identifies a circuit. 
-- **input**: Accepts a JSON object for flexibility. The Dispatcher should forward it to the proving binary without processing its content.
-
-- **[Optional] ForceProve**:  
-  A snark can be uniquely identified by `(circuitId, Hash(input))`. By default, all snarks are cached. If the Dispatcher receives a request, it will return the cached snark directly.  
-  If this field is set to `true`, the system will force a new proof generation even if a cached snark already exists.
-
-**Response:**
-- **taskId**: Uniquely identifies the proof task. The Scheduler will poll `/tasks/:taskId/status` every 5-10 seconds to check if the task is completed.
-
-#### GET /tasks/:taskId/status
-**Response:**
-- **status**: Indicates the current task status. Possible values:
-  - `PENDING`: Task is created but waiting for resources.
-  - `PREPARING`: An instance is allocated, but setup is still in progress (e.g., downloading pkey).
-  - `PROVING`: The proving job is currently running.
-  - `DONE`: The job is completed, and the snark is available.
-  - `FAILED`: The task failed.
-- **createdAt**: Timestamp when the task was created.
-- **updatedAt**: Timestamp when the task status was last updated.
-
-#### GET /tasks/:taskId/snark
-**Response:**
-- **snark**: Returns the snark file.
-
+The `max_proofs` configuration parameter is the maximum number of WorldID proofs which can be verified at once. It can be set in the input JSON file; see `data/generated_proofs_128.json` for an example.
