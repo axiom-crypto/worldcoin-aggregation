@@ -17,7 +17,7 @@ use axiom_eth::{
     Field,
 };
 
-use itertools::Itertools;
+use itertools::{multiunzip, Itertools};
 use std::str::FromStr;
 
 use axiom_components::{
@@ -35,20 +35,16 @@ use num_bigint::BigUint;
 use std::{fmt::Debug, vec};
 
 use crate::{circuit_factory::leaf::WorldcoinRequestLeaf, constants::*};
-use crate::{
-    types::*,
-    utils::{get_signal_hash, get_vk_hash},
-};
+use crate::{types::*, utils::get_vk_hash};
 
 pub type WorldcoinLeafCircuit<F> = RlcKeccakCircuitImpl<F, WorldcoinLeafInput<F>>;
 
 #[derive(Clone, Debug, Default)]
 pub struct WorldcoinLeafInput<T: Copy> {
-    pub start: u32,
-    pub end: u32,
+    pub start: T,
+    pub end: T,
     pub vk_bytes: Vec<T>,
     pub root: T,
-    pub grant_id: T,
     pub claims: Vec<ClaimInput<T>>,
     pub num_public_inputs: T,
     pub max_depth: usize,
@@ -58,7 +54,6 @@ impl WorldcoinLeafInput<Fr> {
     pub fn new(
         vk_str: String,
         root: String,
-        grant_id: String,
         start: u32,
         end: u32,
         max_depth: usize,
@@ -77,23 +72,24 @@ impl WorldcoinLeafInput<Fr> {
             let nullifier_hash =
                 fe_from_big(BigUint::from_str(&claims[_i].nullifier_hash).unwrap());
             let receiver = encode_addr_to_field(&claims[_i].receiver);
-
+            let grant_id = fe_from_big(BigUint::from_str(&claims[_i].grant_id).unwrap());
             claims_input.push(ClaimInput {
                 receiver,
                 nullifier_hash,
+                grant_id,
                 proof_bytes,
             })
         }
         claims_input.resize(max_proofs, claims_input[0].clone());
 
-        let root = biguint_to_fe(&BigUint::from_str(root.as_str()).unwrap());
+        let start = Fr::from(start as u64);
+        let end = Fr::from(end as u64);
 
-        let grant_id = biguint_to_fe(&BigUint::from_str(grant_id.as_str()).unwrap());
+        let root = biguint_to_fe(&BigUint::from_str(root.as_str()).unwrap());
 
         let num_public_inputs = Fr::from(MAX_GROTH16_PI as u64 + 1);
         Self {
             root,
-            grant_id,
             start,
             end,
             max_depth,
@@ -109,23 +105,21 @@ impl From<WorldcoinRequestLeaf> for WorldcoinLeafInput<Fr> {
         let WorldcoinRequestLeaf {
             vk,
             root,
-            grant_id,
             start,
             end,
             depth,
             claims,
         } = input;
         let vk_str = serde_json::to_string(&vk).unwrap();
-        WorldcoinLeafInput::new(vk_str, root, grant_id, start, end, depth, claims)
+        WorldcoinLeafInput::new(vk_str, root, start, end, depth, claims)
     }
 }
 
 impl<F: Field> WorldcoinLeafInput<F> {
-    pub fn assign(&self, ctx: &mut Context<F>) -> WorldcoinAssignedInput<F> {
-        let start = ctx.load_witness(F::from(self.start as u64));
-        let end = ctx.load_witness(F::from(self.end as u64));
+    pub fn assign(&self, ctx: &mut Context<F>) -> WorldcoinLeafInput<AssignedValue<F>> {
+        let start = ctx.load_witness(self.start);
+        let end = ctx.load_witness(self.end);
         let root = ctx.load_witness(self.root);
-        let grant_id = ctx.load_witness(self.grant_id);
         let num_public_inputs = ctx.load_witness(self.num_public_inputs);
 
         let mut claim_inputs: Vec<ClaimInput<AssignedValue<F>>> = Vec::new();
@@ -136,22 +130,24 @@ impl<F: Field> WorldcoinLeafInput<F> {
             let proof_bytes = ctx.assign_witnesses(claim.proof_bytes.clone());
             let receiver = ctx.load_witness(claim.receiver);
             let nullifier_hash = ctx.load_witness(claim.nullifier_hash);
+            let grant_id = ctx.load_witness(claim.grant_id);
 
             claim_inputs.push(ClaimInput {
                 proof_bytes,
                 receiver,
                 nullifier_hash,
+                grant_id,
             })
         }
 
-        WorldcoinAssignedInput {
+        WorldcoinLeafInput::<AssignedValue<F>> {
             start,
             end,
             root,
-            grant_id,
             vk_bytes,
             claims: claim_inputs,
             num_public_inputs,
+            max_depth: self.max_depth,
         }
     }
 }
@@ -159,7 +155,7 @@ impl<F: Field> WorldcoinLeafInput<F> {
 impl<F: Field> CircuitMetadata for WorldcoinLeafInput<F> {
     const HAS_ACCUMULATOR: bool = false;
     fn num_instance(&self) -> Vec<usize> {
-        vec![6 + 2 * (1 << self.max_depth)]
+        vec![5 + 3 * (1 << self.max_depth)]
     }
 }
 
@@ -179,14 +175,14 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInput<F> {
         // ==== Assign =====
         let zero = ctx.load_zero();
         let one = ctx.load_constant(F::ONE);
-        let WorldcoinAssignedInput {
+        let WorldcoinLeafInput::<AssignedValue<F>> {
             start,
             end,
             root,
-            grant_id,
             claims,
             vk_bytes,
             num_public_inputs,
+            max_depth,
         } = self.assign(ctx);
 
         // ==== Constraints ====
@@ -197,7 +193,7 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInput<F> {
         range.check_less_than(ctx, start, end, 64);
 
         let num_proofs = range.gate().sub(ctx, end, start);
-        let max_proofs = ctx.load_constant(F::from(1 << self.max_depth));
+        let max_proofs = ctx.load_constant(F::from(1 << max_depth));
         let max_proofs_plus_one = range.gate().add(ctx, max_proofs, one);
 
         // constrain 0 < num_proofs <= max_proofs
@@ -207,22 +203,19 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInput<F> {
         let constants = get_groth16_consts_from_max_pi(MAX_GROTH16_PI);
 
         assert_eq!(self.vk_bytes.len(), constants.num_fe_hilo_vkey);
-
         let vk_hash: HiLo<AssignedValue<F>> = get_vk_hash(ctx, range, keccak, vk_bytes.clone());
-
         let vk = Groth16VerifierComponentVerificationKey::unflatten(
             vk_bytes,
             constants.gamma_abc_g1_len,
         );
 
         parallelize_core(builder.base.pool(0), claims.clone(), |ctx, claim| {
-            let signal_hash = get_signal_hash(ctx, range, keccak, &claim.receiver);
-
             // pi[0] root
             // pi[1] nullifier_hash
-            // pi[2] signal_hash from receiver
+            // pi[2] receiver
             // pi[3] grant_id
-            let public_inputs = [root, claim.nullifier_hash, signal_hash, grant_id].to_vec();
+            let public_inputs =
+                [root, claim.nullifier_hash, claim.receiver, claim.grant_id].to_vec();
 
             let groth16_verifier_input = Groth16VerifierInput {
                 vk: vk.clone(),
@@ -247,23 +240,29 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInput<F> {
             ()
         });
 
-        let (receivers, nullifier_hashes): (Vec<AssignedValue<F>>, Vec<AssignedValue<F>>) = claims
-            .into_iter()
-            .map(|claim| (claim.receiver, claim.nullifier_hash))
-            .collect();
+        let (grant_ids, receivers, nullifier_hashes): (
+            Vec<AssignedValue<F>>,
+            Vec<AssignedValue<F>>,
+            Vec<AssignedValue<F>>,
+        ) = multiunzip(
+            claims
+                .into_iter()
+                .map(|claim| (claim.grant_id, claim.receiver, claim.nullifier_hash)),
+        );
 
         // instances:
         // [0] start
         // [1] end
-        // [2, 4) vkey_hash
-        // [4] grant_id
-        // [5] root
-        // [6, 6 + 1 << max_depth) receiver_i
-        // [6 + 1 << max_depth, 6 + 2 * (1 << max_depth)) nullifier_hash_i
+        // [2, 3] vkey_hash
+        // [4] root
+        // [5, 5 + 1 << max_depth) grant_id_i
+        // [5 + 1 << max_depth, 5 + 2 * (1 << max_depth)) receiver_i
+        // [5 + 2 * (1 << max_depth), 5 + 3 * (1 << max_depth)) nullifier_hash_i
         let assigned_instances = iter::empty()
             .chain([start, end])
             .chain([vk_hash.hi(), vk_hash.lo()])
-            .chain([grant_id, root])
+            .chain([root])
+            .chain(grant_ids)
             .chain(receivers)
             .chain(nullifier_hashes)
             .collect_vec();

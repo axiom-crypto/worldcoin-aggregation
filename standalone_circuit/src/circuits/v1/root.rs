@@ -4,7 +4,7 @@
 //! - two [WorldcoinIntermediateAggregationCircuit]s.
 //!
 //! The difference between Intermediate and Root aggregation circuits is that they expose different public outputs. Root aggregation
-//! exposes the hash of the output [vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]
+//! exposes the hash of the output [vk_hash_hi, vk_hash_lo, root, num_proofs, ...grant_ids, ...receivers, ...nullifier_hashes]
 
 use anyhow::{bail, Result};
 use axiom_eth::{
@@ -28,7 +28,7 @@ use axiom_eth::{
 
 use itertools::Itertools;
 
-use super::intermediate::{join_previous_instances, WorldcoinIntermediateAggregationInput};
+use super::intermediate::WorldcoinIntermediateAggregationInput;
 
 pub type WorldcoinRootAggregationCircuit = RlcKeccakCircuitImpl<Fr, WorldcoinRootAggregationInput>;
 
@@ -85,7 +85,7 @@ impl EthCircuitInstructions<Fr> for WorldcoinRootAggregationInput {
     ) -> Self::FirstPhasePayload {
         let WorldcoinIntermediateAggregationInput {
             max_depth,
-            initial_depth,
+            initial_depth: _,
             num_proofs,
             snarks,
         } = self.inner.clone();
@@ -112,20 +112,19 @@ impl EthCircuitInstructions<Fr> for WorldcoinRootAggregationInput {
 
         let num_proofs = ctx.load_witness(Fr::from(num_proofs as u64));
 
-        let new_instances = join_previous_instances::<Fr>(
+        let new_instances = WorldcoinIntermediateAggregationInput::join_previous_instances::<Fr>(
             ctx,
             &range,
             previous_instances.try_into().unwrap(),
             num_proofs,
             max_depth,
-            initial_depth,
         );
 
-        // output:  [vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]
+        // output:  [vk_hash_hi, vk_hash_lo, root, num_proofs, ...grant_ids, ...receivers, ...nullifier_hashes]
         let mut output: Vec<AssignedValue<Fr>> = Vec::new();
-        output.extend(new_instances[2..6].to_vec());
+        output.extend(new_instances[2..5].to_vec());
         output.extend([num_proofs].to_vec());
-        output.extend(new_instances[6..6 + 2 * (1 << max_depth)].to_vec());
+        output.extend(new_instances[5..5 + 3 * (1 << max_depth)].to_vec());
 
         // generate keccak hash for the outputs
         let output_bytes: Vec<AssignedValue<Fr>> = output
@@ -140,7 +139,7 @@ impl EthCircuitInstructions<Fr> for WorldcoinRootAggregationInput {
             .flatten()
             .collect();
 
-        assert_eq!(output_bytes.len(), 32 * (5 + 2 * (1 << max_depth)));
+        assert_eq!(output_bytes.len(), 32 * (4 + 3 * (1 << max_depth)));
 
         let output_hash = keccak.keccak_fixed_len(ctx, output_bytes);
 

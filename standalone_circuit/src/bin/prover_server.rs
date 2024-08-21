@@ -70,10 +70,7 @@ async fn load_circuit_data(
     task: Json<ProverTask>,
     prover: &State<ProvingServerState>,
 ) -> Result<()> {
-    let ProverTask {
-        circuit_id,
-        input,
-    } = task.into_inner();
+    let ProverTask { circuit_id, input } = task.into_inner();
 
     let TaskInput {
         is_evm_proof,

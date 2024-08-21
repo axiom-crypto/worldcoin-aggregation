@@ -133,7 +133,6 @@ impl KeygenCircuitIntent<Fr> for IntentLeaf {
         let request_leaf: WorldcoinRequestLeaf = WorldcoinRequestLeaf {
             vk: VK.clone(),
             root: request.root,
-            grant_id: request.grant_id,
             claims: request.claims,
             depth: self.depth,
             start: 0,

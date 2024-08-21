@@ -49,7 +49,6 @@ impl LocalScheduler {
         end: u32,
         depth: usize,
         root: String,
-        grant_id: String,
         claims: Vec<ClaimNative>,
     ) -> Result<WorldcoinRequestLeaf> {
         if end - start > (1 << depth) {
@@ -61,7 +60,6 @@ impl LocalScheduler {
             end,
             depth,
             root,
-            grant_id,
             claims,
             vk: self.vk.clone(),
         })
@@ -79,14 +77,13 @@ impl LocalScheduler {
         let RecursiveRequest {
             start,
             end,
-            grant_id,
             root,
             claims,
             params,
         } = req;
         if params.depth == params.initial_depth {
             let leaf = self
-                .get_request_leaf(start, end, params.depth, root, grant_id, claims)
+                .get_request_leaf(start, end, params.depth, root, claims)
                 .await?;
             Ok(RequestRouter::Leaf(leaf))
         } else {

@@ -4,7 +4,7 @@
 //! - two [WorldcoinIntermediateAggregationCircuit]s.
 //!
 //! The difference between Intermediate and Root aggregation circuits is that they expose different public outputs. Root aggregation
-//! exposes the hash of the output [vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]
+//! exposes the hash of the output [vk_hash_hi, vk_hash_lo, root, num_proofs, claim_root_hi, claim_root_lo]
 
 use anyhow::Result;
 use axiom_eth::{
@@ -71,6 +71,6 @@ impl CircuitMetadata for WorldcoinRootAggregationInputV2 {
     const HAS_ACCUMULATOR: bool = true;
 
     fn num_instance(&self) -> Vec<usize> {
-        vec![NUM_FE_ACCUMULATOR + 7]
+        vec![NUM_FE_ACCUMULATOR + 6]
     }
 }

@@ -6,6 +6,7 @@ use axiom_eth::{
         safe_types::SafeBool,
         AssignedValue,
     },
+    halo2_proofs::plonk::Assigned,
     halo2curves::bn256::Fr,
     mpt::MPTChip,
     rlc::circuit::builder::RlcCircuitBuilder,
@@ -73,14 +74,14 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
         // ==== Assign =====
         let zero = ctx.load_zero();
         let one = ctx.load_constant(F::ONE);
-        let WorldcoinAssignedInput {
+        let WorldcoinLeafInput::<AssignedValue<F>> {
             start,
             end,
             root,
-            grant_id,
             num_public_inputs,
             claims,
             vk_bytes,
+            max_depth,
         } = self.0.assign(ctx);
 
         // ==== Constraints ====
@@ -90,7 +91,7 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
         range.check_less_than(ctx, start, end, 64);
 
         let num_proofs = gate.sub(ctx, end, start);
-        let max_proofs = ctx.load_constant(F::from(1 << self.0.max_depth));
+        let max_proofs = ctx.load_constant(F::from(1 << max_depth));
         let max_proofs_plus_one = gate.add(ctx, max_proofs, one);
 
         // constrain 0 < num_proofs <= max_proofs
@@ -123,13 +124,12 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
         let leaves = parallelize_core(builder.base.pool(0), inputs, |ctx, input| {
             let (claim, mask) = input;
 
-            let signal_hash = get_signal_hash(ctx, range, keccak, &claim.receiver);
-
             // pi[0] root
             // pi[1] nullifier_hash
             // pi[2] signal_hash from receiver
             // pi[3] grant_id
-            let public_inputs = [root, claim.nullifier_hash, signal_hash, grant_id].to_vec();
+            let public_inputs =
+                [root, claim.nullifier_hash, claim.receiver, claim.grant_id].to_vec();
 
             let groth16_verifier_input = Groth16VerifierInput {
                 vk: vk.clone(),
@@ -155,13 +155,13 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
             // Leaves: keccak256(abi.encodePacked(receiver_i, nullifierHash_i))
             // Leaves with indices greater than num_proofs - 1 are given by keccak256(abi.encodePacked(address(0), bytes32(0)))
             let mut bytes = Vec::new();
+            let masked_grant_id = gate.mul(ctx, claim.grant_id, mask);
             let masked_receiver = gate.mul(ctx, claim.receiver, mask);
-            let receiver_bytes = uint_to_bytes_be(ctx, range, &masked_receiver, 20);
             let masked_nullifier_hash = gate.mul(ctx, public_inputs[1], mask);
-            let nullifier_hash_bytes = uint_to_bytes_be(ctx, range, &masked_nullifier_hash, 32);
-            bytes.extend(receiver_bytes.iter().map(|sb| *sb.as_ref()));
-            bytes.extend(nullifier_hash_bytes.iter().map(|sb| *sb.as_ref()));
-
+            bytes.extend(uint_to_bytes_be(ctx, range, &masked_grant_id, 32));
+            bytes.extend(uint_to_bytes_be(ctx, range, &masked_receiver, 20));
+            bytes.extend(uint_to_bytes_be(ctx, range, &masked_nullifier_hash, 32));
+            let bytes = bytes.iter().map(|sb| *sb.as_ref()).collect();
             let keccak_hash = keccak.keccak_fixed_len(ctx, bytes);
 
             HiLo::from_hi_lo([keccak_hash.output_hi, keccak_hash.output_lo])
@@ -176,15 +176,14 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
         // [0] start
         // [1] end
         // [2, 3] vkey_hash
-        // [4] grant_id
-        // [5] root
-        // [6, 7] claim_root
+        // [4] root
+        // [5, 6] claim_root
         // leaves being keccak256(abi.encodePacked(receiver_i, nullifierHash_i))
-        // Leaves with indices greater than num_proofs - 1 are given by keccak246(abi.encodePacked(address(0), bytes32(0)))
+        // Leaves with indices greater than num_proofs - 1 are given by keccak256(abi.encodePacked(address(0), bytes32(0)))
         let assigned_instances = iter::empty()
             .chain([start, end])
             .chain(vk_hash.hi_lo())
-            .chain([grant_id, root])
+            .chain([root])
             .chain(claim_root.hi_lo())
             .collect_vec();
 

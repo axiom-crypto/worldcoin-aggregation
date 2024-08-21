@@ -83,6 +83,7 @@ impl Display for InvalidInputContext {
 pub struct ClaimNative {
     pub receiver: Address,
     pub nullifier_hash: String,
+    pub grant_id: String,
     pub proof: Vec<String>,
 }
 
@@ -90,6 +91,7 @@ pub struct ClaimNative {
 pub struct ClaimInput<T: Copy> {
     pub receiver: T,
     pub nullifier_hash: T,
+    pub grant_id: T,
     pub proof_bytes: Vec<T>,
 }
 
@@ -111,7 +113,6 @@ pub struct VkNative {
 pub struct WorldcoinNativeInput {
     pub vk: VkNative,
     pub root: String,
-    pub grant_id: String,
     pub num_proofs: usize,
     pub max_proofs: usize,
     pub claims: Vec<ClaimNative>,
@@ -181,20 +182,9 @@ pub fn parse_proof(pf_string: String) -> Vec<Fr> {
     pf.flatten_vec()
 }
 
-pub struct WorldcoinAssignedInput<F: Field> {
-    pub start: AssignedValue<F>,
-    pub end: AssignedValue<F>,
-    pub root: AssignedValue<F>,
-    pub grant_id: AssignedValue<F>,
-    pub vk_bytes: Vec<AssignedValue<F>>,
-    pub claims: Vec<ClaimInput<AssignedValue<F>>>,
-    pub num_public_inputs: AssignedValue<F>,
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct WorldcoinRequest {
     pub root: String,
-    pub grant_id: String,
     pub num_proofs: usize,
     pub max_proofs: usize,
     pub claims: Vec<ClaimNative>,
