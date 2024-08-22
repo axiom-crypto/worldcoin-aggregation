@@ -62,7 +62,7 @@ impl Scheduler for LocalScheduler {
             is_evm_proof,
             request,
         } = input;
-        log::debug!("Router:{:?} CID-{:?}", circuit_id, request);
+        log::debug!("Router:{:?} CID", circuit_id);
 
         let task_id = Uuid::new_v4().to_string();
 

@@ -21,10 +21,11 @@ struct Request {
     // end index of the claim, exclusive
     end: u32,
     root: String,
-    grant_id: String,
     // the claims vector has [start, end) claims
     claims: Vec<ClaimNative>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    initial_depth: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     depth: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -48,15 +49,17 @@ async fn serve(task: Json<Request>, scheduler: &State<LocalScheduler>) -> Result
         start,
         end,
         root,
-        grant_id,
         claims,
         depth,
+        initial_depth,
         is_final,
         for_evm,
         rounds,
     } = task.into_inner();
 
     let depth = depth.unwrap_or(INITIAL_DEPTH);
+    let initial_depth = initial_depth.unwrap_or(INITIAL_DEPTH);
+
     if end - start > 1 << depth {
         return Err(anyhow!("Too many proofs!")
             .context(InvalidInputContext)
@@ -75,12 +78,12 @@ async fn serve(task: Json<Request>, scheduler: &State<LocalScheduler>) -> Result
         } else {
             NodeType::Root
         }
-    } else if depth == INITIAL_DEPTH {
+    } else if depth == initial_depth {
         NodeType::Leaf
     } else {
         NodeType::Intermediate
     };
-    let params = NodeParams::new(node_type, depth, INITIAL_DEPTH);
+    let params = NodeParams::new(node_type, depth, initial_depth);
     let req = RecursiveRequest {
         start,
         end,

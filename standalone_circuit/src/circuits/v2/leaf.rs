@@ -49,7 +49,7 @@ impl From<WorldcoinRequestLeaf> for WorldcoinLeafInputV2<Fr> {
 impl<F: Field> CircuitMetadata for WorldcoinLeafInputV2<F> {
     const HAS_ACCUMULATOR: bool = false;
     fn num_instance(&self) -> Vec<usize> {
-        vec![8]
+        vec![7]
     }
 }
 

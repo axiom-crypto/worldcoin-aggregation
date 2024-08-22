@@ -234,7 +234,7 @@ impl WorldcoinIntermediateAggregationInputV2 {
         );
 
         // new instances for the aggregation layer
-        // [start, end, vk_hash_hi, vk_hash_lo, grant_id, root, claim_root_hi, claim_root_lo]
+        // [start, end, vk_hash_hi, vk_hash_lo, root, claim_root_hi, claim_root_lo]
         instances.extend(claim_root.hi_lo());
 
         instances
