@@ -20,16 +20,16 @@ impl SchedulerTaskTracker {
 
     pub async fn record_task(
         &self,
-        request_id: String,
-        task_id: String,
-        params: NodeParams,
+        request_id: &str,
+        task_id: &str,
+        params: &NodeParams,
     ) -> anyhow::Result<()> {
         let request_id_to_task_ids = self.request_id_to_tasks.lock();
         request_id_to_task_ids
             .await
-            .entry(request_id)
+            .entry(request_id.to_string())
             .or_insert_with(Vec::new)
-            .push((task_id, params));
+            .push((task_id.clone().to_string(), params.clone()));
         Ok(())
     }
 }

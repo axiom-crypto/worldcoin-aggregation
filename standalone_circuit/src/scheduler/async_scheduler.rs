@@ -13,7 +13,7 @@ use crate::{
         root::WorldcoinRequestRoot,
     },
     constants::VK,
-    keygen::node_params::{NodeParams, NodeType},
+    keygen::node_params::{self, NodeParams, NodeType},
     prover::types::{ProverProof, ProverTask, TaskInput},
     scheduler::{
         executor::{dispatcher::DispatcherExecutor, ProofExecutor},
@@ -23,7 +23,13 @@ use crate::{
     types::ClaimNative,
 };
 
-use super::{contract_client::ContractClient, task_tracker::SchedulerTaskTracker};
+use super::{
+    contract_client::ContractClient, executor::ExecutionResult, task_tracker::SchedulerTaskTracker,
+    Scheduler,
+};
+
+use async_trait::async_trait;
+
 
 #[derive(Clone)]
 pub struct AsyncScheduler {
@@ -38,6 +44,69 @@ pub struct AsyncScheduler {
     pub execution_summary_path: Arc<PathBuf>,
     // the client to interact with the smart contract
     pub contract_client: Arc<ContractClient>,
+}
+
+#[async_trait]
+impl Scheduler for AsyncScheduler {
+    async fn get_circuit_id(&self, req: &RecursiveRequest) -> Result<String> {
+        let circuit_id = self
+            .circuit_id_repo
+            .read()
+            .await
+            .get(&req.params)
+            .ok_or_else(|| anyhow!("Circuit ID for {:?} not found", req.params))?
+            .to_owned();
+
+        Ok(circuit_id)
+    }
+
+    async fn generate_proof(&self, task: ProverTask) -> Result<super::executor::ExecutionResult> {
+        self.executor.execute(task).await
+    }
+
+    async fn post_proof_gen(
+        &self,
+        request_id: &str,
+        circuit_id: &str,
+
+        result: &ExecutionResult,
+    ) -> Result<()> {
+        let cid_to_params = self.cid_to_params.read().await;
+        let node_params = cid_to_params.get(circuit_id).unwrap();
+
+        self.task_tracker
+            .record_task(request_id, &result.task_id, node_params)
+            .await
+    }
+
+    async fn get_snarks_for_deps(
+        &self,
+        request_id: &str,
+        req: &RecursiveRequest,
+    ) -> Result<Vec<Snark>> {
+        let mut futures = vec![];
+        for dep in req.dependencies() {
+            let future = async move {
+                self.recursive_gen_proof(request_id, dep, false)
+                    .await
+            };
+            futures.push(future);
+        }
+
+        let results = join_all(futures).await;
+
+        let snarks: Vec<Snark> = results
+            .into_iter()
+            .map(|result| {
+                result.map(|snark| match snark {
+                    ProverProof::Snark(snark) => snark.snark.inner,
+                    ProverProof::EvmProof(_) => unreachable!(),
+                })
+            })
+            .collect::<Result<Vec<Snark>, _>>()?;
+
+        Ok(snarks)
+    }
 }
 
 impl AsyncScheduler {
@@ -72,163 +141,5 @@ impl AsyncScheduler {
             execution_summary_path: Arc::new(execution_summary_path),
             contract_client: Arc::new(contract_client),
         }
-    }
-
-    async fn get_request_leaf(
-        &self,
-        start: u32,
-        end: u32,
-        depth: usize,
-        root: String,
-        claims: Vec<ClaimNative>,
-    ) -> Result<WorldcoinRequestLeaf> {
-        if end - start > (1 << depth) {
-            bail!("start: {start}, end: {end}, cannot request more than 2^{depth} proofs");
-        }
-
-        Ok(WorldcoinRequestLeaf {
-            start,
-            end,
-            depth,
-            root,
-            claims,
-            vk: VK.clone(),
-        })
-    }
-
-    #[async_recursion]
-    pub async fn handle_recursive_request(
-        &self,
-        request_id: &String,
-        req: RecursiveRequest,
-        is_evm_proof: bool,
-    ) -> Result<RequestRouter> {
-        // Recursively generate the SNARKs for the dependencies of this task.
-        let mut futures = vec![];
-        for dep in req.dependencies() {
-            let future = async move {
-                self.recursive_gen_proof(request_id, dep, is_evm_proof)
-                    .await
-            };
-            futures.push(future);
-        }
-
-        let results = join_all(futures).await;
-
-        let mut snarks: Vec<Snark> = results
-            .into_iter()
-            .map(|result| {
-                result.map(|snark| match snark {
-                    ProverProof::Snark(snark) => snark.snark.inner,
-                    ProverProof::EvmProof(_) => unreachable!(),
-                })
-            })
-            .collect::<Result<Vec<Snark>, _>>()?;
-
-        let RecursiveRequest {
-            start,
-            end,
-            root,
-            claims,
-            params,
-        } = req;
-
-        if params.depth == params.initial_depth {
-            let leaf = self
-                .get_request_leaf(start, end, params.depth, root, claims)
-                .await?;
-            Ok(RequestRouter::Leaf(leaf))
-        } else {
-            assert!(!snarks.is_empty());
-            Ok(match params.node_type {
-                NodeType::Leaf => unreachable!(),
-                NodeType::Intermediate => {
-                    // TODO: the logic would be different for v2
-                    if snarks.len() != 2 {
-                        snarks.resize(2, snarks[0].clone()); // dummy snark
-                    }
-                    let req = WorldcoinRequestIntermediate {
-                        start,
-                        end,
-                        snarks,
-                        depth: params.depth,
-                        initial_depth: params.initial_depth,
-                    };
-                    RequestRouter::Intermediate(req)
-                }
-                NodeType::Root => {
-                    if snarks.len() != 2 {
-                        snarks.resize(2, snarks[0].clone()); // dummy snark
-                    }
-                    let req = WorldcoinRequestRoot {
-                        start,
-                        end,
-                        snarks,
-                        depth: params.depth,
-                        initial_depth: params.initial_depth,
-                    };
-                    RequestRouter::Root(req)
-                }
-                NodeType::Evm(round) => {
-                    assert_eq!(snarks.len(), 1); // currently just passthrough
-                    let snark = snarks.pop().unwrap();
-                    let req = WorldcoinRequestEvm {
-                        start,
-                        end,
-                        snark,
-                        depth: params.depth,
-                        initial_depth: params.initial_depth,
-                        round,
-                    };
-                    RequestRouter::Evm(req)
-                }
-            })
-        }
-    }
-
-    #[async_recursion]
-    pub async fn recursive_gen_proof(
-        &self,
-        request_id: &String,
-        req: RecursiveRequest,
-        is_evm_proof: bool,
-    ) -> Result<ProverProof> {
-        let req_router = self
-            .handle_recursive_request(request_id, req.clone(), false)
-            .await?;
-        let circuit_id = self
-            .circuit_id_repo
-            .read()
-            .await
-            .get(&req.params)
-            .ok_or_else(|| anyhow!("Circuit ID for {:?} not found", req.params))?
-            .to_owned();
-        log::debug!("Router:{:?} CID-{circuit_id}", req.params);
-
-        let task = ProverTask {
-            circuit_id: circuit_id.clone(),
-            input: TaskInput {
-                is_evm_proof,
-                request: req_router,
-            },
-        };
-
-        let result = self.executor.execute(task).await.unwrap();
-
-        self.task_tracker
-            .record_task(
-                request_id.clone(),
-                result.task_id,
-                self.cid_to_params
-                    .read()
-                    .await
-                    .get(&circuit_id)
-                    .unwrap()
-                    .clone(),
-            )
-            .await
-            .unwrap();
-        let proof = result.proof;
-        Ok(proof)
     }
 }
