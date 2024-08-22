@@ -1,6 +1,5 @@
-use anyhow::{anyhow, bail, Result};
-use async_recursion::async_recursion;
-use axiom_eth::{halo2_proofs::poly::commitment::Prover, snark_verifier_sdk::Snark};
+use anyhow::{bail, Result};
+use axiom_eth::snark_verifier_sdk::Snark;
 use executor::ExecutionResult;
 use recursive_request::RecursiveRequest;
 use types::RequestRouter;
@@ -16,7 +15,6 @@ use crate::{
     types::ClaimNative,
 };
 use async_trait::async_trait;
-
 
 pub mod async_scheduler;
 pub mod contract_client;
@@ -138,7 +136,7 @@ pub trait Scheduler: Send + Sync + 'static {
         };
 
         let result = self.generate_proof(task).await?;
-        self.post_proof_gen(request_id, circuit_id.as_str(),&result, );
+        self.post_proof_gen(request_id, circuit_id.as_str(), &result);
         Ok(result.proof)
     }
 

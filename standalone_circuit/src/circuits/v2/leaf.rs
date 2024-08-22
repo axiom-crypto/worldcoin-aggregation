@@ -6,7 +6,6 @@ use axiom_eth::{
         safe_types::SafeBool,
         AssignedValue,
     },
-    halo2_proofs::plonk::Assigned,
     halo2curves::bn256::Fr,
     mpt::MPTChip,
     rlc::circuit::builder::RlcCircuitBuilder,
@@ -31,10 +30,7 @@ use crate::{
     circuit_factory::leaf::WorldcoinRequestLeaf, circuits::v1::leaf::WorldcoinLeafInput,
     constants::*, utils::compute_keccak_merkle_tree,
 };
-use crate::{
-    types::*,
-    utils::{get_signal_hash, get_vk_hash},
-};
+use crate::{types::*, utils::get_vk_hash};
 use axiom_components::groth16::types::Groth16VerifierComponentVerificationKey;
 use std::{fmt::Debug, vec};
 

@@ -5,15 +5,14 @@ use clap::Parser;
 use rocket::{http::Status, launch, post, routes, serde::json::Json, Build, Rocket, State};
 use serde::{Deserialize, Serialize};
 use std::fs;
+use uuid::Uuid;
 use worldcoin_aggregation::{
-    constants::INITIAL_DEPTH,
+    constants::{EXTRA_ROUNDS, INITIAL_DEPTH},
     keygen::node_params::{NodeParams, NodeType},
-    prover::{ProverConfig, ProvingServerState},
-    scheduler::{local_scheduler::*, recursive_request::*},
+    prover::{types::ProverProof, ProverConfig, ProvingServerState},
+    scheduler::{local_scheduler::*, recursive_request::*, Scheduler},
     types::*,
 };
-
-const EXTRA_ROUNDS: usize = 1;
 
 #[derive(Serialize, Deserialize)]
 struct Request {
@@ -86,7 +85,6 @@ async fn serve(task: Json<Request>, scheduler: &State<LocalScheduler>) -> Result
         start,
         end,
         root,
-        grant_id,
         claims,
         params,
     };
@@ -94,12 +92,22 @@ async fn serve(task: Json<Request>, scheduler: &State<LocalScheduler>) -> Result
     let scheduler = LocalScheduler::clone(scheduler);
     // Actually run the thing
     log::info!("Running task: {req:?}");
+    let request_id = Uuid::new_v4();
+
     let evm_proof = if for_evm {
-        scheduler.recursive_get_evm_proof(req).await
+        let prover_proof  = scheduler
+            .recursive_gen_proof(request_id.to_string().as_str(), req, true)
+            .await?;
+        match prover_proof {
+            ProverProof::EvmProof(proof) => proof,
+            ProverProof::Snark(_) => unreachable!()
+        }
     } else {
-        scheduler.recursive_get_snark(req).await?;
-        Ok("".to_string())
-    }?;
+        scheduler
+            .recursive_gen_proof(request_id.to_string().as_str(), req, false)
+            .await?;
+        "".to_string()
+    };
     log::info!("Task complete!");
 
     Ok(evm_proof)

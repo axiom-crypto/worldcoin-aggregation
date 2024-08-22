@@ -36,9 +36,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     circuit_factory::leaf::*, constants::VK, types::WorldcoinRequest,
-    WorldcoinIntermediateAggregationCircuit, WorldcoinIntermediateAggregationInput,
-    WorldcoinLeafCircuit, WorldcoinLeafInput, WorldcoinRootAggregationCircuit,
-    WorldcoinRootAggregationInput,
+    WorldcoinIntermediateAggregationInput, WorldcoinLeafCircuit, WorldcoinLeafInput,
+    WorldcoinRootAggregationCircuit, WorldcoinRootAggregationInput,
 };
 
 pub mod node_params;

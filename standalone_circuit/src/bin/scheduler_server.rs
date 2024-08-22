@@ -20,6 +20,7 @@ use worldcoin_aggregation::{
 };
 
 use std::sync::Arc;
+use worldcoin_aggregation::scheduler::Scheduler;
 
 #[post("/tasks", format = "json", data = "<task>")]
 async fn serve(
@@ -63,7 +64,6 @@ async fn serve(
         start: 0,
         end: num_proofs as u32,
         root,
-        grant_id,
         claims,
         params,
     };
@@ -116,13 +116,8 @@ async fn serve(
                     const VK_HASH: &str =
                         "0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec";
 
-                    let v1claim_params = V1ClaimParams::new(
-                        VK_HASH,
-                        &req.grant_id,
-                        &req.root,
-                        &req.claims,
-                        final_proof,
-                    );
+                    let v1claim_params =
+                        V1ClaimParams::new(VK_HASH, &req.root, &req.claims, final_proof);
 
                     for _i in 0..retry_send_threshold {
                         let ret = contract_client

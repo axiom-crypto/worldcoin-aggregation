@@ -1,26 +1,18 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use anyhow::{anyhow, bail, Result};
-use async_recursion::async_recursion;
+use anyhow::{anyhow, Result};
 use axiom_eth::snark_verifier_sdk::Snark;
 
 use futures::future::join_all;
 use rocket::tokio::sync::RwLock;
 
 use crate::{
-    circuit_factory::{
-        evm::*, intermediate::WorldcoinRequestIntermediate, leaf::WorldcoinRequestLeaf,
-        root::WorldcoinRequestRoot,
-    },
-    constants::VK,
-    keygen::node_params::{self, NodeParams, NodeType},
-    prover::types::{ProverProof, ProverTask, TaskInput},
+    keygen::node_params::NodeParams,
+    prover::types::{ProverProof, ProverTask},
     scheduler::{
         executor::{dispatcher::DispatcherExecutor, ProofExecutor},
         recursive_request::RecursiveRequest,
-        types::*,
     },
-    types::ClaimNative,
 };
 
 use super::{
@@ -29,7 +21,6 @@ use super::{
 };
 
 use async_trait::async_trait;
-
 
 #[derive(Clone)]
 pub struct AsyncScheduler {
@@ -86,10 +77,7 @@ impl Scheduler for AsyncScheduler {
     ) -> Result<Vec<Snark>> {
         let mut futures = vec![];
         for dep in req.dependencies() {
-            let future = async move {
-                self.recursive_gen_proof(request_id, dep, false)
-                    .await
-            };
+            let future = async move { self.recursive_gen_proof(request_id, dep, false).await };
             futures.push(future);
         }
 

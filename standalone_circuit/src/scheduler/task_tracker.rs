@@ -29,7 +29,7 @@ impl SchedulerTaskTracker {
             .await
             .entry(request_id.to_string())
             .or_insert_with(Vec::new)
-            .push((task_id.clone().to_string(), params.clone()));
+            .push((task_id.to_string(), params.clone()));
         Ok(())
     }
 }

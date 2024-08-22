@@ -12,9 +12,7 @@ use axiom_components::{
     },
     utils::flatten::InputFlatten,
 };
-use axiom_eth::{
-    halo2_base::AssignedValue, utils::hilo::HiLo, zkevm_hashes::util::eth_types::Field,
-};
+use axiom_eth::utils::hilo::HiLo;
 use serde::Deserialize;
 use std::fmt::Debug;
 

@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use clap::Parser;
 use rocket::{get, http::Status, launch, post, routes, serde::json::Json, Build, Rocket, State};
 

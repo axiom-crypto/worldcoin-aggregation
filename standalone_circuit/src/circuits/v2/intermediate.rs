@@ -16,7 +16,6 @@ use axiom_eth::{
     halo2_base::{
         gates::{GateInstructions, RangeChip, RangeInstructions},
         AssignedValue, Context,
-        QuantumCell::Constant,
     },
     halo2_proofs::{
         halo2curves::bn256::{Bn256, Fr},
@@ -35,7 +34,6 @@ use axiom_eth::{
         hilo::HiLo,
         keccak::decorator::RlcKeccakCircuitImpl,
         snark_verifier::{get_accumulator_indices, NUM_FE_ACCUMULATOR},
-        uint_to_bytes_be,
     },
     Field,
 };

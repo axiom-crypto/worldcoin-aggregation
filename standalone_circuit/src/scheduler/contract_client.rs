@@ -11,24 +11,17 @@ use hex::FromHex;
 pub struct V1ClaimParams {
     vkey_hash: H256,
     num_claims: U256,
-    grant_id: U256,
     root: U256,
+    grant_ids: Vec<U256>,
     receivers: Vec<Address>,
     nullifier_hashes: Vec<U256>,
     proof: Bytes,
 }
 
 impl V1ClaimParams {
-    pub fn new(
-        vkey_hash: &str,
-        grant_id: &str,
-        root: &str,
-        claims: &Vec<ClaimNative>,
-        proof: String,
-    ) -> Self {
+    pub fn new(vkey_hash: &str, root: &str, claims: &Vec<ClaimNative>, proof: String) -> Self {
         let vkey_hash = H256::from_str(vkey_hash).expect("Invalid H256 string");
 
-        let grant_id = U256::from_str_radix(grant_id, 10).expect("Invalid grant_id string");
         let root = U256::from_str_radix(root, 10).expect("Invalid root string");
         let num_claims = U256::from(claims.len() as u64); // Example conversion for num_claims
 
@@ -41,14 +34,19 @@ impl V1ClaimParams {
 
         let receivers: Vec<Address> = claims.iter().map(|claim| claim.receiver).collect();
 
+        let grant_ids: Vec<U256> = claims
+            .iter()
+            .map(|claim| U256::from_str_radix(&claim.grant_id, 10).expect("Invalid grant_id"))
+            .collect();
+
         let proof = Vec::from_hex(proof).expect("Invalid hex string");
         let proof = Bytes::from(proof);
 
         Self {
             vkey_hash,
             num_claims,
-            grant_id,
             root,
+            grant_ids,
             receivers,
             nullifier_hashes,
             proof,
@@ -94,8 +92,8 @@ impl ContractClient {
                 (
                     params.vkey_hash,
                     params.num_claims,
-                    params.grant_id,
                     params.root,
+                    params.grant_ids,
                     params.receivers,
                     params.nullifier_hashes,
                     params.proof,

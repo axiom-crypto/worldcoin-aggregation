@@ -1,29 +1,22 @@
 use std::{collections::HashMap, sync::Arc};
 
-use anyhow::{anyhow, bail, Result};
-use async_recursion::async_recursion;
+use anyhow::{anyhow, Result};
 use axiom_eth::snark_verifier_sdk::Snark;
 
 use rocket::tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::{
-    circuit_factory::{
-        evm::*, intermediate::WorldcoinRequestIntermediate, leaf::WorldcoinRequestLeaf,
-        root::WorldcoinRequestRoot,
-    },
-    keygen::node_params::{NodeParams, NodeType},
+    keygen::node_params::NodeParams,
     prover::{
-        self,
         types::{ProverProof, ProverSnark, ProverTask, TaskInput},
         ProvingServerState,
     },
     scheduler::types::RequestRouter,
-    types::{ClaimNative, VkNative},
+    types::VkNative,
 };
 
 use async_trait::async_trait;
-
 
 use super::{executor::ExecutionResult, recursive_request::RecursiveRequest, Scheduler};
 
