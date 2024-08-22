@@ -151,7 +151,7 @@ pub trait Scheduler: Send + Sync + 'static {
     // Generate proof for given task
     async fn generate_proof(&self, task: ProverTask) -> Result<ExecutionResult>;
 
-    /// Processing that needs to be handled post proof generation, e.g. record the asscociated
+    /// Processing that needs to be handled post proof generation, e.g. record the associated
     /// metadata for the request
     async fn post_proof_gen_processing(
         &self,
