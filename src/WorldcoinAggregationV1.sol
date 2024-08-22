@@ -5,6 +5,9 @@ import { IERC20 } from "./interfaces/IERC20.sol";
 import { IRootValidator } from "./interfaces/IRootValidator.sol";
 import { IGrant } from "./interfaces/IGrant.sol";
 
+import { safeconsole as console } from "forge-std/safeconsole.sol";
+import { console2 } from "forge-std/console2.sol";
+
 /// @notice This version of the aggregation contract automatically transfers the
 /// grant amount to each of the users in the batch in the same tx as the
 /// verification. From a UX perspective, this requires no action on the part of
@@ -93,8 +96,8 @@ contract WorldcoinAggregationV1 {
     function distributeGrants(
         bytes32 vkeyHash,
         uint256 numClaims,
-        uint256 grantId,
         uint256 root,
+        uint256[] calldata grantIds,
         address[] calldata receivers,
         uint256[] calldata _nullifierHashes,
         bytes calldata proof
@@ -103,6 +106,7 @@ contract WorldcoinAggregationV1 {
         {
             if (receivers.length != _nullifierHashes.length) revert InvalidProof();
             if (numClaims != receivers.length) revert InvalidProof();
+            if (numClaims != grantIds.length) revert InvalidProof();
 
             // Proof must have minimum `14` words.
             // We expect the proof to be structured as such:
@@ -123,28 +127,23 @@ contract WorldcoinAggregationV1 {
             // verification would fail.
             if (vkeyHash != VKEY_HASH) revert InvalidVkeyHash();
 
-            GRANT.checkValidity(grantId);
-
             ROOT_VALIDATOR.requireValidRoot(root);
 
             if (numClaims > MAX_NUM_CLAIMS) revert TooManyClaims();
-
-            // If the entire claim cannot be fulfilled, we fail the entire batch
-            grantAmount = GRANT.getAmount(grantId);
-            if (grantAmount * numClaims > WLD.balanceOf(address(this))) revert InsufficientBalance();
 
             bytes32 derivedOutputHash = keccak256(
                 abi.encodePacked(
                     vkeyHash >> 128,
                     vkeyHash & bytes32(0x00000000000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF),
-                    grantId,
                     root,
                     numClaims,
+                    grantIds,
                     receivers,
                     _nullifierHashes
                 )
             );
-            bytes32 outputHash = _unsafeCalldataAccess(proof, 12 << 5) << 128 | _unsafeCalldataAccess(proof, 13 << 5);
+            bytes32 outputHash =
+                _unsafeCalldataBytesAccess(proof, 12 << 5) << 128 | _unsafeCalldataBytesAccess(proof, 13 << 5);
 
             if (outputHash != derivedOutputHash) revert InvalidProof();
         }
@@ -155,18 +154,25 @@ contract WorldcoinAggregationV1 {
 
         uint256[] calldata _receivers = _toUint256Array(receivers);
         for (uint256 i = 0; i != numClaims;) {
-            address receiver = _toAddress(_unsafeCalldataAccess(_receivers, i));
-            uint256 claimedNullifierHash = uint256(_unsafeCalldataAccess(_nullifierHashes, i));
+            uint256 grantId = uint256(_unsafeCalldataArrayAccess(grantIds, i));
+            address receiver = _toAddress(_unsafeCalldataArrayAccess(_receivers, i));
+            uint256 claimedNullifierHash = uint256(_unsafeCalldataArrayAccess(_nullifierHashes, i));
 
+            // Claimed nullifier hashes are skipped
             if (!nullifierHashes[claimedNullifierHash] && receiver != address(0)) {
+                GRANT.checkValidity(grantId);
                 nullifierHashes[claimedNullifierHash] = true;
+                grantAmount = GRANT.getAmount(grantId);
 
+                // It is critical that WLD does NOT return false on failure and
+                // reverts (since we don't parse returndata).
+                //
+                // This could mainly pose an issue on insufficient balance if a
+                // nullifier hash gets marked as claimed
                 WLD.transfer(receiver, grantAmount);
 
                 emit GrantClaimed(grantId, receiver);
             }
-
-            // Claimed nullifier hashes are skipped
 
             // forgefmt: disable-next-line
             unchecked { ++i; }
@@ -194,20 +200,20 @@ contract WorldcoinAggregationV1 {
         }
     }
 
-    /// @dev Accesses a bytes32 array index without bounds checking
+    /// @dev Accesses a uint256 array index without bounds checking
     /// @param array The array to access
     /// @param index The index to access
     /// @return out The value at the index
-    function _unsafeCalldataAccess(uint256[] calldata array, uint256 index) internal pure returns (bytes32 out) {
+    function _unsafeCalldataArrayAccess(uint256[] calldata array, uint256 index) internal pure returns (bytes32 out) {
         /// @solidity memory-safe-assembly
         assembly {
-            out := calldataload(add(array.offset, mul(index, 0x20)))
+            out := calldataload(add(array.offset, shl(5, index)))
         }
     }
 
     /// @dev Loads an entire word of calldata from the specified index.
     /// @param array The array to access
-    function _unsafeCalldataAccess(bytes calldata array, uint256 index) internal pure returns (bytes32 out) {
+    function _unsafeCalldataBytesAccess(bytes calldata array, uint256 index) internal pure returns (bytes32 out) {
         /// @solidity memory-safe-assembly
         assembly {
             out := calldataload(add(array.offset, index))
