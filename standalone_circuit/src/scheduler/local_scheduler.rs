@@ -97,7 +97,7 @@ impl Scheduler for LocalScheduler {
         }
     }
 
-    async fn post_proof_gen(&self, _: &str, _: &str, _: &ExecutionResult) -> Result<()> {
+    async fn post_proof_gen_processing(&self, _: &str, _: &str, _: &ExecutionResult) -> Result<()> {
         Ok(())
     }
 

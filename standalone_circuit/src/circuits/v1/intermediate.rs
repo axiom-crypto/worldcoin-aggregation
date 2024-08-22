@@ -125,7 +125,6 @@ impl WorldcoinIntermediateAggregationInput {
 
         instances
     }
-    /// The number of instances NOT INCLUDING the accumulator
 
     /// Sanity check agasint the start & end indexes of two shards, check instances[2..5] (vk_hash_hi, vk_hash_lo, root) are equal.
     /// Return new start, end indexes for this aggregated shard and a selector indicating whether the 2nd shard is dummy.

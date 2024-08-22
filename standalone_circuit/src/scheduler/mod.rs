@@ -48,6 +48,9 @@ pub trait Scheduler: Send + Sync + 'static {
         })
     }
 
+
+    /// Recursively break down dependency tasks and schedule the execution. Return the prover task
+    /// which needs to be executed for this request.
     async fn handle_recursive_request(
         &self,
         request_id: &str,
@@ -114,6 +117,8 @@ pub trait Scheduler: Send + Sync + 'static {
         }
     }
 
+    /// Recursively break down proving jobs into smaller pieces and schedule the execution,
+    /// generate proof for the given request, and execute post-processing.
     async fn recursive_gen_proof(
         &self,
         request_id: &str,
@@ -136,21 +141,26 @@ pub trait Scheduler: Send + Sync + 'static {
         };
 
         let result = self.generate_proof(task).await?;
-        self.post_proof_gen(request_id, circuit_id.as_str(), &result);
+        self.post_proof_gen_processing(request_id, circuit_id.as_str(), &result);
         Ok(result.proof)
     }
 
+    /// Find the circuit id which can handle this request
     async fn get_circuit_id(&self, req: &RecursiveRequest) -> Result<String>;
 
+    // Generate proof for given task
     async fn generate_proof(&self, task: ProverTask) -> Result<ExecutionResult>;
 
-    async fn post_proof_gen(
+    /// Processing that needs to be handled post proof generation, e.g. record the asscociated
+    /// metadata for the request
+    async fn post_proof_gen_processing(
         &self,
         request_id: &str,
         circuit_id: &str,
         result: &ExecutionResult,
     ) -> Result<()>;
 
+    /// Get the snarks for the dependency tasks of the given request
     async fn get_snarks_for_deps(
         &self,
         request_id: &str,

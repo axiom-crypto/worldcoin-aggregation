@@ -142,39 +142,6 @@ pub fn get_vk_hash<F: Field>(
     HiLo::from_hi_lo([vk_hash.output_hi, vk_hash.output_lo])
 }
 
-pub fn get_signal_hash<F: Field>(
-    ctx: &mut Context<F>,
-    range: &RangeChip<F>,
-    keccak: &KeccakChip<F>,
-    receiver: &AssignedValue<F>,
-) -> AssignedValue<F> {
-    let receiver_bytes = uint_to_bytes_be(ctx, range, receiver, 20)
-        .iter()
-        .map(|b| *b.as_ref())
-        .collect();
-
-    let receiver_hash = keccak.keccak_fixed_len(ctx, receiver_bytes);
-
-    // signal_hash is keccak(receiver) >> 8. since keccak(receiver) result is hilo
-    // signal_hash_hi = keccak_result_hi >> 8
-    // signal_hash_lo = keccak_result_lo >> 8 + (keccak_result_hi_remainder << 16 * 8) >> 8
-    let shift = ctx.load_constant(biguint_to_fe(&BigUint::from(2u64).pow((16 - 1) * 8)));
-    let (signal_hash_hi, signal_hash_hi_res) =
-        range.div_mod(ctx, receiver_hash.output_hi, 256u64, 128);
-    let (signal_hash_lo_div, _) = range.div_mod(ctx, receiver_hash.output_lo, 256u64, 128);
-
-    let signal_hash_lo = range
-        .gate()
-        .mul_add(ctx, signal_hash_hi_res, shift, signal_hash_lo_div);
-
-    range.gate.mul_add(
-        ctx,
-        signal_hash_hi,
-        Constant(range.gate.pow_of_two()[128]),
-        signal_hash_lo,
-    )
-}
-
 // construct a merkle tree from leaves
 // return vec is [root, ...[depth 1 nodes], ...[depth 2 nodes], ..., ...[leaves]]
 pub fn compute_keccak_merkle_tree<F: Field>(

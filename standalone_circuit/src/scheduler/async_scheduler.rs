@@ -55,7 +55,7 @@ impl Scheduler for AsyncScheduler {
         self.executor.execute(task).await
     }
 
-    async fn post_proof_gen(
+    async fn post_proof_gen_processing(
         &self,
         request_id: &str,
         circuit_id: &str,

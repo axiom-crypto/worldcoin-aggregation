@@ -45,8 +45,6 @@ pub struct SchedulerTaskStatusResponse {
     pub status: SchedulerTaskStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snark: Option<ProverProof>,
-    //#[serde(skip_serializing_if = "Option::is_none")]
-    //pub execution_summary: Option<QueryProofExecutionSummary>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     pub created_at_sec: u64,

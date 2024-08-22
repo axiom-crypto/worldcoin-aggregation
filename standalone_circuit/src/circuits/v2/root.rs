@@ -44,6 +44,10 @@ impl WorldcoinRootAggregationInputV2 {
         )
         .map(Self)
     }
+
+    pub fn get_num_instance() -> usize {
+        6
+    }
 }
 
 impl EthCircuitInstructions<Fr> for WorldcoinRootAggregationInputV2 {
@@ -71,6 +75,6 @@ impl CircuitMetadata for WorldcoinRootAggregationInputV2 {
     const HAS_ACCUMULATOR: bool = true;
 
     fn num_instance(&self) -> Vec<usize> {
-        vec![NUM_FE_ACCUMULATOR + 6]
+        vec![NUM_FE_ACCUMULATOR + Self::get_num_instance()]
     }
 }
