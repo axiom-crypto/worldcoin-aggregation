@@ -47,7 +47,8 @@ class MerkleTree {
 
       if (siblingIndex < layer.length) {
         sisterNodes.push(layer[siblingIndex]);
-        isLeftBytes.push(isLeftNode);
+        // isLeftBytes indicates whether the sibling is on the left side
+        isLeftBytes.push(!isLeftNode);
       }
 
       index = Math.floor(index / 2);
@@ -112,6 +113,7 @@ function parseInput(inputPath: string): {
     leaves.push(
       getKeccakHash(claim.grant_id, claim.receiver, claim.nullifier_hash),
     );
+    
     grantIds.push(claim.grant_id);
     receivers.push(claim.receiver);
     nullifierHashes.push(claim.nullifier_hash);
