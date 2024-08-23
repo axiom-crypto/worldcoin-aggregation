@@ -2,6 +2,11 @@
 
 This subdirectory implements ZK circuits and backend prover endpoints for batch WorldID proof verification.
 
+## Summary
+
+- [Batch WorldID Verification Circuits](#batch-worldid-verification-circuits)
+- [Prover Backend Architecture](#prover-backend-architecture)
+
 ## Folder structure
 
 ```
@@ -30,35 +35,47 @@ This subdirectory implements ZK circuits and backend prover endpoints for batch 
 
 ## Batch WorldID Verification Circuits
 
+The architecture for the SNARK circuits used in the V1 and V2 designs follow the same MapReduce
+structure which uses SNARK aggregation.
+
+![Circuit Diagram](./assets/Worldcoin%20Circuit%20Diagram.png)
+
+We give a high-level overview before discussing the details of the circuits.
+The topmost `Evm` circuit generates the proof that is verified on-chain in a smart contract.
+This circuit proves a batch of claims for WLD grants by aggregating the proofs of smaller batches of claims. An arrow A → B in the diagram means that circuit A contains constraints that verify a proof of circuit B. The core claim verification logic for a small batch of claims is proven in the `Leaf` circuit. Multiple `Leaf` circuit proofs are aggregated in a binary tree structure, with some additional reduce logic to enforce consistency. Several additional rounds of aggregation are done to compress the final proof size to lower the final on-chain verification gas cost.
+
+We now proceed to discuss the details of the V1 and V2 circuits within this framework.
+
 ### V1 Circuit Design
 
 The V1 circuit verifies the WorldID Groth16 proofs in batch, and exposes as a public output the Keccak hash of the following quantities.
 
 ```
 - vkeyHash - the Keccak hash of the flattened vk
-- num_proofs - the number of proofs we care about the outputs from, which should satisfy 1 <= num_proofs <= max_proofs
+- numClaims - the number of claims, which should satisfy 1 <= numClaims <= MAX_NUM_CLAIMS
 - grantId
 - root
-- receiver_i for i = 1, ..., max_proofs
-- nullifierHash_i for i = 1, ..., max_proofs
+- receiver_i for i = 1, ..., MAX_NUM_CLAIMS
+- nullifierHash_i for i = 1, ..., MAX_NUM_CLAIMS
 ```
 
-As a convenience to the user, fewer than `max_proofs` claims can be submitted to the prover binary and the binary will appropriately pad to satisfy the circuit.
+As a convenience to the user, fewer than `MAX_NUM_CLAIMS` claims can be submitted to the prover.
 
 To implement the V1 circuit, we use the following 4 types of circuits:
 
-- **WorldcoinLeafCircuit** - It has `max_depth` which decides the max capacity to be `2**depth` claims. It has `start` (inclusive) and `end` (exclusive) indexes for the claims this circuit is handling. It constrains
+- **WorldcoinLeafCircuit** - It has configuration parameter `max_depth` which sets the maximum number of claims that the circuit can prove to be `2 ** max_depth`. It has `start` (inclusive) and `end` (exclusive) indexes for the claims this circuit is handling. It constrains
   - `start` and `end` are in `[0, 2**64)`
-  - `num_proofs (end - start)` falls between `(0, 2**max_depth]`
-  - each claim verifies with the `vk` and public inputs `[root, nullifier_hash, signal_hash, grant_id]`, where `signalHash = uint256(keccak256(abi.encodePacked(receiver))) >> 8`
+  - `end - start` lies in `(0, 2**max_depth]`
+  - each claim verifies with the verifying key `vk` and public inputs `[root, nullifier_hash, signal_hash, grant_id]`, where `signalHash = uint256(keccak256(abi.encodePacked(receiver))) >> 8`
   - The public outputs are `[start, end, vk_hash_hi, vk_hash_lo, grant_id, root, ...receivers, ...nullifier_hashes]`
-- **WorldcoinIntermediateAggregationCircuit** - It aggregates either two WorldcoinLeafCircuits or WorldcoinIntermediateAggregationCircuits, and also enforce constraints between the children snarks
-  - The two children either link together, where the `end` of the 1st shard equal the `start` of the 2nd shard, or the 2nd shard is a dummy shard
-  - It check vkey, grant_id, root are the same in both shards
-  - It has the same format of public outputs as the leaf circuit.
-- **WorldcoinRootAggregationCircuit** - It is similar to WorldcoinIntermediateAggregationCircuit in terms of aggregation, but it exposes the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]` as public outputs.
-- **WorldcoinEvmCircuit** - It is a passthrough circuit for the onchain verifier.
-  The claim verification task is divided into WorldcoinLeafCircuits and then aggregated until we have one single WorldcoinRootAggregationCircuit. The final public output is the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]`.
+- **WorldcoinIntermediateAggregationCircuit** - It aggregates either two WorldcoinLeafCircuit proofs or two WorldcoinIntermediateAggregationCircuit proofs, depending on the circuit's depth in the aggregation tree, and also enforce constraints between the public IO of the two aggregated child proofs:
+  - The two child proofs either link together, where the `end` of the 1st proof equal the `start` of the 2nd proof, or the 2nd proof is a dummy
+  - It check `vk, grant_id, root` are the same in both children
+  - It has the same format of public IO as the leaf circuit.
+- **WorldcoinRootAggregationCircuit** - It is similar to WorldcoinIntermediateAggregationCircuit in terms of aggregation, but its public IO consists of only the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]`.
+- **WorldcoinEvmCircuit** - It aggregates either a single WorldcoinRootAggregationCircuit or a single WorldcoinEvmCircuit, depending on the circuit's depth in the aggregation tree. The only purpose of this circuit is to compress the final proof size to lower the final on-chain verification cost.
+  The final public IO is the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]`.
+  - In practice we use two WorldcoinEvmCircuits to compress the final proof size.
 
 ### V2 Circuit Design
 
@@ -68,72 +85,50 @@ The V2 circuit design is similar to the V1 circuit. It has public outputs
 - vkeyHash – the Keccak hash of the flattened Groth16 vk
 - grantId
 - root
-- claimRoot – the Keccak Merkle root of the tree whose leaves are keccak256(abi.encodePacked(receiver_i, nullifierHash_i)). Leaves with indices greater than num_proofs - 1 are given by keccak256(abi.encodePacked(address(0), bytes32(0)))
+- claimRoot – the Keccak Merkle root of the tree whose leaves are keccak256(abi.encodePacked(receiver_i, nullifierHash_i)). Leaves with indices greater than numClaims - 1 are given by keccak256(abi.encodePacked(address(0), bytes32(0))), where 1 <= numClaims <= MAX_NUM_CLAIMS.
 ```
 
 The V2 design is implemented through the following circuits:
 
-- **WorldcoinLeafCircuitV2** - It has all the constraints that the V1 circuit has.
-  - In addition, it calculates the claim root for the subtree.
-  - The public outputs are `[start, end, vk_hash_hi, vk_hash_lo, grant_id, root, claim_root_hi, claim_root_lo]`
-- **WorldcoinIntermediateAggregationCircuitV2** - It has all the constraints that the V1 circuit has.
-  - In addition, it calculates `claim_root = keccak(left_child, right_child)`.
+- **WorldcoinLeafCircuitV2** - It has all the constraints that the WorldcoinLeafCircuitV1 has.
+  - In addition, it calculates the claim root for the subtree of depth `max_depth`.
+  - The public IO is `[start, end, vk_hash_hi, vk_hash_lo, grant_id, root, claim_root_hi, claim_root_lo]`
+- **WorldcoinIntermediateAggregationCircuitV2** - It has all the constraints that the WorldcoinIntermediateAggregationCircuitV1 has.
+  - In addition, it calculates `claim_root = keccak(left_child, right_child)`, where `left_child` and `right_child` are the claim roots of the two child proofs that were aggregated.
   - It has the same public outputs formats as `WorldcoinLeafCircuitV2`.
-- **WorldcoinRootAggregationCircuitV2** - It is similar to `WorldcoinIntermediateAggregationCircuitV2` in terms of aggregation, but it exposes the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, claim_root_hi, claim_root_lo]` as public outputs.
-- **WorldcoinEvmCircuit** - It is a passthrough circuit for the onchain verifier.
-  The claims are divided into `WorldcoinLeafCircuitV2`s and then aggregated until we have one single `WorldcoinRootAggregationCircuitV2`. The final public outputs are `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, claim_root_hi, claim_root_lo]`.
+- **WorldcoinRootAggregationCircuitV2** - It is similar to `WorldcoinIntermediateAggregationCircuitV2` in terms of aggregation, but the public IO consists of only the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, claim_root_hi, claim_root_lo]`.
+- **WorldcoinEvmCircuit** - It aggregates either a single WorldcoinRootAggregationCircuit or a single WorldcoinEvmCircuit, depending on the circuit's depth in the aggregation tree. The only purpose of this circuit is to compress the final proof size to lower the final on-chain verification cost.
+  The final public IO is the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, claim_root_hi, claim_root_lo]`.
+  - In practice we use two WorldcoinEvmCircuits to compress the final proof size.
 
-## Prover Backend Architecture
+### Proving and Verifying Key Generation
 
-We provide tooling for an external operator to generate aggregation proofs in parallel. This involves three key roles:
+Before generating SNARK proofs for the circuits above, you must first generate the proving and verifying keys for all circuits in the aggregation tree. This should be done once: the proving and verifying keys of the circuits will not change unless the circuits themselves are changed.
+The verifying key is a unique identifier for the circuit, and we define the **Circuit ID** of a circuit to be the Blake3 hash of the serialized bytes of its verifying key.
 
-- **Scheduler**
-  The scheduler receives a task and handles the process of breaking the task into smaller subtasks, resolving dependencies and necessary input data between the tasks, and then sending concurrent proof requests to the dispatcher, waiting for task completion, and using completed tasks to start downstream tasks.
+To generate the proving keys, verifying keys and the on-chain verifier contract for the circuits described above, follow these steps:
 
-- **Dispatcher**
-  The dispatcher handles container orchestration by receiving tasks, allocating necessary infrastructure resources (such as EC2 instances or Kubernetes pods), starting containers for the prover, executing the tasks, and retrieving the resulting proofs.
-
-- **Prover**
-  prover is designed to be serverless and can be run from a blind docker container as long as it is given the correct auxiliary files (pinning JSON and proving key large files, identified by circuit ID).
-
-This repository includes implementations for the Scheduler and Prover. These can interoperate with an operator-written Dispatcher, which will need to integrate with the operator's on-prem or cloud infrastructure solution.
-
-### Dispatcher API Interface
-
-The Dispatcher must be implemented as a web server conforming to the following APIs.
-
-#### POST `/tasks`
-
-- **Request Body:**
-  - **circuitId**: Unique identifier for a circuit. This value must be globally unique among all circuits handled by the Dispatcher.
-  - **input**: Accepts a JSON object for flexibility. The Dispatcher should forward it to the proving binary without processing its content.
-  - **[optional] ForceProve**: A proof can be uniquely identified by `(circuitId, Hash(input))`. By default, all proofs are cached. If the Dispatcher receives a request, it will return the cached proof directly. If this field is set to `true`, the system will force a new proof generation even if a cached proof already exists.
-- **Response:**
-  - **taskId**: Uniquely identifies the proof task. The Scheduler will poll `/tasks/:taskId/status` every 5-10 seconds to check if the task is completed.
-
-#### GET `/tasks/:taskId/status`
-
-- **Response:**
-  - **status**: Indicates the current task status. Possible values:
-    - `PENDING`: Task is created but waiting for resources.
-    - `PREPARING`: An instance is allocated, but setup is still in progress (e.g., downloading pkey).
-    - `PROVING`: The proving job is currently running.
-    - `DONE`: The job is completed, and the snark is available.
-    - `FAILED`: The task failed.
-  - **createdAt**: Timestamp when the task was created.
-  - **updatedAt**: Timestamp when the task status was last updated.
-
-#### GET `/tasks/:taskId/snark`
-
-- **Response:**
-  - **snark**: Returns the proof file.
-
-### Keygen
-
-Before setting up the proving backend, you must first run keygen, which will generate proving keys, verifying keys and the on-chain verifier contract. To run keygen, define an intent like `configs/intents/2.yml`, which has the following format:
+1. Download the KZG trusted setup that we use with [this script](https://github.com/axiom-crypto/axiom-eth/blob/main/trusted_setup_s3.sh).
 
 ```
-k_at_depth: [20, 20, 20, 20]   -> the K used in each depth, where the final evm round uses k_at_depth[0] and leaf circuit uses k_at_depth[k_at_depth.len() - 1]
+bash trusted_setup_s3.sh
+```
+
+For convenience, Axiom hosts the [Phase 1 perpetual powers of tau](https://github.com/privacy-scaling-explorations/perpetualpowersoftau) trusted setup formatted for halo2 in a public [S3 bucket](s3://axiom-crypto/challenge_0085/).
+You can read more about the trusted setup we use and how it was generated [here](https://docs.axiom.xyz/docs/transparency-and-security/kzg-trusted-setup).
+
+The trusted setup will be downloaded to a directory called `params/` by default. You can move the directory elsewhere. We'll refer to the directory as `$SRS_DIR` below.
+
+2. Define an intent YAML file.
+
+The intent file provides the minimal configuration parameters to both determine the shape of the aggregation tree and the configuration of each circuit. During keygen, the circuits are auto-tuned for best performance based on the intent parameters.
+
+A sample YAML file is provided in [`configs/intents/2.yml`](configs/intents/2.yml).
+
+The intent file has the following format:
+
+```
+k_at_depth: [20, 20, 20, 20]
 params:
   node_type:
     Evm: 1  -> extra round we are doing WorldcoinEvmCircuit, it is typically set to 1
@@ -141,13 +136,41 @@ params:
   initial_depth: 0  -> 1 << initial_depth is the max_proofs a single leaf circuit can handle
 ```
 
-Next, download the corresponding trusted setup file to `${SRS_DIR}` as `kzg_bn254_{k}.srs`. For convenience, [Axiom](s3://axiom-crypto/challenge_0085/) hosts the [Phase 1 perpetual powers of tau](https://github.com/privacy-scaling-explorations/perpetualpowersoftau) trusted setup formatted for halo2 in a public S3 bucket. You can now run keygen using the following command:
+- `k_at_depth`: the circuit degree at each tree depth, starting from the final `WorldcoinEvmCircuit` at index `0` and ending in the `WorldcoinLeafCircuitV{1,2}` at `k_at_depth.len() - 1`. Here degree `k` means that the circuit will have `2 ** k` rows in its PLONKish arithmetization.
+- `Evm: num_extra_rounds` means there will be `num_extra_rounds + 1` `WorldcoinEvmCircuit`s in the aggregation tree. Typically this is set to 1.
+- `depth`: sets `MAX_NUM_CLAIMS` to `2 ** depth`.
+- `initial_depth`: sets the maximum number of claims that can be verified in the `WorldcoinLeafCircuit` to `2 ** initial_depth`.
+
+  The length of `k_at_depth` must equal `depth - initial_depth + num_extra_rounds + 2`.
+
+3. Run keygen.
+
+We assume the KZG trusted setup files are located in `${SRS_DIR}` and named `kzg_bn254_{k}.srs` for circuit degree `k`. You can now run keygen using the following command:
 
 ```
 cargo run --release --bin keygen --features "keygen, v1(or v2)" -- --srs-dir ${SRS_DIR} --intent ${INTENT_YML_PATH} --tag ${CIDS_NAME} --data-dir ${CIRCUIT_DATA_DIR}
 ```
 
-The resulting proving keys, verification keys, and on-chain verification contract will be written to `${CIRCUIT_DATA_DIR}`, together with a `${CIDS_NAME}.cids` file which encodes the computation tree.
+where the feature `v1` or `v2` should be specified based on whether V1 or V2 circuits should be used.
+
+The resulting proving keys, verification keys, and on-chain verification contract will be written to `${CIRCUIT_DATA_DIR}`, together with a `${CIDS_NAME}.cids` JSON file which encodes the aggregation tree as a list of the circuit IDs at each depth of the tree. All nodes at the same depth in the aggregation tree use the same circuit, so they all have the same circuit ID.
+
+## Prover Backend Architecture
+
+We provide tooling for an external operator to generate proofs for the Worldcoin circuits in a distributed system. This involves three key roles:
+
+- **Scheduler**
+  The scheduler receives the top-level request to generate a SNARK proof for the verification of up to `MAX_NUM_CLAIMS` WLD grant claims. The scheduler then breaks this request into smaller subtasks corresponding to the nodes in the proof aggregation tree. The scheduler prepares and sends the requests to generate proofs for these smaller subtasks to the **Dispatcher** in a fully asynchronous manner. The scheduler manages task dependencies, sending new requests once dependency tasks have completed.
+
+- **Dispatcher**
+  The dispatcher handles container orchestration by receiving tasks, allocating necessary infrastructure resources (such as EC2 instances or Kubernetes pods), starting containers for the **Prover**, executing the tasks, and retrieving the resulting proofs. The dispatcher is also responsible for caching proofs that have already been generated. The dispatcher API is compatible with both auto-scaling and dedicated infrastructure solutions.
+
+- **Prover**
+  The prover is designed to be serverless and can be run from a blind docker container as long as it is given the correct auxiliary files (circuit configuration JSON and proving key files, identified by circuit ID).
+
+This repository includes implementations for the Scheduler and Prover. These can interoperate with an operator-written Dispatcher, which will need to integrate with the operator's on-prem or cloud infrastructure solution.
+
+We now describe the architecture of these components in more detail.
 
 ### Scheduler
 
@@ -190,6 +213,36 @@ Each request should have `root`, `grant_id`, `num_proofs`, `max_proofs` and the 
   ]
 }
 ```
+
+### Dispatcher API Interface
+
+The Dispatcher must be implemented as a web server conforming to the following APIs.
+
+#### POST `/tasks`
+
+- **Request Body:**
+  - **circuitId**: Unique identifier for a circuit. This value must be globally unique among all circuits handled by the Dispatcher.
+  - **input**: Accepts a JSON object for flexibility. The Dispatcher should forward it to the proving binary without processing its content.
+  - **[optional] ForceProve**: A proof can be uniquely identified by `(circuitId, Hash(input))`. By default, all proofs are cached. If the Dispatcher receives a request, it will return the cached proof directly. If this field is set to `true`, the system will force a new proof generation even if a cached proof already exists.
+- **Response:**
+  - **taskId**: Uniquely identifies the proof task. The Scheduler will poll `/tasks/:taskId/status` every 5-10 seconds to check if the task is completed.
+
+#### GET `/tasks/:taskId/status`
+
+- **Response:**
+  - **status**: Indicates the current task status. Possible values:
+    - `PENDING`: Task is created but waiting for resources.
+    - `PREPARING`: An instance is allocated, but setup is still in progress (e.g., downloading pkey).
+    - `PROVING`: The proving job is currently running.
+    - `DONE`: The job is completed, and the snark is available.
+    - `FAILED`: The task failed.
+  - **createdAt**: Timestamp when the task was created.
+  - **updatedAt**: Timestamp when the task status was last updated.
+
+#### GET `/tasks/:taskId/snark`
+
+- **Response:**
+  - **snark**: Returns the proof file.
 
 ### Prover
 
