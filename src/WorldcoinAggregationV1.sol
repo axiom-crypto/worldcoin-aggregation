@@ -15,13 +15,13 @@ import { IGrant } from "./interfaces/IGrant.sol";
 contract WorldcoinAggregationV1 {
     /// @dev The minimum length of a valid SNARK proof. The first 14 words here
     /// encode the public inputs.
-    uint256 internal constant MINIMUM_SNARK_LENGTH = 14 * 32;
+    uint256 public constant MINIMUM_SNARK_LENGTH = 14 * 32;
 
     /// @dev The offset of the upper 128 bits of the output hash in the proof
-    uint256 internal constant OUTPUT_HASH_HI_OFFSET = 12 * 32;
+    uint256 public constant OUTPUT_HASH_HI_OFFSET = 12 * 32;
 
     /// @dev The offset of the lower 128 bits of the output hash in the proof
-    uint256 internal constant OUTPUT_HASH_LO_OFFSET = 13 * 32;
+    uint256 public constant OUTPUT_HASH_LO_OFFSET = 13 * 32;
 
     /// @dev The verification key hash of the Groth16 circuit.
     bytes32 public immutable VKEY_HASH;
@@ -103,6 +103,13 @@ contract WorldcoinAggregationV1 {
         PROVER = prover;
     }
 
+    /// @notice Distribute grants to the receivers
+    /// @param vkeyHash The verification key hash of the Groth16 circuit.
+    /// @param numClaims The number of claims to distribute
+    /// @param root The World ID root
+    /// @param grantIds The grant IDs
+    /// @param receivers The receivers of the grants
+    /// @param _nullifierHashes The nullifier hashes
     function distributeGrants(
         bytes32 vkeyHash,
         uint256 numClaims,
