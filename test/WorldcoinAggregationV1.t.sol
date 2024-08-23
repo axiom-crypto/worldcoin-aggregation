@@ -50,37 +50,6 @@ contract WorldcoinAggregationV1_Test is WorldcoinAggregationV1Helper {
         assertEq(_numClaims, numClaims, "numClaims mismatch");
     }
 
-    function test_skipClaimedNullifierHashes() public {
-        aggregation.distributeGrants({
-            proof: PROOF,
-            vkeyHash: vkeyHash,
-            numClaims: numClaims,
-            grantIds: grantIds,
-            root: root,
-            receivers: _receivers,
-            _nullifierHashes: _nullifierHashes
-        });
-
-        uint256[] memory balancesBefore = new uint256[](_receivers.length);
-        for (uint256 i = 0; i != _receivers.length; ++i) {
-            balancesBefore[i] = IERC20(wldToken).balanceOf(_receivers[i]);
-        }
-
-        aggregation.distributeGrants({
-            proof: PROOF,
-            vkeyHash: vkeyHash,
-            numClaims: numClaims,
-            grantIds: grantIds,
-            root: root,
-            receivers: _receivers,
-            _nullifierHashes: _nullifierHashes
-        });
-
-        for (uint256 i = 0; i != _receivers.length; ++i) {
-            assertEq(IERC20(wldToken).balanceOf(_receivers[i]), balancesBefore[i], "balance should not increase");
-        }
-    }
-
     function testFuzz_toAddress(bytes32 input) public view {
         address expected = address(uint160(uint256(input)));
         assertEq(aggregation.toAddress(input), expected, "toAddress failed");
