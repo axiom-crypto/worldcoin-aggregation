@@ -33,13 +33,10 @@ use axiom_eth::{
 };
 
 use axiom_eth::halo2_base::{
-    gates::{GateInstructions, RangeChip, RangeInstructions},
-    utils::biguint_to_fe,
+    gates::{RangeChip},
     AssignedValue, Context,
-    QuantumCell::Constant,
 };
 
-use num_bigint::BigUint;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct RlcKeccakCircuitPinning {
