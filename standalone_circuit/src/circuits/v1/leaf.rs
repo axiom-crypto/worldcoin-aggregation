@@ -255,9 +255,9 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInput<F> {
         // [1] end
         // [2, 3] vkey_hash
         // [4] root
-        // [5, 5 + 1 << max_depth) grant_id_i
-        // [5 + 1 << max_depth, 5 + 2 * (1 << max_depth)) receiver_i
-        // [5 + 2 * (1 << max_depth), 5 + 3 * (1 << max_depth)) nullifier_hash_i
+        // [5, 5 + 1 << max_depth) grant_ids_i
+        // [5 + 1 << max_depth, 5 + 2 * (1 << max_depth)) receivers_i
+        // [5 + 2 * (1 << max_depth), 5 + 3 * (1 << max_depth)) nullifier_hashes_i
         let assigned_instances = iter::empty()
             .chain([start, end])
             .chain([vk_hash.hi(), vk_hash.lo()])

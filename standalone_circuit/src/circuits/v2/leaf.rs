@@ -148,7 +148,7 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
             ctx.constrain_equal(&success.lo(), &one);
 
             // use mask to calculate the correct leaf
-            // Leaves: keccak256(abi.encodePacked(grant_id_i, receiver_i, nullifierHash_i))
+            // Leaves: keccak256(abi.encodePacked(grant_ids_i, receivers_i, nullifierHashes_i))
             // Leaves with indices greater than num_proofs - 1 are given by keccak256(abi.encodePacked(uint256(0), address(0), bytes32(0)))
             let mut bytes = Vec::new();
             let masked_grant_id = gate.mul(ctx, claim.grant_id, mask);

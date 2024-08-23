@@ -37,11 +37,10 @@ The V1 circuit verifies the WorldID Groth16 proofs in batch, and exposes as a pu
 ```
 - vkeyHash - the Keccak hash of the flattened vk
 - num_proofs - the number of proofs we care about the outputs from, which should satisfy 1 <= num_proofs <= max_proofs
-- grantId
 - root
-- grant_id_i for i = 1, ..., max_proofs
-- receiver_i for i = 1, ..., max_proofs
-- nullifierHash_i for i = 1, ..., max_proofs
+- grant_ids_i for i = 1, ..., max_proofs
+- receivers_i for i = 1, ..., max_proofs
+- nullifierHashes_i for i = 1, ..., max_proofs
 ```
 
 As a convenience to the user, fewer than `max_proofs` claims can be submitted to the prover binary and the binary will appropriately pad to satisfy the circuit.
@@ -67,9 +66,8 @@ The V2 circuit design is similar to the V1 circuit. It has public outputs
 
 ```
 - vkeyHash – the Keccak hash of the flattened Groth16 vk
-- grantId
 - root
-- claimRoot – the Keccak Merkle root of the tree whose leaves are keccak256(abi.encodePacked(grant_id_i, receiver_i, nullifierHash_i)). Leaves with indices greater than num_proofs - 1 are given by keccak256(abi.encodePacked(uint256(0), address(0), bytes32(0)))
+- claimRoot – the Keccak Merkle root of the tree whose leaves are keccak256(abi.encodePacked(grant_ids_i, receivers_i, nullifierHashes_i)). Leaves with indices greater than num_proofs - 1 are given by keccak256(abi.encodePacked(uint256(0), address(0), bytes32(0)))
 ```
 
 The V2 design is implemented through the following circuits:
@@ -164,7 +162,7 @@ To send sample request:
 curl -X POST http://localhost:8000/tasks -H "Content-Type: application/json" -d  @data/generated_proofs_128.json
 ```
 
-Each request should have `root`, `num_proofs`, `max_proofs` and the list of `claims`, where each claim contains `grant_id`, `receiver` address, `nullfilier_hash` and `proof`. One example:
+Each request should have `root`, `num_proofs`, `max_proofs` and the list of `claims`, where each claim contains `grant_id`, `receiver` address, `nullifier_hash` and `proof`. One example:
 
 ```
 {
