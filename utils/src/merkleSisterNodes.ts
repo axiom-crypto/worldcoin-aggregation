@@ -58,13 +58,17 @@ class MerkleTree {
   }
 }
 
-function getKeccakHash(receiver: string, nullfilerHash: string) {
+function getKeccakHash(
+  grantId: string,
+  receiver: string,
+  nullfilerHash: string,
+) {
   const nullifierHashHex =
     "0x" + BigInt(nullfilerHash).toString(16).padStart(64, "0");
 
   const packed = ethers.solidityPacked(
-    ["address", "bytes32"],
-    [receiver, nullifierHashHex],
+    ["uint256", "address", "bytes32"],
+    [BigInt(grantId), receiver, nullifierHashHex],
   );
 
   return ethers.keccak256(packed);
@@ -88,12 +92,14 @@ function boolArrayToByte32(boolArray: boolean[]): String {
 
 function parseInput(inputPath: string): {
   leaves: string[];
+  grantIds: string[];
   receivers: string[];
   nullifierHashes: string[];
   root: string;
   grantId: string;
 } {
   const leaves: string[] = [];
+  const grantIds: string[] = [];
   const receivers: string[] = [];
   const nullifierHashes: string[] = [];
 
@@ -103,7 +109,10 @@ function parseInput(inputPath: string): {
 
   const claims = input.claims;
   for (const claim of claims) {
-    leaves.push(getKeccakHash(claim.receiver, claim.nullifier_hash));
+    leaves.push(
+      getKeccakHash(claim.grant_id, claim.receiver, claim.nullifier_hash),
+    );
+    grantIds.push(claim.grant_id);
     receivers.push(claim.receiver);
     nullifierHashes.push(claim.nullifier_hash);
   }
@@ -111,12 +120,13 @@ function parseInput(inputPath: string): {
   const num_proofs = input.num_proofs;
   const max_proofs = input.max_proofs;
 
-  const padLeave = getKeccakHash(ZeroAddress.toString(), "0");
+  const padLeave = getKeccakHash("0", ZeroAddress.toString(), "0");
   for (let i = num_proofs; i < max_proofs; i++) {
     leaves.push(padLeave);
   }
   return {
     leaves,
+    grantIds,
     receivers,
     nullifierHashes,
     root: input.root,
@@ -131,7 +141,7 @@ function main() {
     );
     process.exit(0);
   }
-  const { leaves, receivers, nullifierHashes, root, grantId } = parseInput(
+  const { leaves, grantIds, receivers, nullifierHashes, root } = parseInput(
     process.argv[2],
   );
   const claimIdx = parseInt(process.argv[3]);
@@ -147,7 +157,7 @@ function main() {
   console.log(`isLeftBytes is: ${boolArrayToByte32(isLeftBytes)}`);
 
   const claim = {
-    grantId,
+    grantId: `0x${BigInt(grantIds[claimIdx]).toString(16)}`,
     isLeftBytes: `${boolArrayToByte32(isLeftBytes)}`,
     nullifierHash: `0x${BigInt(nullifierHashes[claimIdx]).toString(16)}`,
     receiver: receivers[claimIdx],
