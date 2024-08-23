@@ -68,6 +68,12 @@ contract WorldcoinAggregationV1 {
     /// @dev The verification key of the query must match the contract's
     error InvalidVkeyHash();
 
+    /// @dev Nullifier hash already used
+    error NullifierHashAlreadyUsed();
+
+    /// @dev Receiver cannot be the zero address
+    error InvalidReceiver();
+
     modifier onlyProver() {
         if (PROVER != address(0) && msg.sender != PROVER) revert OnlyProver();
         _;
@@ -159,25 +165,26 @@ contract WorldcoinAggregationV1 {
 
         uint256[] calldata _receivers = _toUint256Array(receivers);
         for (uint256 i = 0; i != numClaims;) {
-            uint256 grantId = uint256(_unsafeCalldataArrayAccess(grantIds, i));
             address receiver = _toAddress(_unsafeCalldataArrayAccess(_receivers, i));
+            if (receiver == address(0)) revert InvalidReceiver();
+
             uint256 claimedNullifierHash = uint256(_unsafeCalldataArrayAccess(_nullifierHashes, i));
+            if (nullifierHashes[claimedNullifierHash]) revert NullifierHashAlreadyUsed();
 
-            // Claimed nullifier hashes are skipped
-            if (!nullifierHashes[claimedNullifierHash] && receiver != address(0)) {
-                GRANT.checkValidity(grantId);
-                nullifierHashes[claimedNullifierHash] = true;
-                grantAmount = GRANT.getAmount(grantId);
+            uint256 grantId = uint256(_unsafeCalldataArrayAccess(grantIds, i));
+            GRANT.checkValidity(grantId);
 
-                // It is critical that WLD does NOT return false on failure and
-                // reverts (since we don't parse returndata).
-                //
-                // This could mainly pose an issue on insufficient balance if a
-                // nullifier hash gets marked as claimed
-                WLD.transfer(receiver, grantAmount);
+            nullifierHashes[claimedNullifierHash] = true;
+            grantAmount = GRANT.getAmount(grantId);
 
-                emit GrantClaimed(grantId, receiver);
-            }
+            // It is critical that WLD does NOT return false on failure and
+            // reverts (since we don't parse returndata).
+            //
+            // This could mainly pose an issue on insufficient balance if a
+            // nullifier hash gets marked as claimed
+            WLD.transfer(receiver, grantAmount);
+
+            emit GrantClaimed(grantId, receiver);
 
             // forgefmt: disable-next-line
             unchecked { ++i; }
