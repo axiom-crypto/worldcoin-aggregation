@@ -165,14 +165,14 @@ contract WorldcoinAggregationV1 {
 
         uint256[] calldata _receivers = _toUint256Array(receivers);
         for (uint256 i = 0; i != numClaims;) {
+            uint256 grantId = uint256(_unsafeCalldataArrayAccess(grantIds, i));
+            GRANT.checkValidity(grantId);
+
             address receiver = _toAddress(_unsafeCalldataArrayAccess(_receivers, i));
             if (receiver == address(0)) revert InvalidReceiver();
 
             uint256 claimedNullifierHash = uint256(_unsafeCalldataArrayAccess(_nullifierHashes, i));
             if (nullifierHashes[claimedNullifierHash]) revert NullifierHashAlreadyUsed();
-
-            uint256 grantId = uint256(_unsafeCalldataArrayAccess(grantIds, i));
-            GRANT.checkValidity(grantId);
 
             nullifierHashes[claimedNullifierHash] = true;
             grantAmount = GRANT.getAmount(grantId);

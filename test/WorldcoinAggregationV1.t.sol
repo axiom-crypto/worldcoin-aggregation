@@ -328,6 +328,29 @@ contract WorldcoinAggregationV1_RevertTest is WorldcoinAggregationV1Helper {
             _nullifierHashes: _nullifierHashes
         });
     }
+
+    function test_RevertWhen_doubleClaiming() public {
+        aggregation.distributeGrants({
+            proof: PROOF,
+            vkeyHash: vkeyHash,
+            numClaims: numClaims,
+            grantIds: grantIds,
+            root: root,
+            receivers: _receivers,
+            _nullifierHashes: _nullifierHashes
+        });
+
+        vm.expectRevert(WorldcoinAggregationV1.NullifierHashAlreadyUsed.selector);
+        aggregation.distributeGrants({
+            proof: PROOF,
+            vkeyHash: vkeyHash,
+            numClaims: numClaims,
+            grantIds: grantIds,
+            root: root,
+            receivers: _receivers,
+            _nullifierHashes: _nullifierHashes
+        });
+    }
 }
 
 bytes constant INVALID_GRANT_ID_PROOF =
