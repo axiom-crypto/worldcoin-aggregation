@@ -25,7 +25,6 @@ pub enum RequestRouter {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SchedulerTaskRequest {
     pub root: String,
-    pub grant_id: String,
     // the claims vector has [start, end) claims
     pub claims: Vec<ClaimNative>,
     pub num_proofs: usize,

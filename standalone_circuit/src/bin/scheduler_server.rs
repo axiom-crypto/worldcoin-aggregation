@@ -36,7 +36,6 @@ async fn serve(
         num_proofs,
         max_proofs,
         root,
-        grant_id,
         claims,
         initial_depth,
     } = task.into_inner();
