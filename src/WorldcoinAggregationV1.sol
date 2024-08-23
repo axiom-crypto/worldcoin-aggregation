@@ -65,9 +65,6 @@ contract WorldcoinAggregationV1 {
     /// @dev `numClaims` must be less than or equal to `MAX_NUM_CLAIMS`
     error TooManyClaims();
 
-    /// @dev Insufficient balance WLD tokens to fulfill the claim(s)
-    error InsufficientBalance();
-
     /// @dev The verification key of the query must match the contract's
     error InvalidVkeyHash();
 

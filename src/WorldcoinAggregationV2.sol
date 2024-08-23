@@ -58,9 +58,6 @@ contract WorldcoinAggregationV2 {
     /// @dev `logMaxNumClaims` cannot be greater than 32
     error InvalidLogMaxNumClaims();
 
-    /// @dev Root validation failed
-    error InvalidRoot();
-
     /// @dev SNARK verification failed
     error InvalidProof();
 
@@ -81,9 +78,6 @@ contract WorldcoinAggregationV2 {
 
     /// @dev The verification key of the query must match the contract's
     error InvalidVkeyHash();
-
-    /// @dev Axiom result array must have exactly four items.
-    error InvalidNumberOfResults();
 
     modifier onlyProver() {
         if (PROVER != address(0) && msg.sender != PROVER) revert OnlyProver();
