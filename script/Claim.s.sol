@@ -42,7 +42,9 @@ contract ClaimScript is Script {
 
         WorldcoinAggregationV2 clientV2 = WorldcoinAggregationV2(v2clientAddr);
 
-        clientV2.claim(grantId, root, claim.receiver, claim.nullifierHash, claim.sisterNodes, claim.isLeftBytes);
+        clientV2.claim(
+            grantId, root, claim.receiver, uint256(claim.nullifierHash), claim.sisterNodes, claim.isLeftBytes
+        );
 
         vm.stopBroadcast();
     }

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { WorldcoinAggregationV1 } from "../../src/WorldcoinAggregationV1.sol";
-import { Claim2Verifier } from "../../src/verifiers/Claim2Verifier.sol";
+import { V1Claim2Verifier } from "../../src/verifiers/V1Claim2Verifier.sol";
 import { WLDGrant } from "./WLDGrant.sol";
 
 import { Test } from "forge-std/Test.sol";
@@ -58,15 +58,13 @@ contract WorldcoinAggregationV1Helper is Test {
     address wldToken = 0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9;
     address rootValidator = 0x928a514350A403e2f5e3288C102f6B1CCABeb37C;
 
-    string inputPath = "axiom_circuit/data/worldcoin_input.json";
-
     function setUp() public virtual {
         vm.createSelectFork("provider");
         // Sets block.timestamp to a time that would derive into grantId 30
         vm.warp(1_712_275_644);
 
         mockGrant = new WLDGrant();
-        verifier = address(new Claim2Verifier());
+        verifier = address(new V1Claim2Verifier());
         aggregation = new WorldcoinAggregationV1Exposed({
             vkeyHash: vkeyHash,
             maxNumClaims: 4,

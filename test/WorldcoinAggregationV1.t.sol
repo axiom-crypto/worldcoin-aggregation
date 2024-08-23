@@ -7,7 +7,6 @@ import { WorldcoinAggregationV1 } from "../src/WorldcoinAggregationV1.sol";
 import { IGrant } from "../src/interfaces/IGrant.sol";
 
 import { Vm } from "forge-std/Vm.sol";
-import { console } from "forge-std/console.sol";
 
 contract WorldcoinAggregationV1_Test is WorldcoinAggregationV1Helper {
     function test_simpleExample() public {
@@ -31,63 +30,63 @@ contract WorldcoinAggregationV1_Test is WorldcoinAggregationV1Helper {
         //     // The address of the log's emitter.
         //     address emitter;
         // }
-        // Vm.Log[] memory logs = vm.getRecordedLogs();
+        Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        // uint256 _numClaims = 0;
-        // for (uint256 i = 0; i != logs.length; ++i) {
-        //     if (logs[i].topics[0] != keccak256("GrantClaimed(uint256,address)")) continue;
+        uint256 _numClaims = 0;
+        for (uint256 i = 0; i != logs.length; ++i) {
+            if (logs[i].topics[0] != keccak256("GrantClaimed(uint256,address)")) continue;
 
-        //     uint256 grantId = uint256(logs[i].topics[1]);
-        //     address receiver = _toAddress(logs[i].topics[2]);
+            uint256 grantId = uint256(logs[i].topics[1]);
+            address receiver = _toAddress(logs[i].topics[2]);
 
-        //     assertEq(grantId, 30, "grantId mismatch");
-        //     assertEq(receiver, _receivers[_numClaims], "receiver mismatch");
-        //     assertEq(logs[i].emitter, address(aggregation), "emitter mismatch");
-        //     assertEq(aggregation.nullifierHashes(_nullifierHashes[_numClaims]), true, "nullifierHash should be claimed");
+            assertEq(grantId, 30, "grantId mismatch");
+            assertEq(receiver, _receivers[_numClaims], "receiver mismatch");
+            assertEq(logs[i].emitter, address(aggregation), "emitter mismatch");
+            assertEq(aggregation.nullifierHashes(_nullifierHashes[_numClaims]), true, "nullifierHash should be claimed");
 
-        //     ++_numClaims;
-        // }
+            ++_numClaims;
+        }
 
-        // assertEq(_numClaims, numClaims, "numClaims mismatch");
+        assertEq(_numClaims, numClaims, "numClaims mismatch");
     }
 
-    // function test_skipClaimedNullifierHashes() public {
-    //     aggregation.distributeGrants({
-    //         proof: PROOF,
-    //         vkeyHash: vkeyHash,
-    //         numClaims: numClaims,
-    //         grantId: grantId,
-    //         root: root,
-    //         receivers: _receivers,
-    //         _nullifierHashes: _nullifierHashes
-    //     });
+    function test_skipClaimedNullifierHashes() public {
+        aggregation.distributeGrants({
+            proof: PROOF,
+            vkeyHash: vkeyHash,
+            numClaims: numClaims,
+            grantIds: grantIds,
+            root: root,
+            receivers: _receivers,
+            _nullifierHashes: _nullifierHashes
+        });
 
-    //     uint256[] memory balancesBefore = new uint256[](_receivers.length);
-    //     for (uint256 i = 0; i != _receivers.length; ++i) {
-    //         balancesBefore[i] = IERC20(wldToken).balanceOf(_receivers[i]);
-    //     }
+        uint256[] memory balancesBefore = new uint256[](_receivers.length);
+        for (uint256 i = 0; i != _receivers.length; ++i) {
+            balancesBefore[i] = IERC20(wldToken).balanceOf(_receivers[i]);
+        }
 
-    //     aggregation.distributeGrants({
-    //         proof: PROOF,
-    //         vkeyHash: vkeyHash,
-    //         numClaims: numClaims,
-    //         grantId: grantId,
-    //         root: root,
-    //         receivers: _receivers,
-    //         _nullifierHashes: _nullifierHashes
-    //     });
+        aggregation.distributeGrants({
+            proof: PROOF,
+            vkeyHash: vkeyHash,
+            numClaims: numClaims,
+            grantIds: grantIds,
+            root: root,
+            receivers: _receivers,
+            _nullifierHashes: _nullifierHashes
+        });
 
-    //     for (uint256 i = 0; i != _receivers.length; ++i) {
-    //         assertEq(IERC20(wldToken).balanceOf(_receivers[i]), balancesBefore[i], "balance should not increase");
-    //     }
-    // }
+        for (uint256 i = 0; i != _receivers.length; ++i) {
+            assertEq(IERC20(wldToken).balanceOf(_receivers[i]), balancesBefore[i], "balance should not increase");
+        }
+    }
 
-    function testFuzz_toAddress(bytes32 input) public {
+    function testFuzz_toAddress(bytes32 input) public view {
         address expected = address(uint160(uint256(input)));
         assertEq(aggregation.toAddress(input), expected, "toAddress failed");
     }
 
-    function testFuzz_toUint256Array(address[] calldata input) public {
+    function testFuzz_toUint256Array(address[] calldata input) public view {
         uint256[] memory expected = new uint256[](input.length);
         for (uint256 i = 0; i != input.length; ++i) {
             expected[i] = uint256(uint160(input[i]));
@@ -95,14 +94,14 @@ contract WorldcoinAggregationV1_Test is WorldcoinAggregationV1Helper {
         assertEq(aggregation.toUint256Array(input), expected, "toUint256Array failed");
     }
 
-    function testFuzz_unsafeCalldataAccess(uint256[] calldata array, uint256 index) public {
+    function testFuzz_unsafeCalldataArrayAccess(uint256[] calldata array, uint256 index) public view {
         vm.assume(array.length != 0);
         index = bound(index, 0, array.length - 1);
         uint256 expected = array[index];
         assertEq(uint256(aggregation.unsafeCalldataArrayAccess(array, index)), expected, "unsafeCalldataAccess failed");
     }
 
-    function testFuzz_unsafeCalldataAccess(bytes calldata array, uint256 index) public {
+    function testFuzz_unsafeCalldataBytesAccess(bytes calldata array, uint256 index) public view {
         vm.assume(array.length != 0);
         index = bound(index, 0, array.length - 1);
         bytes memory expected = new bytes(32);

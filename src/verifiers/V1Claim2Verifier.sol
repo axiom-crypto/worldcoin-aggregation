@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-contract Claim2Verifier {
+contract V1Claim2Verifier {
     fallback(bytes calldata) external returns (bytes memory) {
         assembly ("memory-safe") {
             // Enforce that Solidity memory layout is respected

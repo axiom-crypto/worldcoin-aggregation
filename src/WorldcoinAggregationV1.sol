@@ -5,9 +5,6 @@ import { IERC20 } from "./interfaces/IERC20.sol";
 import { IRootValidator } from "./interfaces/IRootValidator.sol";
 import { IGrant } from "./interfaces/IGrant.sol";
 
-import { safeconsole as console } from "forge-std/safeconsole.sol";
-import { console2 } from "forge-std/console2.sol";
-
 /// @notice This version of the aggregation contract automatically transfers the
 /// grant amount to each of the users in the batch in the same tx as the
 /// verification. From a UX perspective, this requires no action on the part of
@@ -16,6 +13,16 @@ import { console2 } from "forge-std/console2.sol";
 /// @dev If there is not enough WLD balance in the contract to service the
 /// entire batch being verified, the entire batch will be reverted.
 contract WorldcoinAggregationV1 {
+    /// @dev The minimum length of a valid SNARK proof. The first 14 words here
+    /// encode the public inputs.
+    uint256 internal constant MINIMUM_SNARK_LENGTH = 14 * 32;
+
+    /// @dev The offset of the upper 128 bits of the output hash in the proof
+    uint256 internal constant OUTPUT_HASH_HI_OFFSET = 12 * 32;
+
+    /// @dev The offset of the lower 128 bits of the output hash in the proof
+    uint256 internal constant OUTPUT_HASH_LO_OFFSET = 13 * 32;
+
     /// @dev The verification key hash of the Groth16 circuit.
     bytes32 public immutable VKEY_HASH;
 
@@ -108,7 +115,7 @@ contract WorldcoinAggregationV1 {
             if (numClaims != receivers.length) revert InvalidProof();
             if (numClaims != grantIds.length) revert InvalidProof();
 
-            // Proof must have minimum `14` words.
+            // Proof must have minimum 14 words.
             // We expect the proof to be structured as such:
             //
             // proof[0..12 * 32]: reserved for proof verification data used with the
@@ -121,7 +128,7 @@ contract WorldcoinAggregationV1 {
             //
             // proof[14 * 32..]: Proof used in SNARK verification
 
-            if (proof.length < 14 << 5) revert InvalidProof();
+            if (proof.length < MINIMUM_SNARK_LENGTH) revert InvalidProof();
 
             // No need to clean the upper bits on `vkeyLow`, `outputHash` or SNARK
             // verification would fail.
@@ -142,8 +149,9 @@ contract WorldcoinAggregationV1 {
                     _nullifierHashes
                 )
             );
-            bytes32 outputHash =
-                _unsafeCalldataBytesAccess(proof, 12 << 5) << 128 | _unsafeCalldataBytesAccess(proof, 13 << 5);
+
+            bytes32 outputHash = _unsafeCalldataBytesAccess(proof, OUTPUT_HASH_HI_OFFSET) << 128
+                | _unsafeCalldataBytesAccess(proof, OUTPUT_HASH_LO_OFFSET);
 
             if (outputHash != derivedOutputHash) revert InvalidProof();
         }
