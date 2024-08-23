@@ -2,7 +2,7 @@ use std::{collections::HashMap, env, fs::File, io::Write, path::PathBuf};
 
 use anyhow::anyhow;
 use clap::Parser;
-use rocket::{launch, post, routes, serde::json::Json, Build, Rocket, State};
+use rocket::{launch, post, get, routes, serde::json::Json, Build, Rocket, State};
 use tokio::task;
 use uuid::Uuid;
 use worldcoin_aggregation::{
@@ -21,6 +21,11 @@ use worldcoin_aggregation::{
 
 use std::sync::Arc;
 use worldcoin_aggregation::scheduler::Scheduler;
+
+#[get("/")]
+fn index() -> &'static str {
+    "I'm alive!"
+}
 
 #[post("/tasks", format = "json", data = "<task>")]
 async fn serve(
@@ -206,6 +211,6 @@ fn rocket() -> Rocket<Build> {
     );
 
     rocket::build()
-        .mount("/", routes![serve])
+        .mount("/", routes![serve, index])
         .manage(Arc::new(scheduler))
 }
