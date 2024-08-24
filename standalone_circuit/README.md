@@ -174,7 +174,7 @@ We now describe the architecture of these components in more detail.
 
 ### Scheduler
 
-The scheduler provides the highest level API for interacting with the backend. It receives the request for an entire proving workload, whose final output is the serialized bytes of a SNARK proof proving `MAX_NUM_CLAIMS` WLD grant claims. To acheive this, the scheduler must schedule proving tasks according to a
+The scheduler provides the highest level API for interacting with the backend. It receives the request for an entire proving workload, whose final output is the serialized bytes of a SNARK proof proving `MAX_NUM_CLAIMS` WLD grant claims. To achieve this, the scheduler must schedule proving tasks according to a
 computation DAG, namely the aggregation tree structure depicted in [Batch WorldID Verification Circuits](#batch-worldid-verification-circuits).
 
 We provide two implementations of the scheduler:
