@@ -12,11 +12,11 @@ contract DeployMocks is Script {
         vm.startBroadcast();
 
         // 100mil supply
-        WLDMock wldMock = new WLDMock(100_000_000 * 10 ** 18);
+        new WLDMock(100_000_000 * 10 ** 18);
 
-        RootValidatorMock rootValidatorMock = new RootValidatorMock();
+        new RootValidatorMock();
 
-        GrantMock grantMock = new GrantMock();
+        new GrantMock();
 
         vm.stopBroadcast();
     }
