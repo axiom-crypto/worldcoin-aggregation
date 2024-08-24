@@ -5,15 +5,14 @@ use clap::Parser;
 use rocket::{http::Status, launch, post, routes, serde::json::Json, Build, Rocket, State};
 use serde::{Deserialize, Serialize};
 use std::fs;
+use uuid::Uuid;
 use worldcoin_aggregation::{
-    constants::INITIAL_DEPTH,
+    constants::{EXTRA_ROUNDS, INITIAL_DEPTH},
     keygen::node_params::{NodeParams, NodeType},
-    prover::{ProverConfig, ProvingServerState},
-    scheduler::{local_scheduler::*, recursive_request::*},
+    prover::{types::ProverProof, ProverConfig, ProvingServerState},
+    scheduler::{local_scheduler::*, recursive_request::*, Scheduler},
     types::*,
 };
-
-const EXTRA_ROUNDS: usize = 1;
 
 #[derive(Serialize, Deserialize)]
 struct Request {
@@ -22,10 +21,11 @@ struct Request {
     // end index of the claim, exclusive
     end: u32,
     root: String,
-    grant_id: String,
     // the claims vector has [start, end) claims
     claims: Vec<ClaimNative>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    initial_depth: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     depth: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -49,15 +49,17 @@ async fn serve(task: Json<Request>, scheduler: &State<LocalScheduler>) -> Result
         start,
         end,
         root,
-        grant_id,
         claims,
         depth,
+        initial_depth,
         is_final,
         for_evm,
         rounds,
     } = task.into_inner();
 
     let depth = depth.unwrap_or(INITIAL_DEPTH);
+    let initial_depth = initial_depth.unwrap_or(INITIAL_DEPTH);
+
     if end - start > 1 << depth {
         return Err(anyhow!("Too many proofs!")
             .context(InvalidInputContext)
@@ -76,17 +78,16 @@ async fn serve(task: Json<Request>, scheduler: &State<LocalScheduler>) -> Result
         } else {
             NodeType::Root
         }
-    } else if depth == INITIAL_DEPTH {
+    } else if depth == initial_depth {
         NodeType::Leaf
     } else {
         NodeType::Intermediate
     };
-    let params = NodeParams::new(node_type, depth, INITIAL_DEPTH);
+    let params = NodeParams::new(node_type, depth, initial_depth);
     let req = RecursiveRequest {
         start,
         end,
         root,
-        grant_id,
         claims,
         params,
     };
@@ -94,12 +95,22 @@ async fn serve(task: Json<Request>, scheduler: &State<LocalScheduler>) -> Result
     let scheduler = LocalScheduler::clone(scheduler);
     // Actually run the thing
     log::info!("Running task: {req:?}");
+    let request_id = Uuid::new_v4();
+
     let evm_proof = if for_evm {
-        scheduler.recursive_get_evm_proof(req).await
+        let prover_proof  = scheduler
+            .recursive_gen_proof(request_id.to_string().as_str(), req, true)
+            .await?;
+        match prover_proof {
+            ProverProof::EvmProof(proof) => proof,
+            ProverProof::Snark(_) => unreachable!()
+        }
     } else {
-        scheduler.recursive_get_snark(req).await?;
-        Ok("".to_string())
-    }?;
+        scheduler
+            .recursive_gen_proof(request_id.to_string().as_str(), req, false)
+            .await?;
+        "".to_string()
+    };
     log::info!("Task complete!");
 
     Ok(evm_proof)

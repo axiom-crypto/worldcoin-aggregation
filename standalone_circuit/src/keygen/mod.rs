@@ -36,9 +36,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     circuit_factory::leaf::*, constants::VK, types::WorldcoinRequest,
-    WorldcoinIntermediateAggregationCircuit, WorldcoinIntermediateAggregationInput,
-    WorldcoinLeafCircuit, WorldcoinLeafInput, WorldcoinRootAggregationCircuit,
-    WorldcoinRootAggregationInput,
+    WorldcoinIntermediateAggregationInput, WorldcoinIntermediateAggregationCircuit, WorldcoinLeafCircuit, WorldcoinLeafInput,
+    WorldcoinRootAggregationCircuit, WorldcoinRootAggregationInput,
 };
 
 pub mod node_params;
@@ -133,7 +132,6 @@ impl KeygenCircuitIntent<Fr> for IntentLeaf {
         let request_leaf: WorldcoinRequestLeaf = WorldcoinRequestLeaf {
             vk: VK.clone(),
             root: request.root,
-            grant_id: request.grant_id,
             claims: request.claims,
             depth: self.depth,
             start: 0,

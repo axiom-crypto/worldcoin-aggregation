@@ -50,14 +50,12 @@ We now proceed to discuss the details of the V1 and V2 circuits within this fram
 
 The V1 circuit verifies the WorldID Groth16 proofs in batch, and exposes as a public output the Keccak hash of the following quantities.
 
-```
-- vkeyHash - the Keccak hash of the flattened vk
-- numClaims - the number of claims, which should satisfy 1 <= numClaims <= MAX_NUM_CLAIMS
-- grantId
-- root
-- receiver_i for i = 1, ..., MAX_NUM_CLAIMS
-- nullifierHash_i for i = 1, ..., MAX_NUM_CLAIMS
-```
+- `vkeyHash` - the Keccak hash of the flattened vk
+- `numClaims` - the number of claims, which should satisfy `1 <= numClaims <= MAX_NUM_CLAIMS`
+- `root`
+- `grant_ids_i` for `i = 1, ..., MAX_NUM_CLAIMS`
+- `receivers_i` for `i = 1, ..., MAX_NUM_CLAIMS`
+- `nullifierHashes_i` for `i = 1, ..., MAX_NUM_CLAIMS`
 
 As a convenience to the user, fewer than `MAX_NUM_CLAIMS` claims can be submitted to the prover.
 
@@ -66,39 +64,37 @@ To implement the V1 circuit, we use the following 4 types of circuits:
 - **WorldcoinLeafCircuit** - It has configuration parameter `max_depth` which sets the maximum number of claims that the circuit can prove to be `2 ** max_depth`. It has `start` (inclusive) and `end` (exclusive) indexes for the claims this circuit is handling. It constrains
   - `start` and `end` are in `[0, 2**64)`
   - `end - start` lies in `(0, 2**max_depth]`
-  - each claim verifies with the verifying key `vk` and public inputs `[root, nullifier_hash, signal_hash, grant_id]`, where `signalHash = uint256(keccak256(abi.encodePacked(receiver))) >> 8`
-  - The public outputs are `[start, end, vk_hash_hi, vk_hash_lo, grant_id, root, ...receivers, ...nullifier_hashes]`
+  - each claim verifies with the Groth16 verifying key `vk` and inputs `[root, nullifier_hash, receiver, grant_id]`
+  - The public IO consists of `[start, end, vk_hash_hi, vk_hash_lo, root, ...grant_ids, ...receivers, ...nullifier_hashes]`
 - **WorldcoinIntermediateAggregationCircuit** - It aggregates either two WorldcoinLeafCircuit proofs or two WorldcoinIntermediateAggregationCircuit proofs, depending on the circuit's depth in the aggregation tree, and also enforce constraints between the public IO of the two aggregated child proofs:
   - The two child proofs either link together, where the `end` of the 1st proof equal the `start` of the 2nd proof, or the 2nd proof is a dummy
-  - It check `vk, grant_id, root` are the same in both children
+  - It checks `vk, root` are the same in both children
   - It has the same format of public IO as the leaf circuit.
-- **WorldcoinRootAggregationCircuit** - It is similar to WorldcoinIntermediateAggregationCircuit in terms of aggregation, but its public IO consists of only the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]`.
+- **WorldcoinRootAggregationCircuit** - It is similar to WorldcoinIntermediateAggregationCircuit in terms of aggregation, but its public IO consists of only the keccak hash of
+  `[vk_hash_hi, vk_hash_lo, root, num_claims, ...grant_ids, ...receivers, ...nullifier_hashes]` where `num_claims = end - start` is the total number of claims this proof has verified.
 - **WorldcoinEvmCircuit** - It aggregates either a single WorldcoinRootAggregationCircuit or a single WorldcoinEvmCircuit, depending on the circuit's depth in the aggregation tree. The only purpose of this circuit is to compress the final proof size to lower the final on-chain verification cost.
-  The final public IO is the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]`.
+  The final public IO is the keccak hash of `[vk_hash_hi, vk_hash_lo, root, num_claims, ...grant_ids, ...receivers, ...nullifier_hashes]`.
   - In practice we use two WorldcoinEvmCircuits to compress the final proof size.
 
 ### V2 Circuit Design
 
 The V2 circuit design is similar to the V1 circuit. It has public outputs
 
-```
-- vkeyHash – the Keccak hash of the flattened Groth16 vk
-- grantId
-- root
-- claimRoot – the Keccak Merkle root of the tree whose leaves are keccak256(abi.encodePacked(receiver_i, nullifierHash_i)). Leaves with indices greater than numClaims - 1 are given by keccak256(abi.encodePacked(address(0), bytes32(0))), where 1 <= numClaims <= MAX_NUM_CLAIMS.
-```
+- `vkeyHash` – the Keccak hash of the flattened Groth16 verifying key `vk`
+- `root`
+- `claimRoot` – the Keccak Merkle root of the tree whose leaves are `keccak256(abi.encodePacked(grant_ids_i, receivers_i, nullifierHashes_i))`. Leaves with indices greater than `numClaims - 1` are given by `keccak256(abi.encodePacked(uint256(0), address(0), bytes32(0)))`, where `1 <= numClaims <= MAX_NUM_CLAIMS`.
 
 The V2 design is implemented through the following circuits:
 
 - **WorldcoinLeafCircuitV2** - It has all the constraints that the WorldcoinLeafCircuitV1 has.
   - In addition, it calculates the claim root for the subtree of depth `max_depth`.
-  - The public IO is `[start, end, vk_hash_hi, vk_hash_lo, grant_id, root, claim_root_hi, claim_root_lo]`
+  - The public IO is `[start, end, vk_hash_hi, vk_hash_lo, root, claim_root_hi, claim_root_lo]`
 - **WorldcoinIntermediateAggregationCircuitV2** - It has all the constraints that the WorldcoinIntermediateAggregationCircuitV1 has.
   - In addition, it calculates `claim_root = keccak(left_child, right_child)`, where `left_child` and `right_child` are the claim roots of the two child proofs that were aggregated.
   - It has the same public outputs formats as `WorldcoinLeafCircuitV2`.
-- **WorldcoinRootAggregationCircuitV2** - It is similar to `WorldcoinIntermediateAggregationCircuitV2` in terms of aggregation, but the public IO consists of only the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, claim_root_hi, claim_root_lo]`.
+- **WorldcoinRootAggregationCircuitV2** - It is similar to `WorldcoinIntermediateAggregationCircuitV2` in terms of aggregation, but the public IO consists of only the keccak hash of `[vk_hash_hi, vk_hash_lo, root, num_claims, claim_root_hi, claim_root_lo]` where `num_claims = end - start` is the total number of claims this proof has verified.
 - **WorldcoinEvmCircuit** - It aggregates either a single WorldcoinRootAggregationCircuit or a single WorldcoinEvmCircuit, depending on the circuit's depth in the aggregation tree. The only purpose of this circuit is to compress the final proof size to lower the final on-chain verification cost.
-  The final public IO is the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, claim_root_hi, claim_root_lo]`.
+  The final public IO is the keccak hash of `[vk_hash_hi, vk_hash_lo, root, num_claims, claim_root_hi, claim_root_lo]`.
   - In practice we use two WorldcoinEvmCircuits to compress the final proof size.
 
 ### Proving and Verifying Key Generation
@@ -131,9 +127,9 @@ The intent file has the following format:
 k_at_depth: [20, 20, 20, 20]
 params:
   node_type:
-    Evm: 1  -> extra round we are doing WorldcoinEvmCircuit, it is typically set to 1
-  depth: 1  -> 1 << depth is the max_proofs we are handling
-  initial_depth: 0  -> 1 << initial_depth is the max_proofs a single leaf circuit can handle
+    Evm: 1
+  depth: 1
+  initial_depth: 0
 ```
 
 - `k_at_depth`: the circuit degree at each tree depth, starting from the final `WorldcoinEvmCircuit` at index `0` and ending in the `WorldcoinLeafCircuitV{1,2}` at `k_at_depth.len() - 1`. Here degree `k` means that the circuit will have `2 ** k` rows in its PLONKish arithmetization.
@@ -178,7 +174,7 @@ The scheduler provides the highest level API for interacting with the backend. I
 
 We provide two implementations of the scheduler:
 
-- **Local Scheduler**: This scheduler runs on the local machine and generates proofs sequentially on the same machine. It is intended for testing and development purposes.
+- **Local Scheduler**: This scheduler runs on the local machine and generates proofs sequentially on the same machine. This scheduler does not require a separate dispatcher or proving server. It is intended for testing and development purposes.
 - **Async Scheduler**: This scheduler is designed for production use in a distributed computing system. The async scheduler does not perform any proof generation. Instead, it makes concurrent asynchronous calls to the **Dispatcher** to request proof generation. All proof requests that do not have unresolved dependencies are executed in parallel, and each request is polled for completion. Once all dependencies of an unstarted task are completed, the scheduler prepares the task input and requests a proof of the task. The maximum number of concurrent tasks is configurable.
 
 The scheduler receives requests via a REST API.
@@ -192,6 +188,8 @@ cargo run --release --features $VERSION --bin scheduler_server -- --cids-path ${
 ```
 
 where `$VERSION` is the version of the circuits to use, either `v1` or `v2`.
+The `${CIDS_PATH}` is the path to the JSON file output by the keygen command, which stores the
+circuit IDs at each depth of the aggregation tree. The `${DISPATCHER_URL}` is the URL of the dispatcher REST API server.
 
 To send sample request:
 
@@ -199,17 +197,19 @@ To send sample request:
 curl -X POST http://localhost:8000/tasks -H "Content-Type: application/json" -d  @data/generated_proofs_128.json
 ```
 
-Each request should have `root`, `grant_id`, `num_proofs`, `max_proofs` and the list of `claims`, where each claim contains `receiver` address, `nullfilier_hash` and `proof`. One example:
+Each request should have `root`, `num_proofs`, `max_proofs` and the list of `claims`, where each claim contains `grant_id`, `receiver` address, `nullifier_hash` and `proof`. In the request, `num_proofs = num_claims` is the number of claims and `max_proofs = MAX_NUM_CLAIMS` is the maximum number of claims allowed. The scheduler will reject the request if `max_proofs` does not match the circuit configurations that it was started with.
+
+An example request looks like:
 
 ```
 {
   "root": "12439333144543028190433995054436939846410560778857819700795779720142743070295",
-  "grant_id": "30",
   "num_proofs": 2,
   "max_proofs": 16,
   "claims": [
     {
       "receiver": "0xff9db18c23be01D48DCF1fE182f4807055ae8cA2",
+      "grant_id": "30",
       "nullifier_hash": "21294919666276076011035787158136769959318829071812973005197954290733822302380",
       "proof": [
         "19948547122086334894689325645680910374301022582555626047089468872550356701348",
@@ -327,7 +327,3 @@ cargo run --release --bin prover_server  --features "asm, <v1 or v2>" -- --circu
 
 The `${CIDS_PATH}` is the path to the JSON file output by the keygen command, which stores the
 circuit IDs at each depth of the aggregation tree.
-
-## Configuration Parameters
-
-The `max_proofs` configuration parameter is the maximum number of WorldID proofs which can be verified at once. It can be set in the input JSON file; see `data/generated_proofs_128.json` for an example.

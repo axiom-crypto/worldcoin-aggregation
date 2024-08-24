@@ -8,7 +8,7 @@ import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 string constant CLAIM_FILE = "script/config/claim.json";
 string constant V2_CLIENT = "script/config/v2client.json";
 
-contract Claim is Script {
+contract ClaimScript is Script {
     // Use string for grantId and root since the merkleSisterNode script is in typescript
     // and it can't output bigint without quote
     // It looks like foundry has some bugs in encoding parsed json and the fields need to
@@ -42,7 +42,9 @@ contract Claim is Script {
 
         WorldcoinAggregationV2 clientV2 = WorldcoinAggregationV2(v2clientAddr);
 
-        clientV2.claim(grantId, root, claim.receiver, claim.nullifierHash, claim.sisterNodes, claim.isLeftBytes);
+        clientV2.claim(
+            grantId, root, claim.receiver, uint256(claim.nullifierHash), claim.sisterNodes, claim.isLeftBytes
+        );
 
         vm.stopBroadcast();
     }

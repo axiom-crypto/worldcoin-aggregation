@@ -23,73 +23,56 @@ We implement two versions of WLD grants based on batch verification of WorldID p
 - `WorldcoinAggregationV1`: After proof verification, all the receivers in the batch immediately have their grant transferred to them.
 - `WorldcoinAggregationV2`: After proof verification, the receivers (or someone on their behalf) can prove into a Merkle root and transfer the grant to the receiver.
 
-The V1 grant protocol can either be integrated with Axiom V2 or implemented in a standalone fashion. We recommend **WLD Grant Protocol V1 deployed standalone** for the best UX and cost for the grantee. We describe each variation below.
+Both V1 and V2 grant protocols can either be integrated with Axiom V2 or implemented in a standalone fashion. We recommend **WLD Grant Protocol V1 deployed standalone** for the best UX and cost for the grantee. We describe each variation below.
 
 ### WLD Grant Protocol V1 (Standalone)
 
 In the V1 design, the grant contract automatically transfers the grant amount to each of the users in the batch in the same transaction as the verification. This design means users do not need to make an additional on-chain transaction to receive the grant, but incurs additional calldata and transfer cost for each grantee.
 
-The V1 grant contract supports at most `MAX_NUM_CLAIMS` at once, and receives as part of the claim transaction a ZK proof whose unique public output is a Keccak hash of the `4 + 2 * MAX_NUM_CLAIMS` ZK-verified quantities:
+The V1 grant contract supports at most `MAX_NUM_CLAIMS` at once, and receives as part of the claim transaction a ZK proof whose unique public output is a Keccak hash of the `3 + 3 * MAX_NUM_CLAIMS` ZK-verified quantities:
 
 ```
-- vkeyHash - the Keccak hash of the flattened vk
+- vkeyHash - the Keccak hash of the flattened Groth16 vkey
 - numClaims - the number of claims, which should satisfy 1 <= numClaims <= MAX_NUM_CLAIMS
-- grantId
-- root
-- receiver_i for i = 1, ..., MAX_NUM_CLAIMS
-- nullifierHash_i for i = 1, ..., MAX_NUM_CLAIMS
+- root - the WorldID root the proofs are relative to
+- grantIds_i for i = 1, ..., MAX_NUM_CLAIMS 
+- receivers_i for i = 1, ..., MAX_NUM_CLAIMS
+- nullifierHashes_i for i = 1, ..., MAX_NUM_CLAIMS
 ```
 
 The ZK proof verifies in ZK that:
 
-1. For `0 <= idx < numClaims`, there are valid WorldID proofs corresponding to `(grantId, receivers[idx], root, claimedNullifierHashes[idx])` with the given Groth16 `vkeyHash`.
+1. For `0 <= idx < numClaims`, there are valid WorldID proofs corresponding to `(grantIds[idx], receivers[idx], root, claimedNullifierHashes[idx])` with the given Groth16 `vkeyHash`.
 
 The V1 grants contract then:
 
 - checks the `vkeyHash` for the WorldID Groth16 proof is valid
-- checks the `grantId` is valid
+- checks that `grantIds[idx]` is valid for `0 <= idx < numClaims`
 - checks for each claiming grantee that the nullifier hash was not previously used
 - sends `WLD` to fulfill the claim
 
 To simplify re-execution in the case of insufficient `WLD` balance, claims are all-or-nothing -- if the contract has insufficient `WLD` to fulfill the entire batch, the entire claim transaction will be reverted.
 
-### WLD Grant Protocol V1 (Integrated with Axiom)
+### WLD Grant Protocol V2 (Standalone)
 
-We also implement a version of the V1 design using Axiom, where the V1 grant contract receives the following `4 + 2 * MAX_NUM_CLAIMS` ZK-verified quantities in a callback from Axiom:
+In the V2 design, the grant contract implements a two-step process to distribute the grant. First, it verifies in ZK a Keccak Merkle root of a tree of eligible grant recipients with leaves given by `abi.encodePacked(grantId, receiver, nullifierHash)`. This Merkle root is stored on-chain, and grantees use ordinary Merkle proofs to prove eligibility and claim their grants.
 
-```
-- axiomResults[0]: vkeyHash
-- axiomResults[1]: grantId
-- axiomResults[2]: root
-- axiomResults[3]: numClaims
-- axiomResults[idx] for idx in [4, 4 + numClaims): receivers
-- axiomResults[idx] for idx in [4 + MAX_NUM_CLAIMS, 4 + MAX_NUM_CLAIMS + numClaims): claimedNullifierHashes
-```
-
-The remainder of the flow proceeds in the same way as the standalone protocol.
-
-### WLD Grant Protocol V2 (Integrated with Axiom)
-
-In the V2 design, the grant contract implements a two-step process to distribute the grant. Axiom is used to verify a Keccak Merkle root of a tree of eligible grant recipients with leaves given by `abi.encodePacked(receiver, nullifierHash)`. This Merkle root is stored on-chain, and grantees use ordinary Merkle proofs to prove eligibility and claim their grants.
-
-The V2 grant contract supports at most `MAX_NUM_CLAIMS` at once, where `MAX_NUM_CLAIMS` must be a power of two. It receives the following 4 ZK-verified quantities in a callback from Axiom:
+The V2 grant contract supports at most `MAX_NUM_CLAIMS` at once, where `MAX_NUM_CLAIMS` must be a power of two. It verifies the following 3 ZK-verified quantities using a ZK proof:
 
 ```
-- axiomResults[0]: vkeyHash
-- axiomResults[1]: grantId
-- axiomResults[2]: root
-- axiomResults[3]: claimsRoot
+- vkeyHash - the Keccak hash of the flattened Groth16 vkey
+- root - the WorldID root the proofs are relative to
+- claimsRoot - the Keccak Merkle root of the tree with `MAX_NUM_CLAIMS` leaves
 ```
 
-Axiom verifies in ZK that:
+The ZK proof verifies that
 
-1. There is a value `1 <= numClaims <= MAX_NUM_CLAIMS` and arrays `receivers` and `claimedNullifierHashes` so that for `0 <= idx < numClaims`, there are valid WorldID proofs corresponding to `(grantId, receivers[idx], root, claimedNullifierHashes[idx])`.
-2. The hash `claimsRoot` is the Keccak Merkle root of the tree with `MAX_NUM_CLAIMS` leaves, where the first `numClaims` leaves are given by `abi.encodePacked(receiver[idx], claimedNullifierHashes[idx])` and the remaining leaves are `abi.encodePacked(address(0), byte32(0))`.
+1. There is a value `1 <= numClaims <= MAX_NUM_CLAIMS` and arrays `receivers` and `claimedNullifierHashes` so that for `0 <= idx < numClaims`, there are valid WorldID proofs corresponding to `(grantIds[idx], receivers[idx], root, claimedNullifierHashes[idx])`.
+2. The hash `claimsRoot` is the Keccak Merkle root of the tree with `MAX_NUM_CLAIMS` leaves, where the first `numClaims` leaves are given by `abi.encodePacked(grantIds[idx], receivers[idx], claimedNullifierHashes[idx])` and the remaining leaves are `abi.encodePacked(uint256(0), address(0), byte32(0))`.
 
 The V2 grants contract then:
 
 - checks the `vkeyHash` for the WorldID Groth16 proof is valid
-- checks `grantId` is valid
 - stores `claimsRoot` for grantees to claim WLD against
 
 Grantees can claim `WLD` rewards from the V2 grants contract by passing a Merkle proof into:
@@ -108,6 +91,32 @@ Grantees can claim `WLD` rewards from the V2 grants contract by passing a Merkle
 ```
 
 Note that we use a Keccak Merkle tree **without** sorting of child hashes, meaning the parent hash is given by `parent = keccak256(abi.encodePacked(left, right))`. This means Merkle proof verification requires an indication of whether each proof hash is a left or right child, which we encode in `bytes32 isLeftBytes` so that **byte** `idx` of `isLeftBytes` is `1` if and only if `leaves[idx]` is a left child.
+
+### WLD Grant Protocol V1 (Integrated with Axiom)
+
+We also implement a version of the V1 design using Axiom, where the V1 grant contract receives the following `4 + 2 * MAX_NUM_CLAIMS` ZK-verified quantities in a callback from Axiom:
+
+```
+- axiomResults[0]: vkeyHash
+- axiomResults[1]: grantId
+- axiomResults[2]: root
+- axiomResults[3]: numClaims
+- axiomResults[idx] for idx in [4, 4 + numClaims): receivers
+- axiomResults[idx] for idx in [4 + MAX_NUM_CLAIMS, 4 + MAX_NUM_CLAIMS + numClaims): claimedNullifierHashes
+```
+
+The remainder of the flow proceeds in the same way as the standalone protocol.
+
+### WLD Grant Protocol V2 (Integrated with Axiom)
+
+We also implement a version of the V2 design using Axiom, where the V2 grant contract receives the following `4` ZK-verified quantities in a callback from Axiom, and all `grantId` values are constrained to be the same.
+
+```
+- axiomResults[0]: vkeyHash
+- axiomResults[1]: grantId
+- axiomResults[2]: root
+- axiomResults[3]: claimsRoot
+```
 
 ## Test Deployments and Gas Benchmarks
 

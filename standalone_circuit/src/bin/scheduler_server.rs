@@ -2,7 +2,7 @@ use std::{collections::HashMap, env, fs::File, io::Write, path::PathBuf};
 
 use anyhow::anyhow;
 use clap::Parser;
-use rocket::{launch, post, routes, serde::json::Json, Build, Rocket, State};
+use rocket::{launch, post, get, routes, serde::json::Json, Build, Rocket, State};
 use tokio::task;
 use uuid::Uuid;
 use worldcoin_aggregation::{
@@ -20,6 +20,12 @@ use worldcoin_aggregation::{
 };
 
 use std::sync::Arc;
+use worldcoin_aggregation::scheduler::Scheduler;
+
+#[get("/")]
+fn index() -> &'static str {
+    "I'm alive!"
+}
 
 #[post("/tasks", format = "json", data = "<task>")]
 async fn serve(
@@ -30,7 +36,6 @@ async fn serve(
         num_proofs,
         max_proofs,
         root,
-        grant_id,
         claims,
         initial_depth,
     } = task.into_inner();
@@ -63,7 +68,6 @@ async fn serve(
         start: 0,
         end: num_proofs as u32,
         root,
-        grant_id,
         claims,
         params,
     };
@@ -116,13 +120,8 @@ async fn serve(
                     const VK_HASH: &str =
                         "0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec";
 
-                    let v1claim_params = V1ClaimParams::new(
-                        VK_HASH,
-                        &req.grant_id,
-                        &req.root,
-                        &req.claims,
-                        final_proof,
-                    );
+                    let v1claim_params =
+                        V1ClaimParams::new(VK_HASH, &req.root, &req.claims, final_proof);
 
                     for _i in 0..retry_send_threshold {
                         let ret = contract_client
@@ -211,6 +210,6 @@ fn rocket() -> Rocket<Build> {
     );
 
     rocket::build()
-        .mount("/", routes![serve])
+        .mount("/", routes![serve, index])
         .manage(Arc::new(scheduler))
 }
