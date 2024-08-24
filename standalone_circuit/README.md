@@ -229,6 +229,8 @@ Each request should have `root`, `grant_id`, `num_proofs`, `max_proofs` and the 
 
 ### Dispatcher
 
+⚠ ️This repository **does not** provide an implementation of the dispatcher, as the dispatcher is heavily tied to the precise backend infrastructure used by the operator. Below we describe the required functionality of such a dispatcher and the API that it must conform to in order to be integrated with the rest of the backend architecture.
+
 The dispatcher is responsible for container orchestration of the SNARK prover nodes. The dispatcher may be implemented as part of an autoscaling system of empheral nodes, a system of persistent nodes, or a combination of both.
 
 A dispatcher request is a request for the generation of a SNARK proof for a single circuit. The dispatcher does not handle any scheduling and has no context about workload dependencies. The dispatcher request contains:
