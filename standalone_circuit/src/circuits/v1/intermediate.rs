@@ -8,9 +8,9 @@
 //!
 //! The root of the aggregation tree will be a [WorldcoinRootAggregationCircuit].
 //! Intermediate and Root aggregation circuits have different public outputs.
-//! Intermediate Aggregation circuit public outputs: [start, end, vk_hash_hi, vk_hash_lo, grant_id, root, ...receivers, ...nullifier_hashes]
+//! Intermediate Aggregation circuit public outputs: [start, end, vk_hash_hi, vk_hash_lo, root, ...grant_ids, ...receivers, ...nullifier_hashes]
 //! Root Aggregation circuit public outputs: [output_hash_hi, output_hash_lo], where output is
-//! [vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]
+//! [vk_hash_hi, vk_hash_lo, root, num_proofs, ...grant_ids, ...receivers, ...nullifier_hashes]
 use anyhow::{bail, Ok, Result};
 use axiom_eth::{
     halo2_base::{
@@ -34,14 +34,6 @@ use axiom_eth::{
 use itertools::Itertools;
 
 pub struct WorldcoinIntermediateAggregationCircuit(pub AggregationCircuit);
-
-impl WorldcoinIntermediateAggregationCircuit {
-    /// The number of instances NOT INCLUDING the accumulator
-    pub fn get_num_instance(max_depth: usize, initial_depth: usize) -> usize {
-        assert!(max_depth >= initial_depth);
-        6 + 2 * (1 << max_depth)
-    }
-}
 
 /// The input to create an intermediate [AggregationCircuit] that aggregates [WorldcoinLeafCircuit]s.
 /// These are intermediate aggregations because they do not perform additional keccaks. Therefore the public instance format (after excluding accumulators) is
@@ -78,6 +70,138 @@ impl WorldcoinIntermediateAggregationInput {
             max_depth,
             initial_depth,
         }
+    }
+
+    /// Takes the concatenated previous instances from two `WorldcoinIntermediateAggregationCircuit`s
+    /// of max depth `max_depth - 1` and
+    /// - checks that they form a chain of `max_depth`
+    ///
+    /// If `max_depth - 1 == initial_depth`, then the previous instances are from two `WorldcoinLeafCircuit`s.
+    ///
+    /// Returns the new instances for the depth `max_depth` circuit (without accumulators)
+    ///
+    /// ## Assumptions
+    /// - `prev_instances` are the previous instances **with old accumulators removed**.
+    /// /// Data passed from phase0 to phase1
+    /// instances:
+    /// [0] start
+    /// [1] end
+    /// [2, 3] vkey_hash
+    /// [4] root
+    /// [5, 5 + 1 << max_depth) grant_ids_i
+    /// [5 + 1 << max_depth, 5 + 2 * (1 << max_depth)) receivers_i
+    /// [5 + 2 * (1 << max_depth), 5 + 3 * (1 << max_depth)) nullifier_hashes_i
+    pub fn join_previous_instances<F: Field>(
+        ctx: &mut Context<F>,
+        range: &RangeChip<F>,
+        prev_instances: [Vec<AssignedValue<F>>; 2],
+        num_proofs: AssignedValue<F>,
+        max_depth: usize,
+    ) -> Vec<AssignedValue<F>> {
+        let num_instance_prev_depth = Self::get_num_instance(max_depth - 1);
+        let (mut instances, _) = Self::check_and_join_shared_instances(
+            ctx,
+            range,
+            &prev_instances,
+            num_proofs,
+            max_depth,
+            num_instance_prev_depth,
+        );
+        let [instance0, instance1] = prev_instances;
+
+        // combine grant_ids
+        let prev_depth = max_depth - 1;
+        let max_proofs_prev_depth = 1 << prev_depth;
+        instances.extend(&instance0[5..5 + max_proofs_prev_depth]);
+        instances.extend(&instance1[5..5 + max_proofs_prev_depth]);
+
+        // combine receivers
+        instances.extend(&instance0[5 + max_proofs_prev_depth..5 + 2 * max_proofs_prev_depth]);
+        instances.extend(&instance1[5 + max_proofs_prev_depth..5 + 2 * max_proofs_prev_depth]);
+
+        // combine nullifier_hashes
+        instances.extend(&instance0[5 + 2 * max_proofs_prev_depth..5 + 3 * max_proofs_prev_depth]);
+        instances.extend(&instance1[5 + 2 * max_proofs_prev_depth..5 + 3 * max_proofs_prev_depth]);
+
+        instances
+    }
+
+    /// Sanity check against the start & end indexes of two proofs, check instances[2..5] (vk_hash_hi, vk_hash_lo, root) are equal.
+    /// Return new start, end indexes for this aggregated proof and a selector indicating whether the 2nd proof is dummy.
+    ///
+    /// If the the 2nd proof is not dummy, the proofs should link up.
+    /// If the 2nd proof is dummy, num_proofs should <= max_proofs_prev_depth
+    ///
+    /// # Returns a tuple of (new_instances, is_2nd_proof_dummy)
+    /// - `new_instances` the first 5 instances (shared by v1/v2 intermediate and root) circuits. [start, end, vk_hash_hi, vk_hash_lo, root]
+    /// - `is_2nd_proof_dummy` a selector to indicate whether the 2nd proof is dummy
+    pub fn check_and_join_shared_instances<F: Field>(
+        ctx: &mut Context<F>,
+        range: &RangeChip<F>,
+        prev_instances: &[Vec<AssignedValue<F>>; 2],
+        num_proofs: AssignedValue<F>,
+        max_depth: usize,
+        num_instance_prev_depth: usize,
+    ) -> (Vec<AssignedValue<F>>, AssignedValue<F>) {
+        let [instances0, instances1] = prev_instances;
+
+        assert_eq!(num_instance_prev_depth, instances0.len());
+        assert_eq!(num_instance_prev_depth, instances1.len());
+
+        // join & sanitize index
+        let (start_idx, intermed_idx0) = (instances0[0], instances0[1]);
+        let (intermed_idx1, mut end_idx) = (instances1[0], instances1[1]);
+        let num_proofs0 = range.gate().sub(ctx, intermed_idx0, start_idx);
+        let num_proofs1 = range.gate().sub(ctx, end_idx, intermed_idx1);
+
+        let prev_depth = max_depth - 1;
+        let prev_max_proofs_plus_one = (1 << prev_depth) + 1;
+        range.check_less_than_safe(ctx, num_proofs0, prev_max_proofs_plus_one);
+        range.check_less_than_safe(ctx, num_proofs1, prev_max_proofs_plus_one);
+
+        // indicator of whether the 2nd proof is a dummy proof
+        let is_2nd_proof_dummy = range.is_less_than_safe(ctx, num_proofs, prev_max_proofs_plus_one);
+
+        // if the 2nd proof is dummy, the end index for the aggregation should be the end index of the
+        // first proof
+        end_idx = range
+            .gate()
+            .select(ctx, intermed_idx0, end_idx, is_2nd_proof_dummy);
+
+        // make sure proofs link up
+        let mut eq_check = range.gate().is_equal(ctx, intermed_idx0, intermed_idx1);
+        eq_check = range.gate().or(ctx, eq_check, is_2nd_proof_dummy);
+
+        range.gate().assert_is_const(ctx, &eq_check, &F::ONE);
+
+        // if num_proofs > 2^prev_depth, then num_proofs0 must equal 2^prev_depth
+        let prev_max_proofs = range.gate().pow_of_two()[prev_depth];
+        let is_max_depth0 = range
+            .gate()
+            .is_equal(ctx, num_proofs0, Constant(prev_max_proofs));
+        eq_check = range.gate().or(ctx, is_max_depth0, is_2nd_proof_dummy);
+        range.gate().assert_is_const(ctx, &eq_check, &F::ONE);
+
+        // check num_proofs is correct
+        let boundary_num_diff = range.gate().sub(ctx, end_idx, start_idx);
+
+        ctx.constrain_equal(&boundary_num_diff, &num_proofs);
+
+        // constrain vkeyHash, root to be equal for the deps
+        // which is idx 2..5
+        for _i in 2..5 {
+            ctx.constrain_equal(&instances0[_i], &instances1[_i]);
+        }
+
+        let new_instances = [start_idx, end_idx]
+            .into_iter()
+            .chain(instances0[2..5].iter().cloned())
+            .collect();
+        (new_instances, is_2nd_proof_dummy)
+    }
+
+    pub fn get_num_instance(max_depth: usize) -> usize {
+        5 + 3 * (1 << max_depth)
     }
 }
 
@@ -129,14 +253,14 @@ impl WorldcoinIntermediateAggregationInput {
         let ctx = builder.main(0);
         let num_proofs = ctx.load_witness(Fr::from(num_proofs as u64));
 
-        let new_instances = join_previous_instances::<Fr>(
+        let new_instances = Self::join_previous_instances::<Fr>(
             ctx,
             &range,
             prev_instances.try_into().unwrap(),
             num_proofs,
             max_depth,
-            initial_depth,
         );
+
         if builder.assigned_instances.len() != 1 {
             bail!("should only have 1 instance column");
         }
@@ -145,109 +269,13 @@ impl WorldcoinIntermediateAggregationInput {
         assert_eq!(assigned_instances.len(), NUM_FE_ACCUMULATOR);
 
         assigned_instances.extend(new_instances);
+
+        let num_instance_wo_accumulator = Self::get_num_instance(max_depth);
+
         assert_eq!(
             assigned_instances.len(),
-            NUM_FE_ACCUMULATOR + 6 + 2 * (1 << self.max_depth)
+            NUM_FE_ACCUMULATOR + num_instance_wo_accumulator
         );
         Ok(WorldcoinIntermediateAggregationCircuit(circuit))
     }
-}
-
-/// Takes the concatenated previous instances from two `WorldcoinIntermediateAggregationCircuit`s
-/// of max depth `max_depth - 1` and
-/// - checks that they form a chain of `max_depth`
-///
-/// If `max_depth - 1 == initial_depth`, then the previous instances are from two `WorldcoinLeafCircuit`s.
-///
-/// Returns the new instances for the depth `max_depth` circuit (without accumulators)
-///
-/// ## Assumptions
-/// - `prev_instances` are the previous instances **with old accumulators removed**.
-/// /// Data passed from phase0 to phase1
-/// instances:
-/// [0] start
-/// [1] end
-/// [2, 3] vkey_hash
-/// [4] grant_id
-/// [5] root
-/// [6, 6 + 1 << max_depth - 1] receiver_i
-/// [6 + 1 << max_depth, 6 + 2 * (1 << max_depth)] nullifier_hash_i
-pub fn join_previous_instances<F: Field>(
-    ctx: &mut Context<F>,
-    range: &RangeChip<F>,
-    prev_instances: [Vec<AssignedValue<F>>; 2],
-    num_proofs: AssignedValue<F>,
-    max_depth: usize,
-    initial_depth: usize,
-) -> Vec<AssignedValue<F>> {
-    let prev_depth = max_depth - 1;
-    let num_instance_prev_depth =
-        WorldcoinIntermediateAggregationCircuit::get_num_instance(prev_depth, initial_depth);
-    assert_eq!(num_instance_prev_depth, prev_instances[0].len());
-    assert_eq!(num_instance_prev_depth, prev_instances[1].len());
-
-    let [instance0, instance1] = prev_instances;
-
-    // join & sanitize index
-    let (start_idx, intermed_idx0) = (instance0[0], instance0[1]);
-    let (intermed_idx1, mut end_idx) = (instance1[0], instance1[1]);
-    let num_proofs0 = range.gate().sub(ctx, intermed_idx0, start_idx);
-    let num_proofs1 = range.gate().sub(ctx, end_idx, intermed_idx1);
-
-    let prev_max_proofs_plus_one = (1 << prev_depth) + 1;
-    range.check_less_than_safe(ctx, num_proofs0, prev_max_proofs_plus_one);
-    range.check_less_than_safe(ctx, num_proofs1, prev_max_proofs_plus_one);
-
-    // indicator of whether the 2nd shard is a dummy shard
-    let selector = range.is_less_than_safe(ctx, num_proofs, prev_max_proofs_plus_one);
-
-    // if the 2nd shard is dummy, the end index for the aggregation should be the end index of the
-    // first shard
-    end_idx = range.gate().select(ctx, intermed_idx0, end_idx, selector);
-
-    // make sure shards link up
-    let mut eq_check = range.gate().is_equal(ctx, intermed_idx0, intermed_idx1);
-    eq_check = range.gate().or(ctx, eq_check, selector);
-
-    range.gate().assert_is_const(ctx, &eq_check, &F::ONE);
-
-    // if num_proofs > 2^prev_depth, then num_proofs0 must equal 2^prev_depth
-    let prev_max_proofs = range.gate().pow_of_two()[prev_depth];
-    let is_max_depth0 = range
-        .gate()
-        .is_equal(ctx, num_proofs0, Constant(prev_max_proofs));
-    eq_check = range.gate().or(ctx, is_max_depth0, selector);
-    range.gate().assert_is_const(ctx, &eq_check, &F::ONE);
-
-    // check num_proofs is correct
-    let boundary_num_diff = range.gate().sub(ctx, end_idx, start_idx);
-
-    ctx.constrain_equal(&boundary_num_diff, &num_proofs);
-
-    let num_instance =
-        WorldcoinIntermediateAggregationCircuit::get_num_instance(max_depth, initial_depth);
-
-    let mut instances = Vec::with_capacity(num_instance);
-
-    // constrain vkeyHash, grant_id, root to be equal for the deps
-    // which is idx 2..6
-    for _i in 2..6 {
-        ctx.constrain_equal(&instance0[_i], &instance1[_i]);
-    }
-
-    // new instances for the aggregation layer
-    instances.push(start_idx);
-    instances.push(end_idx);
-    instances.extend_from_slice(&instance0[2..6]);
-
-    // combine receivers
-    let max_proofs_prev_depth = 1 << prev_depth;
-    instances.extend(&instance0[6..6 + max_proofs_prev_depth]);
-    instances.extend(&instance1[6..6 + max_proofs_prev_depth]);
-
-    // combine nullifier_hashes
-    instances.extend(&instance0[6 + max_proofs_prev_depth..6 + 2 * max_proofs_prev_depth]);
-    instances.extend(&instance1[6 + max_proofs_prev_depth..6 + 2 * max_proofs_prev_depth]);
-
-    instances
 }

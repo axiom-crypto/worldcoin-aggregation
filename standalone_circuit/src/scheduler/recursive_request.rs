@@ -9,7 +9,6 @@ pub struct RecursiveRequest {
     pub start: u32,
     pub end: u32,
     pub root: String,
-    pub grant_id: String,
     pub claims: Vec<ClaimNative>,
     pub params: NodeParams,
 }
@@ -19,7 +18,6 @@ impl RecursiveRequest {
         start: u32,
         end: u32,
         root: String,
-        grant_id: String,
         claims: Vec<ClaimNative>,
         params: NodeParams,
     ) -> Result<Self> {
@@ -39,7 +37,6 @@ impl RecursiveRequest {
             start,
             end,
             root,
-            grant_id,
             claims,
             params,
         })
@@ -54,7 +51,6 @@ impl RecursiveRequest {
             start,
             end,
             root,
-            grant_id,
             claims,
             params,
         } = self.clone();
@@ -74,7 +70,6 @@ impl RecursiveRequest {
                         start: start_idx,
                         end: end_idx,
                         root: root.clone(),
-                        grant_id: grant_id.clone(),
                         claims: claims[(start_idx - start) as usize..(end_idx - start) as usize]
                             .to_vec(),
                         params: child_params,

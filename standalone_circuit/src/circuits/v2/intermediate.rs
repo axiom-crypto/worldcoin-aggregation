@@ -16,7 +16,6 @@ use axiom_eth::{
     halo2_base::{
         gates::{GateInstructions, RangeChip, RangeInstructions},
         AssignedValue, Context,
-        QuantumCell::Constant,
     },
     halo2_proofs::{
         halo2curves::bn256::{Bn256, Fr},
@@ -35,13 +34,15 @@ use axiom_eth::{
         hilo::HiLo,
         keccak::decorator::RlcKeccakCircuitImpl,
         snark_verifier::{get_accumulator_indices, NUM_FE_ACCUMULATOR},
-        uint_to_bytes_be,
     },
     Field,
 };
 use itertools::Itertools;
 
-use crate::utils::compute_keccak_for_branch_nodes;
+use crate::{
+    circuits::{v1::intermediate::WorldcoinIntermediateAggregationInput, v2::root::WorldcoinRootAggregationInputV2},
+    constants::DUMMY_CLAIM_ROOTS, utils::compute_keccak_for_branch_nodes,
+};
 
 pub type WorldcoinIntermediateAggregationCircuitV2 =
     RlcKeccakCircuitImpl<Fr, WorldcoinIntermediateAggregationInputV2>;
@@ -123,14 +124,13 @@ impl WorldcoinIntermediateAggregationInputV2 {
 
         let num_proofs = ctx.load_witness(Fr::from(self.num_proofs as u64));
 
-        let new_instances = join_previous_instances::<Fr>(
+        let new_instances = Self::join_previous_instances::<Fr>(
             ctx,
             &range,
             &keccak,
             previous_instances.try_into().unwrap(),
             num_proofs,
             self.max_depth,
-            self.initial_depth,
         );
 
         let assigned_instances: &mut Vec<AssignedValue<Fr>> =
@@ -140,22 +140,109 @@ impl WorldcoinIntermediateAggregationInputV2 {
 
         if expose_num_proofs {
             // root circuit
-            // [vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, claim_root_hi, claim_root_lo]
-            assigned_instances.extend_from_slice(&new_instances[2..6]);
+            // [vk_hash_hi, vk_hash_lo, root, num_proofs, claim_root_hi, claim_root_lo]
+            assigned_instances.extend_from_slice(&new_instances[2..5]);
             assigned_instances.push(num_proofs);
-            assigned_instances.extend_from_slice(&new_instances[6..8]);
-            assert_eq!(assigned_instances.len(), NUM_FE_ACCUMULATOR + 7);
+            assigned_instances.extend_from_slice(&new_instances[5..7]);
+            assert_eq!(assigned_instances.len(), NUM_FE_ACCUMULATOR + WorldcoinRootAggregationInputV2::get_num_instance());
         } else {
             // intermediate circuit
-            // [start, end, vk_hash_hi, vk_hash_lo, grant_id, root, claim_root_hi, claim_root_lo]
-            assigned_instances.extend_from_slice(&new_instances[0..8]);
-            assert_eq!(assigned_instances.len(), NUM_FE_ACCUMULATOR + 8);
+            // [start, end, vk_hash_hi, vk_hash_lo, root, claim_root_hi, claim_root_lo]
+            assigned_instances.extend_from_slice(&new_instances[0..7]);
+            assert_eq!(assigned_instances.len(), NUM_FE_ACCUMULATOR + WorldcoinIntermediateAggregationInputV2::get_num_instance());
         }
+    }
+
+    /// Takes the concatenated previous instances from two `WorldcoinIntermediateAggregationCircuitV2`s
+    /// of max depth `max_depth - 1` and
+    /// - checks that they form a chain of `max_depth`
+    ///
+    /// If `max_depth - 1 == initial_depth`, then the previous instances are from two `WorldcoinLeafCircuitV2`s.
+    ///
+    /// Returns the new instances for the depth `max_depth` circuit (without accumulators)
+    ///
+    /// ## Assumptions
+    /// - `prev_instances` are the previous instances **with old accumulators removed**.
+    /// /// Data passed from phase0 to phase1
+    /// instances:
+    /// [0] start
+    /// [1] end
+    /// [2, 3] vkey_hash
+    /// [4] root
+    /// [5, 6] claim_root
+    pub fn join_previous_instances<F: Field>(
+        ctx: &mut Context<F>,
+        range: &RangeChip<F>,
+        keccak: &KeccakChip<F>,
+        prev_instances: [Vec<AssignedValue<F>>; 2],
+        num_proofs: AssignedValue<F>,
+        max_depth: usize,
+    ) -> Vec<AssignedValue<F>> {
+        let num_instance_prev_depth = Self::get_num_instance();
+        let (mut instances, is_2nd_proof_dummy) =
+            WorldcoinIntermediateAggregationInput::check_and_join_shared_instances(
+                ctx,
+                range,
+                &prev_instances,
+                num_proofs,
+                max_depth,
+                num_instance_prev_depth,
+            );
+
+        let [instances0, instances1] = prev_instances;
+
+        // generate claim root
+        // if the 2nd snark is not dummy, we simply calculate keccak(claim_root_left| claim_root_right)
+        // if the 2nd snark is dummy, we need to calculate the right child at (max_depth - 1) with keccak256(abi.encodePacked(address(0), bytes32(0))) as leaves
+        // since this is aggregation layer, max_depth - 1 >= 0
+        let dummy_claim_root = DUMMY_CLAIM_ROOTS[max_depth - 1];
+        let dummy_claim_root_hi = F::from_u128(u128::from_be_bytes(
+            dummy_claim_root[..16].try_into().unwrap(),
+        ));
+
+        let dummy_claim_root_lo = F::from_u128(u128::from_be_bytes(
+            dummy_claim_root[16..].try_into().unwrap(),
+        ));
+        let dummy_claim_root_hi = ctx.load_constant(dummy_claim_root_hi);
+        let dummy_claim_root_lo = ctx.load_constant(dummy_claim_root_lo);
+
+        let claim_root_left = HiLo::from_hi_lo([instances0[5], instances0[6]]);
+        let mut claim_root_right = HiLo::from_hi_lo([instances1[5], instances1[6]]);
+
+        let claim_root_right_hi = range.gate().select(
+            ctx,
+            dummy_claim_root_hi,
+            claim_root_right.hi(),
+            is_2nd_proof_dummy,
+        );
+        let claim_root_right_lo = range.gate().select(
+            ctx,
+            dummy_claim_root_lo,
+            claim_root_right.lo(),
+            is_2nd_proof_dummy,
+        );
+
+        claim_root_right = HiLo::from_hi_lo([claim_root_right_hi, claim_root_right_lo]);
+
+        // keccak(claim_root_left| claim_root_right)
+        let claim_root = compute_keccak_for_branch_nodes(
+            ctx,
+            range,
+            keccak,
+            &claim_root_left,
+            &claim_root_right,
+        );
+
+        // new instances for the aggregation layer
+        // [start, end, vk_hash_hi, vk_hash_lo, root, claim_root_hi, claim_root_lo]
+        instances.extend(claim_root.hi_lo());
+
+        instances
     }
 
     // num_instance excluding the accumulator, it's the same number as leaf circuit num_instance
     pub fn get_num_instance() -> usize {
-        8
+        7
     }
 }
 
@@ -180,151 +267,11 @@ impl EthCircuitInstructions<Fr> for WorldcoinIntermediateAggregationInputV2 {
     }
 }
 
+// required by RlcKeccakCircuitImpl
 impl CircuitMetadata for WorldcoinIntermediateAggregationInputV2 {
     const HAS_ACCUMULATOR: bool = true;
 
     fn num_instance(&self) -> Vec<usize> {
-        vec![NUM_FE_ACCUMULATOR + 8]
+        vec![NUM_FE_ACCUMULATOR + Self::get_num_instance()]
     }
-}
-
-/// Takes the concatenated previous instances from two `WorldcoinIntermediateAggregationCircuitV2`s
-/// of max depth `max_depth - 1` and
-/// - checks that they form a chain of `max_depth`
-///
-/// If `max_depth - 1 == initial_depth`, then the previous instances are from two `WorldcoinLeafCircuitV2`s.
-///
-/// Returns the new instances for the depth `max_depth` circuit (without accumulators)
-///
-/// ## Assumptions
-/// - `prev_instances` are the previous instances **with old accumulators removed**.
-/// /// Data passed from phase0 to phase1
-/// instances:
-/// [0] start
-/// [1] end
-/// [2, 3] vkey_hash
-/// [4] grant_id
-/// [5] root
-/// [6, 7] claim_root
-pub fn join_previous_instances<F: Field>(
-    ctx: &mut Context<F>,
-    range: &RangeChip<F>,
-    keccak: &KeccakChip<F>,
-    prev_instances: [Vec<AssignedValue<F>>; 2],
-    num_proofs: AssignedValue<F>,
-    max_depth: usize,
-    _initial_depth: usize,
-) -> Vec<AssignedValue<F>> {
-    let prev_depth = max_depth - 1;
-    let num_instance_prev_depth = WorldcoinIntermediateAggregationInputV2::get_num_instance();
-    assert_eq!(num_instance_prev_depth, prev_instances[0].len());
-    assert_eq!(num_instance_prev_depth, prev_instances[1].len());
-
-    let [instance0, instance1] = prev_instances;
-
-    // join & sanitize index
-    let (start_idx, intermed_idx0) = (instance0[0], instance0[1]);
-    let (intermed_idx1, mut end_idx) = (instance1[0], instance1[1]);
-    let num_proofs0 = range.gate().sub(ctx, intermed_idx0, start_idx);
-    let num_proofs1 = range.gate().sub(ctx, end_idx, intermed_idx1);
-
-    let prev_max_proofs_plus_one = (1 << prev_depth) + 1;
-    range.check_less_than_safe(ctx, num_proofs0, prev_max_proofs_plus_one);
-    range.check_less_than_safe(ctx, num_proofs1, prev_max_proofs_plus_one);
-
-    // indicator of whether the 2nd shard is a dummy shard
-    let is_2nd_shard_dummy = range.is_less_than_safe(ctx, num_proofs, prev_max_proofs_plus_one);
-
-    // if the 2nd shard is dummy, the end index for the aggregation should be the end index of the
-    // first shard
-    end_idx = range
-        .gate()
-        .select(ctx, intermed_idx0, end_idx, is_2nd_shard_dummy);
-
-    // make sure shards link up
-    let mut eq_check = range.gate().is_equal(ctx, intermed_idx0, intermed_idx1);
-    eq_check = range.gate().or(ctx, eq_check, is_2nd_shard_dummy);
-
-    range.gate().assert_is_const(ctx, &eq_check, &F::ONE);
-
-    // if num_proofs > 2^prev_depth, then num_proofs0 must equal 2^prev_depth
-    let prev_max_proofs = range.gate().pow_of_two()[prev_depth];
-    let is_max_depth0 = range
-        .gate()
-        .is_equal(ctx, num_proofs0, Constant(prev_max_proofs));
-    eq_check = range.gate().or(ctx, is_max_depth0, is_2nd_shard_dummy);
-    range.gate().assert_is_const(ctx, &eq_check, &F::ONE);
-
-    // check num_proofs is correct
-    let boundary_num_diff = range.gate().sub(ctx, end_idx, start_idx);
-
-    ctx.constrain_equal(&boundary_num_diff, &num_proofs);
-
-    let num_instance = WorldcoinIntermediateAggregationInputV2::get_num_instance();
-
-    let mut instances = Vec::with_capacity(num_instance);
-
-    // constrain vkeyHash, grant_id, root to be equal for the deps
-    // which is idx 2..6
-    for _i in 2..6 {
-        ctx.constrain_equal(&instance0[_i], &instance1[_i]);
-    }
-
-    // generate claim root
-    // if the 2nd snark is not dummy, we simply calculate keccak(claim_root_left| claim_root_right)
-    // if the 2nd snark is dummy, we need to calculate the right child at (max_depth - 1) with keccak256(abi.encodePacked(address(0), bytes32(0))) as leaves
-    // since this is aggregation layer, max_depth - 1 >= 0
-    let dummy_claim_root = calculate_dummy_merkle_root_at_depth(ctx, range, keccak, max_depth - 1);
-
-    let claim_root_left = HiLo::from_hi_lo([instance0[6], instance0[7]]);
-    let mut claim_root_right = HiLo::from_hi_lo([instance1[6], instance1[7]]);
-
-    let claim_root_right_hi = range.gate().select(
-        ctx,
-        dummy_claim_root.hi(),
-        claim_root_right.hi(),
-        is_2nd_shard_dummy,
-    );
-    let claim_root_right_lo = range.gate().select(
-        ctx,
-        dummy_claim_root.lo(),
-        claim_root_right.lo(),
-        is_2nd_shard_dummy,
-    );
-
-    claim_root_right = HiLo::from_hi_lo([claim_root_right_hi, claim_root_right_lo]);
-
-    // keccak(claim_root_left| claim_root_right)
-    let claim_root =
-        compute_keccak_for_branch_nodes(ctx, range, keccak, &claim_root_left, &claim_root_right);
-
-    // new instances for the aggregation layer
-    // [start, end, vk_hash_hi, vk_hash_lo, grant_id, root, claim_root_hi, claim_root_lo]
-    instances.push(start_idx);
-    instances.push(end_idx);
-    instances.extend_from_slice(&instance0[2..6]);
-    instances.extend(claim_root.hi_lo());
-
-    instances
-}
-
-pub fn calculate_dummy_merkle_root_at_depth<F: Field>(
-    ctx: &mut Context<F>,
-    range: &RangeChip<F>,
-    keccak: &KeccakChip<F>,
-    depth: usize,
-) -> HiLo<AssignedValue<F>> {
-    let zero = ctx.load_zero();
-    // 20 bytes for address + 32 bytes for bytes32
-    let mut bytes = uint_to_bytes_be(ctx, range, &zero, 20);
-    bytes.extend(uint_to_bytes_be(ctx, range, &zero, 32));
-    let bytes: Vec<AssignedValue<F>> = bytes.iter().map(|sb| *sb.as_ref()).collect();
-    let keccak_hash = keccak.keccak_fixed_len(ctx, bytes);
-    //  keccak256(abi.encodePacked(address(0), bytes32(0)))
-    let mut keccak_hash = HiLo::from_hi_lo([keccak_hash.output_hi, keccak_hash.output_lo]);
-    for _i in 0..depth {
-        keccak_hash =
-            compute_keccak_for_branch_nodes(ctx, range, keccak, &keccak_hash, &keccak_hash)
-    }
-    keccak_hash
 }

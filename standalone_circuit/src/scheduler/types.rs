@@ -25,7 +25,6 @@ pub enum RequestRouter {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SchedulerTaskRequest {
     pub root: String,
-    pub grant_id: String,
     // the claims vector has [start, end) claims
     pub claims: Vec<ClaimNative>,
     pub num_proofs: usize,
@@ -45,8 +44,6 @@ pub struct SchedulerTaskStatusResponse {
     pub status: SchedulerTaskStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snark: Option<ProverProof>,
-    //#[serde(skip_serializing_if = "Option::is_none")]
-    //pub execution_summary: Option<QueryProofExecutionSummary>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     pub created_at_sec: u64,

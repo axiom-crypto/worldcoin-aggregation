@@ -37,10 +37,10 @@ The V1 circuit verifies the WorldID Groth16 proofs in batch, and exposes as a pu
 ```
 - vkeyHash - the Keccak hash of the flattened vk
 - num_proofs - the number of proofs we care about the outputs from, which should satisfy 1 <= num_proofs <= max_proofs
-- grantId
 - root
-- receiver_i for i = 1, ..., max_proofs
-- nullifierHash_i for i = 1, ..., max_proofs
+- grant_ids_i for i = 1, ..., max_proofs
+- receivers_i for i = 1, ..., max_proofs
+- nullifierHashes_i for i = 1, ..., max_proofs
 ```
 
 As a convenience to the user, fewer than `max_proofs` claims can be submitted to the prover binary and the binary will appropriately pad to satisfy the circuit.
@@ -50,15 +50,15 @@ To implement the V1 circuit, we use the following 4 types of circuits:
 - **WorldcoinLeafCircuit** - It has `max_depth` which decides the max capacity to be `2**depth` claims. It has `start` (inclusive) and `end` (exclusive) indexes for the claims this circuit is handling. It constrains
   - `start` and `end` are in `[0, 2**64)`
   - `num_proofs (end - start)` falls between `(0, 2**max_depth]`
-  - each claim verifies with the `vk` and public inputs `[root, nullifier_hash, signal_hash, grant_id]`, where `signalHash = uint256(keccak256(abi.encodePacked(receiver))) >> 8`
-  - The public outputs are `[start, end, vk_hash_hi, vk_hash_lo, grant_id, root, ...receivers, ...nullifier_hashes]`
+  - each claim verifies with the `vk` and public inputs `[root, nullifier_hash, receiver, grant_id]`
+  - The public outputs are `[start, end, vk_hash_hi, vk_hash_lo, root, ...grant_ids, ...receivers, ...nullifier_hashes]`
 - **WorldcoinIntermediateAggregationCircuit** - It aggregates either two WorldcoinLeafCircuits or WorldcoinIntermediateAggregationCircuits, and also enforce constraints between the children snarks
   - The two children either link together, where the `end` of the 1st shard equal the `start` of the 2nd shard, or the 2nd shard is a dummy shard
   - It check vkey, grant_id, root are the same in both shards
   - It has the same format of public outputs as the leaf circuit.
-- **WorldcoinRootAggregationCircuit** - It is similar to WorldcoinIntermediateAggregationCircuit in terms of aggregation, but it exposes the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]` as public outputs.
+- **WorldcoinRootAggregationCircuit** - It is similar to WorldcoinIntermediateAggregationCircuit in terms of aggregation, but it exposes the keccak hash of `[vk_hash_hi, vk_hash_lo, root, num_proofs, ...grant_ids, ...receivers, ...nullifier_hashes]` as public outputs.
 - **WorldcoinEvmCircuit** - It is a passthrough circuit for the onchain verifier.
-  The claim verification task is divided into WorldcoinLeafCircuits and then aggregated until we have one single WorldcoinRootAggregationCircuit. The final public output is the keccak hash of `[vk_hash_hi, vk_hash_lo, grant_id, root, num_proofs, ...receivers, ...nullifier_hashes]`.
+  The claim verification task is divided into WorldcoinLeafCircuits and then aggregated until we have one single WorldcoinRootAggregationCircuit. The final public output is the keccak hash of `[vk_hash_hi, vk_hash_lo, root, num_proofs, ...grant_ids, ...receivers, ...nullifier_hashes]`.
 
 ### V2 Circuit Design
 
@@ -66,9 +66,8 @@ The V2 circuit design is similar to the V1 circuit. It has public outputs
 
 ```
 - vkeyHash – the Keccak hash of the flattened Groth16 vk
-- grantId
 - root
-- claimRoot – the Keccak Merkle root of the tree whose leaves are keccak256(abi.encodePacked(receiver_i, nullifierHash_i)). Leaves with indices greater than num_proofs - 1 are given by keccak256(abi.encodePacked(address(0), bytes32(0)))
+- claimRoot – the Keccak Merkle root of the tree whose leaves are keccak256(abi.encodePacked(grant_ids_i, receivers_i, nullifierHashes_i)). Leaves with indices greater than num_proofs - 1 are given by keccak256(abi.encodePacked(uint256(0), address(0), bytes32(0)))
 ```
 
 The V2 design is implemented through the following circuits:
@@ -163,17 +162,17 @@ To send sample request:
 curl -X POST http://localhost:8000/tasks -H "Content-Type: application/json" -d  @data/generated_proofs_128.json
 ```
 
-Each request should have `root`, `grant_id`, `num_proofs`, `max_proofs` and the list of `claims`, where each claim contains `receiver` address, `nullfilier_hash` and `proof`. One example:
+Each request should have `root`, `num_proofs`, `max_proofs` and the list of `claims`, where each claim contains `grant_id`, `receiver` address, `nullifier_hash` and `proof`. One example:
 
 ```
 {
   "root": "12439333144543028190433995054436939846410560778857819700795779720142743070295",
-  "grant_id": "30",
   "num_proofs": 2,
   "max_proofs": 16,
   "claims": [
     {
       "receiver": "0xff9db18c23be01D48DCF1fE182f4807055ae8cA2",
+      "grant_id": "30",
       "nullifier_hash": "21294919666276076011035787158136769959318829071812973005197954290733822302380",
       "proof": [
         "19948547122086334894689325645680910374301022582555626047089468872550356701348",

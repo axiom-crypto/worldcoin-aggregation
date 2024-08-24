@@ -21,7 +21,6 @@ pub struct WorldcoinRequestLeaf {
     pub depth: usize,
     pub vk: VkNative,
     pub root: String,
-    pub grant_id: String,
     pub claims: Vec<ClaimNative>,
 }
 
