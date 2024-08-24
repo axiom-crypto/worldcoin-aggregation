@@ -24,7 +24,7 @@ use async_trait::async_trait;
 
 #[derive(Clone)]
 pub struct AsyncScheduler {
-    /// Mutex just to force sequential proving
+    // executor that can generate proof for a given task
     pub executor: Arc<dyn ProofExecutor>,
     // circuit_id -> intent params
     pub circuit_id_repo: Arc<RwLock<HashMap<NodeParams, String>>>,
@@ -32,6 +32,7 @@ pub struct AsyncScheduler {
     pub cid_to_params: Arc<RwLock<HashMap<String, NodeParams>>>,
     // tracker for existing tasks
     pub task_tracker: Arc<SchedulerTaskTracker>,
+    // the path for storing execution_summary
     pub execution_summary_path: Arc<PathBuf>,
     // the client to interact with the smart contract
     pub contract_client: Arc<ContractClient>,

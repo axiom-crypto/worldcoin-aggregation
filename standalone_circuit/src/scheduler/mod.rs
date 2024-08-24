@@ -74,7 +74,7 @@ pub trait Scheduler: Send + Sync + 'static {
             Ok(match params.node_type {
                 NodeType::Leaf => unreachable!(),
                 NodeType::Intermediate => {
-                    // TODO: the logic would be different for v2
+                    assert!(snarks.len() <= 2, "dependencies snarks should be <= 2");
                     if snarks.len() != 2 {
                         snarks.resize(2, snarks[0].clone()); // dummy snark
                     }
@@ -88,6 +88,7 @@ pub trait Scheduler: Send + Sync + 'static {
                     RequestRouter::Intermediate(req)
                 }
                 NodeType::Root => {
+                    assert!(snarks.len() <= 2, "dependencies snarks should be <= 2");
                     if snarks.len() != 2 {
                         snarks.resize(2, snarks[0].clone()); // dummy snark
                     }
@@ -145,7 +146,7 @@ pub trait Scheduler: Send + Sync + 'static {
         Ok(result.proof)
     }
 
-    /// Find the circuit id which can handle this request
+    /// Find the circuit id which can handle the non-recursive part of this request
     async fn get_circuit_id(&self, req: &RecursiveRequest) -> Result<String>;
 
     // Generate proof for given task
