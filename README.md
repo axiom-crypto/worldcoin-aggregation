@@ -29,25 +29,25 @@ The V1 grant protocol can either be integrated with Axiom V2 or implemented in a
 
 In the V1 design, the grant contract automatically transfers the grant amount to each of the users in the batch in the same transaction as the verification. This design means users do not need to make an additional on-chain transaction to receive the grant, but incurs additional calldata and transfer cost for each grantee.
 
-The V1 grant contract supports at most `MAX_NUM_CLAIMS` at once, and receives as part of the claim transaction a ZK proof whose unique public output is a Keccak hash of the `4 + 2 * MAX_NUM_CLAIMS` ZK-verified quantities:
+The V1 grant contract supports at most `MAX_NUM_CLAIMS` at once, and receives as part of the claim transaction a ZK proof whose unique public output is a Keccak hash of the `3 + 3 * MAX_NUM_CLAIMS` ZK-verified quantities:
 
 ```
 - vkeyHash - the Keccak hash of the flattened vk
 - numClaims - the number of claims, which should satisfy 1 <= numClaims <= MAX_NUM_CLAIMS
-- grantId
 - root
-- receiver_i for i = 1, ..., MAX_NUM_CLAIMS
-- nullifierHash_i for i = 1, ..., MAX_NUM_CLAIMS
+- grantIds_i for i = 1, ..., MAX_NUM_CLAIMS 
+- receivers_i for i = 1, ..., MAX_NUM_CLAIMS
+- nullifierHashes_i for i = 1, ..., MAX_NUM_CLAIMS
 ```
 
 The ZK proof verifies in ZK that:
 
-1. For `0 <= idx < numClaims`, there are valid WorldID proofs corresponding to `(grantId, receivers[idx], root, claimedNullifierHashes[idx])` with the given Groth16 `vkeyHash`.
+1. For `0 <= idx < numClaims`, there are valid WorldID proofs corresponding to `(grantIds[idx], receivers[idx], root, claimedNullifierHashes[idx])` with the given Groth16 `vkeyHash`.
 
 The V1 grants contract then:
 
 - checks the `vkeyHash` for the WorldID Groth16 proof is valid
-- checks the `grantId` is valid
+- checks that `grantIds[idx]` is valid for `0 <= idx < numClaims`
 - checks for each claiming grantee that the nullifier hash was not previously used
 - sends `WLD` to fulfill the claim
 
