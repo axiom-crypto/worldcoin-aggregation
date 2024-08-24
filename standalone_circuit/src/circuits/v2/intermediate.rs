@@ -179,7 +179,7 @@ impl WorldcoinIntermediateAggregationInputV2 {
         max_depth: usize,
     ) -> Vec<AssignedValue<F>> {
         let num_instance_prev_depth = Self::get_num_instance();
-        let (mut instances, is_2nd_shard_dummy) =
+        let (mut instances, is_2nd_proof_dummy) =
             WorldcoinIntermediateAggregationInput::check_and_join_shared_instances(
                 ctx,
                 range,
@@ -213,13 +213,13 @@ impl WorldcoinIntermediateAggregationInputV2 {
             ctx,
             dummy_claim_root_hi,
             claim_root_right.hi(),
-            is_2nd_shard_dummy,
+            is_2nd_proof_dummy,
         );
         let claim_root_right_lo = range.gate().select(
             ctx,
             dummy_claim_root_lo,
             claim_root_right.lo(),
-            is_2nd_shard_dummy,
+            is_2nd_proof_dummy,
         );
 
         claim_root_right = HiLo::from_hi_lo([claim_root_right_hi, claim_root_right_lo]);

@@ -126,15 +126,15 @@ impl WorldcoinIntermediateAggregationInput {
         instances
     }
 
-    /// Sanity check agasint the start & end indexes of two shards, check instances[2..5] (vk_hash_hi, vk_hash_lo, root) are equal.
-    /// Return new start, end indexes for this aggregated shard and a selector indicating whether the 2nd shard is dummy.
+    /// Sanity check against the start & end indexes of two proofs, check instances[2..5] (vk_hash_hi, vk_hash_lo, root) are equal.
+    /// Return new start, end indexes for this aggregated proof and a selector indicating whether the 2nd proof is dummy.
     ///
-    /// If the the 2nd shard is not dummy, the shards should link up.
-    /// If the 2nd shard is dummy, num_proofs should <= max_proofs_prev_depth
+    /// If the the 2nd proof is not dummy, the proofs should link up.
+    /// If the 2nd proof is dummy, num_proofs should <= max_proofs_prev_depth
     ///
-    /// # Returns a tuple of (new_instances, is_2nd_shard_dummy)
+    /// # Returns a tuple of (new_instances, is_2nd_proof_dummy)
     /// - `new_instances` the first 5 instances (shared by v1/v2 intermediate and root) circuits. [start, end, vk_hash_hi, vk_hash_lo, root]
-    /// - `is_2nd_shard_dummy` a selector to indicate whether the 2nd shard is dummy
+    /// - `is_2nd_proof_dummy` a selector to indicate whether the 2nd proof is dummy
     pub fn check_and_join_shared_instances<F: Field>(
         ctx: &mut Context<F>,
         range: &RangeChip<F>,
@@ -159,18 +159,18 @@ impl WorldcoinIntermediateAggregationInput {
         range.check_less_than_safe(ctx, num_proofs0, prev_max_proofs_plus_one);
         range.check_less_than_safe(ctx, num_proofs1, prev_max_proofs_plus_one);
 
-        // indicator of whether the 2nd shard is a dummy shard
-        let is_2nd_shard_dummy = range.is_less_than_safe(ctx, num_proofs, prev_max_proofs_plus_one);
+        // indicator of whether the 2nd proof is a dummy proof
+        let is_2nd_proof_dummy = range.is_less_than_safe(ctx, num_proofs, prev_max_proofs_plus_one);
 
-        // if the 2nd shard is dummy, the end index for the aggregation should be the end index of the
-        // first shard
+        // if the 2nd proof is dummy, the end index for the aggregation should be the end index of the
+        // first proof
         end_idx = range
             .gate()
-            .select(ctx, intermed_idx0, end_idx, is_2nd_shard_dummy);
+            .select(ctx, intermed_idx0, end_idx, is_2nd_proof_dummy);
 
-        // make sure shards link up
+        // make sure proofs link up
         let mut eq_check = range.gate().is_equal(ctx, intermed_idx0, intermed_idx1);
-        eq_check = range.gate().or(ctx, eq_check, is_2nd_shard_dummy);
+        eq_check = range.gate().or(ctx, eq_check, is_2nd_proof_dummy);
 
         range.gate().assert_is_const(ctx, &eq_check, &F::ONE);
 
@@ -179,7 +179,7 @@ impl WorldcoinIntermediateAggregationInput {
         let is_max_depth0 = range
             .gate()
             .is_equal(ctx, num_proofs0, Constant(prev_max_proofs));
-        eq_check = range.gate().or(ctx, is_max_depth0, is_2nd_shard_dummy);
+        eq_check = range.gate().or(ctx, is_max_depth0, is_2nd_proof_dummy);
         range.gate().assert_is_const(ctx, &eq_check, &F::ONE);
 
         // check num_proofs is correct
@@ -197,7 +197,7 @@ impl WorldcoinIntermediateAggregationInput {
             .into_iter()
             .chain(instances0[2..5].iter().cloned())
             .collect();
-        (new_instances, is_2nd_shard_dummy)
+        (new_instances, is_2nd_proof_dummy)
     }
 
     pub fn get_num_instance(max_depth: usize) -> usize {
