@@ -174,11 +174,25 @@ We now describe the architecture of these components in more detail.
 
 ### Scheduler
 
+The scheduler provides the highest level API for interacting with the backend. It receives the request for an entire proving workload, whose final output is the serialized bytes of a SNARK proof proving `MAX_NUM_CLAIMS` WLD grant claims. To acheive this, the scheduler must schedule proving tasks according to a
+computation DAG, namely the aggregation tree structure depicted in [Batch WorldID Verification Circuits](#batch-worldid-verification-circuits).
+
+We provide two implementations of the scheduler:
+
+- **Local Scheduler**: This scheduler runs on the local machine and generates proofs sequentially on the same machine. It is intended for testing and development purposes.
+- **Async Scheduler**: This scheduler is designed for production use in a distributed computing system. The async scheduler does not perform any proof generation. Instead, it makes concurrent asynchronous calls to the **Dispatcher** to request proof generation. All proof requests that do not have unresolved dependencies are executed in parallel, and each request is polled for completion. Once all dependencies of an unstarted task are completed, the scheduler prepares the task input and requests a proof of the task. The maximum number of concurrent tasks is configurable.
+
+The scheduler receives requests via a REST API.
+
+#### Commands
+
 To start the Scheduler, run the command:
 
 ```
-cargo run --release --features "v1(or v2)" --bin scheduler_server -- --cids-path ${CIDS_PATH} --executor-url ${DISPATCHER_URL}
+cargo run --release --features $VERSION --bin scheduler_server -- --cids-path ${CIDS_PATH} --executor-url ${DISPATCHER_URL}
 ```
+
+where `$VERSION` is the version of the circuits to use, either `v1` or `v2`.
 
 To send sample request:
 
@@ -214,43 +228,104 @@ Each request should have `root`, `grant_id`, `num_proofs`, `max_proofs` and the 
 }
 ```
 
-### Dispatcher API Interface
+### Dispatcher
 
-The Dispatcher must be implemented as a web server conforming to the following APIs.
+The dispatcher is responsible for container orchestration of the SNARK prover nodes. The dispatcher may be implemented as part of an autoscaling system of empheral nodes, a system of persistent nodes, or a combination of both.
 
-#### POST `/tasks`
+A dispatcher request is a request for the generation of a SNARK proof for a single circuit. The dispatcher does not handle any scheduling and has no context about workload dependencies. The dispatcher request contains:
+
+- the circuit ID, a unique identifier for the circuit
+- the input that should be used to generate the proof for the circuit.
+
+The dispatcher is then expected to:
+
+- Create and allocate a new container for the prover.
+- Mount the necessary trusted setup files in the container.
+- Using the circuit ID, fetch the proving key and circuit configuration files for the circuit (e.g., from an object store such as AWS S3 or a distributed file system) and mount them in the container. For optimal performance, we recommend that the proving key is mounted directly into memory using `ramfs` or `tmpfs` -- the prover binary needs to read and deserialize the proving key, which is much faster if the file is in memory.
+- Pull the proving server docker image.
+- Start the proving server in the container, with arguments pointing to the locations of the trusted setup files, the proving key, and the circuit configuration files.
+
+The dispatcher _should_ also implement a caching layer to avoid redundant proof generation. A proof can be uniquely identified by `(circuitId, Hash(input))`. The caching layer can be implemented via connection to a persistent database. Since the size of the proof input itself may be large, we recommend that the proof input is cached separately, for task recovery and debugging, using an object store such as AWS S3.
+
+The operator can choose how to implement the dispatcher to fulfill these requirements. Options include: using the AWS SDK to interact directly with AWS cloud, using Kubernetes to manage containers, or using a custom solution.
+
+#### Dispatcher API Interface
+
+For integration with the scheduler, the dispatcher must be implemented as a web server conforming to the following REST APIs.
+
+##### POST `/tasks`
 
 - **Request Body:**
-  - **circuitId**: Unique identifier for a circuit. This value must be globally unique among all circuits handled by the Dispatcher.
+  - **circuitId**: Unique identifier for a circuit, defined as the Blake3 hash of the serialized bytes of the circuit's verifying key. This value is globally unique among all circuits handled by the Dispatcher.
   - **input**: Accepts a JSON object for flexibility. The Dispatcher should forward it to the proving binary without processing its content.
   - **[optional] ForceProve**: A proof can be uniquely identified by `(circuitId, Hash(input))`. By default, all proofs are cached. If the Dispatcher receives a request, it will return the cached proof directly. If this field is set to `true`, the system will force a new proof generation even if a cached proof already exists.
 - **Response:**
   - **taskId**: Uniquely identifies the proof task. The Scheduler will poll `/tasks/:taskId/status` every 5-10 seconds to check if the task is completed.
 
-#### GET `/tasks/:taskId/status`
+##### GET `/tasks/:taskId/status`
 
 - **Response:**
   - **status**: Indicates the current task status. Possible values:
     - `PENDING`: Task is created but waiting for resources.
-    - `PREPARING`: An instance is allocated, but setup is still in progress (e.g., downloading pkey).
+    - `PREPARING`: A container is allocated, but setup is still in progress (e.g., downloading pkey).
     - `PROVING`: The proving job is currently running.
-    - `DONE`: The job is completed, and the snark is available.
+    - `DONE`: The job is completed, and the SNARK proof is available.
     - `FAILED`: The task failed.
   - **createdAt**: Timestamp when the task was created.
   - **updatedAt**: Timestamp when the task status was last updated.
 
-#### GET `/tasks/:taskId/snark`
+##### GET `/tasks/:taskId/snark`
 
 - **Response:**
   - **snark**: Returns the proof file.
 
 ### Prover
 
+The prover is the most computation intensive component of the system. It is responsible for generating the SNARK proof for a given circuit. We implement the prover as a REST API server
+which can generate proofs for any of the circuits described in [Batch WorldID Verification Circuits](#batch-worldid-verification-circuits). The prover accepts a typeless request consisting of the circuit ID and the proof input. The proving server infers the circuit type from the circuit ID and proof input to determine which circuit to prove for.
+
+The prover first loads configuration files and the proving key from `${CIRCUIT_DATA_DIR}` directory, using the circuit ID to determine which files to load. The prover will store the proving key in memory after the first load, keeping it in memory for future proof requests until it is told via API request to reset the memory. Because we expect the proving time of a single circuit to not exceed typical connection disconnect thresholds, the proving server keeps the HTTP connection open for the duration of the proving process. Once proving is complete, the prover returns the proof in the response. The prover does not cache any proof results.
+
+#### Prover API Interface
+
+##### GET `/build_info`
+
+A heartbeat endpoint to check if the proving server is running.
+
+- **Response:**
+  - **build_info**: Returns `"alive"`.
+
+##### POST `/tasks`
+
+The endpoint to send a request to generate a proof. The request body is a JSON object containing the circuit ID and the proof input:
+
+- **Request Body:**
+  - **circuit_id**: The circuit ID.
+  - **input**: The proof input. The input format depends on the circuit type.
+- **Response:**
+  - **payload**: The proof, either as a base64 encoding of the serialized bytes of the SNARK proof, or as the hex string of the proof, intended to be used as calldata sent to the on-chain verifier contract.
+
+##### POST `/reset`
+
+Clears everything stored in memory (trusted setup, proving keys, circuit configurations).
+This is useful for avoiding out-of-memory errors.
+
+##### POST `/internal/circuit-data`
+
+Internal endpoint, using by dispatcher, to tell the prover to load the proving key and circuit configuration files for the given circuit ID into memory.
+
+- **Request Body:** same as for `/tasks`
+
+#### Commands
+
 To start the Prover, run the command:
 
 ```
-cargo run --release --bin prover_server  --features "asm, v1(or v2)" -- --circuit-data-dir ${CIRCUIT_DATA_DIR} --srs-dir ${SRS_DIR} --cids-path ${CIDS_PATH}
+cargo run --release --bin prover_server  --features "asm, <v1 or v2>" -- --circuit-data-dir ${CIRCUIT_DATA_DIR} --srs-dir ${SRS_DIR} --cids-path ${CIDS_PATH}
 ```
+
+The `${CIDS_PATH}` is the path to the JSON file output by the keygen command, which stores the
+circuit IDs at each depth of the aggregation tree.
 
 ## Configuration Parameters
 
