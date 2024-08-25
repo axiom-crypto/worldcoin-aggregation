@@ -4,11 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     circuit_factory::{
-        evm::WorldcoinRequestEvm,
-        {
-            intermediate::WorldcoinRequestIntermediate, leaf::WorldcoinRequestLeaf,
-            root::WorldcoinRequestRoot,
-        },
+        evm::WorldcoinRequestEvm, intermediate::WorldcoinRequestIntermediate,
+        leaf::WorldcoinRequestLeaf, leaf_agg::WorldcoinRequestLeafAgg, root::WorldcoinRequestRoot,
     },
     prover::types::ProverProof,
     types::ClaimNative,
@@ -17,6 +14,7 @@ use crate::{
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RequestRouter {
     Leaf(WorldcoinRequestLeaf),
+    LeafAgg(WorldcoinRequestLeafAgg),
     Intermediate(WorldcoinRequestIntermediate),
     Root(WorldcoinRequestRoot),
     Evm(WorldcoinRequestEvm),

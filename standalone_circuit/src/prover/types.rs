@@ -13,13 +13,13 @@ pub struct ProverSnark {
 }
 
 /// Prover task. Circuit id and serialized input.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ProverTask {
     pub circuit_id: String,
     pub input: TaskInput,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TaskInput {
     pub is_evm_proof: bool,
     pub request: RequestRouter,

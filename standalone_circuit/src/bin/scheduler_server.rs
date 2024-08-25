@@ -2,7 +2,7 @@ use std::{collections::HashMap, env, fs::File, io::Write, path::PathBuf};
 
 use anyhow::anyhow;
 use clap::Parser;
-use rocket::{launch, post, get, routes, serde::json::Json, Build, Rocket, State};
+use rocket::{get, launch, post, routes, serde::json::Json, Build, Rocket, State};
 use tokio::task;
 use uuid::Uuid;
 use worldcoin_aggregation::{

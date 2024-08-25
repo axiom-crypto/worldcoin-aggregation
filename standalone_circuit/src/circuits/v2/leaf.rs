@@ -174,7 +174,7 @@ impl<F: Field> EthCircuitInstructions<F> for WorldcoinLeafInputV2<F> {
         // [2, 3] vkey_hash
         // [4] root
         // [5, 6] claim_root
-          let assigned_instances = iter::empty()
+        let assigned_instances = iter::empty()
             .chain([start, end])
             .chain(vk_hash.hi_lo())
             .chain([root])

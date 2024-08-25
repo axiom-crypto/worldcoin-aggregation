@@ -69,6 +69,8 @@ impl Scheduler for LocalScheduler {
         if is_evm_proof {
             let proof = match request {
                 RequestRouter::Leaf(_) => unreachable!(),
+                RequestRouter::LeafAgg(_) => unreachable!(),
+
                 RequestRouter::Intermediate(_) => unreachable!(),
                 RequestRouter::Root(_) => unreachable!(),
                 RequestRouter::Evm(req) => self.state.get_evm_proof(&circuit_id, req).await,
@@ -83,6 +85,8 @@ impl Scheduler for LocalScheduler {
         } else {
             let snark = match request {
                 RequestRouter::Leaf(req) => self.state.get_snark(&circuit_id, req).await,
+                RequestRouter::LeafAgg(req) => self.state.get_snark(&circuit_id, req).await,
+
                 RequestRouter::Intermediate(req) => self.state.get_snark(&circuit_id, req).await,
                 RequestRouter::Root(req) => self.state.get_snark(&circuit_id, req).await,
                 RequestRouter::Evm(req) => self.state.get_snark(&circuit_id, req).await,

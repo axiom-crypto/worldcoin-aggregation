@@ -31,6 +31,7 @@ pub enum NodeType {
     /// The proof number range must fit within the specified max depth. `Evm(round)` performs `round + 1`
     /// rounds of SNARK verification on the final `Root` circuit
     Evm(usize),
+    LeafAgg,
 }
 
 impl NodeParams {
@@ -46,11 +47,19 @@ impl NodeParams {
     pub fn child(&self) -> Option<Self> {
         match self.node_type {
             NodeType::Leaf => None,
+            NodeType::LeafAgg => {
+                assert!(self.depth == self.initial_depth);
+                Some(Self::new(
+                    NodeType::Leaf,
+                    self.initial_depth,
+                    self.initial_depth,
+                ))
+            }
             NodeType::Intermediate | NodeType::Root => {
                 assert!(self.depth > self.initial_depth);
                 if self.depth == self.initial_depth + 1 {
                     Some(Self::new(
-                        NodeType::Leaf,
+                        NodeType::LeafAgg,
                         self.initial_depth,
                         self.initial_depth,
                     ))

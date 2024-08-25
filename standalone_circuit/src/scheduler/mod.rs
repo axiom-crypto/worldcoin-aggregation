@@ -7,7 +7,7 @@ use types::RequestRouter;
 use crate::{
     circuit_factory::{
         evm::WorldcoinRequestEvm, intermediate::WorldcoinRequestIntermediate,
-        leaf::WorldcoinRequestLeaf, root::WorldcoinRequestRoot,
+        leaf::WorldcoinRequestLeaf, leaf_agg::WorldcoinRequestLeafAgg, root::WorldcoinRequestRoot,
     },
     constants::VK,
     keygen::node_params::NodeType,
@@ -48,7 +48,6 @@ pub trait Scheduler: Send + Sync + 'static {
         })
     }
 
-
     /// Recursively break down dependency tasks and schedule the execution. Return the prover task
     /// which needs to be executed for this request.
     async fn handle_recursive_request(
@@ -66,13 +65,25 @@ pub trait Scheduler: Send + Sync + 'static {
             params,
         } = req;
 
-        if params.depth == params.initial_depth {
+        if params.depth == params.initial_depth && params.node_type == NodeType::Leaf {
             let leaf = self.get_request_leaf(start, end, params.depth, root, claims)?;
             Ok(RequestRouter::Leaf(leaf))
         } else {
             assert!(!snarks.is_empty());
             Ok(match params.node_type {
                 NodeType::Leaf => unreachable!(),
+                NodeType::LeafAgg => {
+                    assert_eq!(snarks.len(), 1); // currently just passthrough
+                    let snark = snarks.pop().unwrap();
+                    let req = WorldcoinRequestLeafAgg {
+                        start,
+                        end,
+                        snark,
+                        depth: params.depth,
+                        initial_depth: params.initial_depth,
+                    };
+                    RequestRouter::LeafAgg(req)
+                }
                 NodeType::Intermediate => {
                     assert!(snarks.len() <= 2, "dependencies snarks should be <= 2");
                     if snarks.len() != 2 {
@@ -142,7 +153,8 @@ pub trait Scheduler: Send + Sync + 'static {
         };
 
         let result = self.generate_proof(task).await?;
-        self.post_proof_gen_processing(request_id, circuit_id.as_str(), &result).await?;
+        self.post_proof_gen_processing(request_id, circuit_id.as_str(), &result)
+            .await?;
         Ok(result.proof)
     }
 

@@ -32,11 +32,7 @@ use axiom_eth::{
     utils::{hilo::HiLo, uint_to_bytes_be},
 };
 
-use axiom_eth::halo2_base::{
-    gates::{RangeChip},
-    AssignedValue, Context,
-};
-
+use axiom_eth::halo2_base::{gates::RangeChip, AssignedValue, Context};
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct RlcKeccakCircuitPinning {

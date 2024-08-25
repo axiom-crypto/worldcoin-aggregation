@@ -36,8 +36,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     circuit_factory::leaf::*, constants::VK, types::WorldcoinRequest,
-    WorldcoinIntermediateAggregationInput, WorldcoinIntermediateAggregationCircuit, WorldcoinLeafCircuit, WorldcoinLeafInput,
-    WorldcoinRootAggregationCircuit, WorldcoinRootAggregationInput,
+    WorldcoinIntermediateAggregationCircuit, WorldcoinIntermediateAggregationInput,
+    WorldcoinLeafCircuit, WorldcoinLeafInput, WorldcoinRootAggregationCircuit,
+    WorldcoinRootAggregationInput,
 };
 
 pub mod node_params;
@@ -420,7 +421,7 @@ impl RecursiveIntent {
                 };
                 (intent.create_pk_and_pinning(&kzg_params), to_agg)
             }
-            NodeType::Evm(_) => {
+            NodeType::Evm(_) | NodeType::LeafAgg => {
                 let (child_id, child_intent) = child.unwrap();
                 let to_agg = vec![child_id.clone()];
                 let intent = IntentEvm {

@@ -2,7 +2,10 @@ use std::cmp::min;
 
 use anyhow::{bail, Result};
 
-use crate::{keygen::node_params::NodeParams, types::ClaimNative};
+use crate::{
+    keygen::node_params::{NodeParams, NodeType},
+    types::ClaimNative,
+};
 
 #[derive(Clone, Debug)]
 pub struct RecursiveRequest {
@@ -56,7 +59,20 @@ impl RecursiveRequest {
         } = self.clone();
         assert!(end - start <= 1 << params.depth);
         if params.depth == params.initial_depth {
-            vec![]
+            if params.node_type == NodeType::Leaf {
+                vec![]
+            } else {
+                let child_params = params.child().unwrap();
+
+                [Self {
+                    start,
+                    end,
+                    root,
+                    claims,
+                    params: child_params,
+                }]
+                .to_vec()
+            }
         } else {
             let child_params = params.child().unwrap();
             let child_depth = child_params.depth;

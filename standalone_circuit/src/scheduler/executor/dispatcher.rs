@@ -4,7 +4,10 @@ use log::debug;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::{Deserialize, Serialize};
-use tokio::{sync::Semaphore, time::Duration};
+use tokio::{
+    sync::Semaphore,
+    time::{sleep, Duration},
+};
 
 use crate::prover::types::{ProverProof, ProverTask, ProverTaskResponse, TaskInput};
 
@@ -58,9 +61,33 @@ impl ProofExecutor for DispatcherExecutor {
         } else {
             None
         };
-        let task_id = self.create_task(proof).await?;
 
-        self.wait_task_done(&task_id).await?;
+        let mut retries = 3;
+
+        let task_id = loop {
+            let task_id = self.create_task(proof.clone()).await?;
+
+            match self.wait_task_done(&task_id).await {
+                Ok(()) => break task_id, // Task completed successfully, return the task_id
+                Err(e) => {
+                    println!(
+                        "Error in wait_task_done for task {}: {}. Retrying...",
+                        task_id, e
+                    );
+                }
+            }
+
+            retries -= 1;
+            if retries > 0 {
+                sleep(Duration::from_secs(11 * 60)).await;
+            } else {
+                bail!(
+                    "Failed to complete the task after 3 attempts. Last task ID: {}",
+                    task_id
+                );
+            }
+        };
+
         drop(permit);
         let prover_proof = self.get_prover_proof(&task_id).await?;
         Ok((task_id, prover_proof))

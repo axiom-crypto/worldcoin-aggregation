@@ -46,6 +46,8 @@ async fn serve(
         }
         RequestRouter::Intermediate(request) => return_snark(prover, circuit_id, request).await,
         RequestRouter::Leaf(request) => return_snark(prover, circuit_id, request).await,
+        RequestRouter::LeafAgg(request) => return_snark(prover, circuit_id, request).await,
+
         RequestRouter::Root(request) => return_snark(prover, circuit_id, request).await,
     }
 }
@@ -78,6 +80,8 @@ async fn load_circuit_data(
 
     match request {
         RequestRouter::Leaf(request) => _ = prover.build_circuit(&circuit_id, request).await?,
+        RequestRouter::LeafAgg(request) => _ = prover.build_circuit(&circuit_id, request).await?,
+
         RequestRouter::Intermediate(request) => {
             _ = prover.build_circuit(&circuit_id, request).await?
         }
