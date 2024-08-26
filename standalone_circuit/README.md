@@ -50,8 +50,8 @@ We now proceed to discuss the details of the V1 and V2 circuits within this fram
 
 The V1 circuit verifies the WorldID Groth16 proofs in batch, and exposes as a public output the Keccak hash of the following quantities.
 
-- `vkeyHash` - the Keccak hash of the flattened vk
-- `numClaims` - the number of claims, which should satisfy `1 <= numClaims <= MAX_NUM_CLAIMS`
+- `vkey_hash` - the Keccak hash of the flattened vk
+- `num_claims` - the number of claims, which should satisfy `1 <= num_claims <= MAX_NUM_CLAIMS`
 - `root`
 - `grant_ids_i` for `i = 1, ..., MAX_NUM_CLAIMS`
 - `receivers_i` for `i = 1, ..., MAX_NUM_CLAIMS`
@@ -67,7 +67,7 @@ To implement the V1 circuit, we use the following 4 types of circuits:
   - each claim verifies with the Groth16 verifying key `vk` and inputs `[root, nullifier_hash, receiver, grant_id]`
   - The public IO consists of `[start, end, vk_hash_hi, vk_hash_lo, root, ...grant_ids, ...receivers, ...nullifier_hashes]`
 - **WorldcoinIntermediateAggregationCircuit** - It aggregates either two WorldcoinLeafCircuit proofs or two WorldcoinIntermediateAggregationCircuit proofs, depending on the circuit's depth in the aggregation tree, and also enforce constraints between the public IO of the two aggregated child proofs:
-  - The two child proofs either link together, where the `end` of the 1st proof equal the `start` of the 2nd proof, or the 2nd proof is a dummy
+  - The two child proofs either link together, where the `end` of the 1st proof equals the `start` of the 2nd proof, or the 2nd proof is a dummy
   - It checks `vk, root` are the same in both children
   - It has the same format of public IO as the leaf circuit.
 - **WorldcoinRootAggregationCircuit** - It is similar to WorldcoinIntermediateAggregationCircuit in terms of aggregation, but its public IO consists of only the keccak hash of
@@ -80,9 +80,9 @@ To implement the V1 circuit, we use the following 4 types of circuits:
 
 The V2 circuit design is similar to the V1 circuit. It has public outputs
 
-- `vkeyHash` – the Keccak hash of the flattened Groth16 verifying key `vk`
+- `vkey_hash` – the Keccak hash of the flattened Groth16 verifying key `vk`
 - `root`
-- `claimRoot` – the Keccak Merkle root of the tree whose leaves are `keccak256(abi.encodePacked(grant_ids_i, receivers_i, nullifierHashes_i))`. Leaves with indices greater than `numClaims - 1` are given by `keccak256(abi.encodePacked(uint256(0), address(0), bytes32(0)))`, where `1 <= numClaims <= MAX_NUM_CLAIMS`.
+- `claim_root` – the Keccak Merkle root of the tree whose leaves are `keccak256(abi.encodePacked(grant_ids_i, receivers_i, nullifierHashes_i))`. Leaves with indices greater than `num_claims - 1` are given by `keccak256(abi.encodePacked(uint256(0), address(0), bytes32(0)))`, where `1 <= num_claims <= MAX_NUM_CLAIMS`.
 
 The V2 design is implemented through the following circuits:
 
