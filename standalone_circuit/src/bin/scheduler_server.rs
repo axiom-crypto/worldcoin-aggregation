@@ -11,7 +11,7 @@ use worldcoin_aggregation::{
     prover::types::ProverProof,
     scheduler::{
         async_scheduler::AsyncScheduler,
-        contract_client::{ContractClient, V1FulfillParams},
+        contract_client::{ContractClient, V1ClaimParams},
         recursive_request::*,
         task_tracker::SchedulerTaskTracker,
         types::{SchedulerTaskRequest, SchedulerTaskResponse},
@@ -120,7 +120,6 @@ async fn serve(
                 let params = final_proof;
 
                 for _i in 0..retry_send_threshold {
-                    #[cfg(feature = "v1")]
                     let ret = contract_client.fulfill(params.clone()).await;
                     match ret {
                         Ok(tx_hash) => {
@@ -189,7 +188,7 @@ fn rocket() -> Rocket<Build> {
         &keystore_path,
         &keystore_password,
         &provider_uri,
-        V1_128_ADDRESS,
+        &contract_address,
         CHAIN_ID,
     )
     .unwrap();
