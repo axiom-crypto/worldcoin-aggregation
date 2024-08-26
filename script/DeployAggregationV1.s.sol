@@ -3,7 +3,6 @@ pragma solidity 0.8.19;
 
 import { WorldcoinAggregationV1 } from "../src/WorldcoinAggregationV1.sol";
 import { IERC20 } from "../src/interfaces/IERC20.sol";
-import { V1Claim2Verifier } from "../src/verifiers/V1Claim2Verifier.sol";
 
 import { AggregationDeployBase } from "./AggregationDeployBase.s.sol";
 
@@ -16,10 +15,12 @@ contract DeployAggregationV1 is AggregationDeployBase {
 
         bytes32 vKeyHash = 0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec;
 
-        (, address wldToken, address rootValidator, address grant) = _getDeployedAddresses();
+        (address wldToken, address rootValidator, address grant) = _getDeployedAddresses();
+
+        address verifier = _deployVerifier("v1", maxNumClaims);
 
         WorldcoinAggregationV1 worldcoinAggV1 = new WorldcoinAggregationV1(
-            vKeyHash, maxNumClaims, wldToken, rootValidator, grant, address(new V1Claim2Verifier()), address(0)
+            vKeyHash, maxNumClaims, wldToken, rootValidator, grant, verifier, address(0)
         );
 
         IERC20 wldTokenContract = IERC20(wldToken);
