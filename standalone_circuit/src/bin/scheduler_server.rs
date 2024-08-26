@@ -2,7 +2,7 @@ use std::{collections::HashMap, env, fs::File, io::Write, path::PathBuf};
 
 use anyhow::anyhow;
 use clap::Parser;
-use rocket::{launch, post, get, routes, serde::json::Json, Build, Rocket, State};
+use rocket::{get, launch, post, routes, serde::json::Json, Build, Rocket, State};
 use tokio::task;
 use uuid::Uuid;
 use worldcoin_aggregation::{
@@ -11,7 +11,7 @@ use worldcoin_aggregation::{
     prover::types::ProverProof,
     scheduler::{
         async_scheduler::AsyncScheduler,
-        contract_client::{ContractClient, V1ClaimParams},
+        contract_client::{ContractClient, V1FulfillParams},
         recursive_request::*,
         task_tracker::SchedulerTaskTracker,
         types::{SchedulerTaskRequest, SchedulerTaskResponse},
@@ -108,41 +108,35 @@ async fn serve(
                 .unwrap();
                 file.write_all(json_string.as_bytes()).unwrap();
 
+                let retry_send_threshold = 5;
+
+                // the vk_hash for the corresponding vk.json
+                const VK_HASH: &str =
+                    "0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec";
+
                 #[cfg(feature = "v1")]
-                {
-                    // fulfill example only works for v1 size 128 proofs
-                    if max_proofs != 128 {
-                        return;
-                    }
-                    let retry_send_threshold = 5;
+                let params = V1FulfillParams::new(VK_HASH, &req.root, &req.claims, final_proof);
+                #[cfg(feature = "v2")]
+                let params = final_proof;
 
-                    // the vk_hash for the corresponding vk.json
-                    const VK_HASH: &str =
-                        "0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec";
-
-                    let v1claim_params =
-                        V1ClaimParams::new(VK_HASH, &req.root, &req.claims, final_proof);
-
-                    for _i in 0..retry_send_threshold {
-                        let ret = contract_client
-                            .distribute_grants(v1claim_params.clone())
-                            .await;
-                        match ret {
-                            Ok(tx_hash) => {
-                                println!("fulfilled query {}, tx_hash {}", request_id, tx_hash);
-                                return;
-                            }
-                            Err(_) => {
-                                println!("Failed to fulfill request {}, retrying", request_id);
-                                tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-                            }
+                for _i in 0..retry_send_threshold {
+                    #[cfg(feature = "v1")]
+                    let ret = contract_client.fulfill(params.clone()).await;
+                    match ret {
+                        Ok(tx_hash) => {
+                            println!("fulfilled query {}, tx_hash {}", request_id, tx_hash);
+                            return;
+                        }
+                        Err(_) => {
+                            println!("Failed to fulfill request {}, retrying", request_id);
+                            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
                         }
                     }
-                    println!(
-                        "Failed to fulfill request {} after {} retries",
-                        request_id, retry_send_threshold
-                    );
                 }
+                println!(
+                    "Failed to fulfill request {} after {} retries",
+                    request_id, retry_send_threshold
+                );
             }
             _ => unreachable!(),
         }
@@ -185,8 +179,8 @@ fn rocket() -> Rocket<Build> {
 
     let task_tracker = SchedulerTaskTracker::new();
 
-    const V1_128_ADDRESS: &str = "0x39521692fD1E29A397f347D8Ee171b9AE2394be6";
     const CHAIN_ID: u64 = 11155111;
+    let contract_address = env::var("CONTRACT_ADDRESS").expect("CONTRACT_ADDRESS must be set");
     let keystore_path = env::var("KEYSTORE_PATH").expect("KEYSTORE_PATH must be set");
     let keystore_password = env::var("KEYSTORE_PASSWORD").expect("KEYSTORE_PASSWORD must be set");
     let provider_uri = env::var("PROVIDER_URI").expect("PROVIDER_URL must be set");

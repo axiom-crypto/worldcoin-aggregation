@@ -48,7 +48,6 @@ pub trait Scheduler: Send + Sync + 'static {
         })
     }
 
-
     /// Recursively break down dependency tasks and schedule the execution. Return the prover task
     /// which needs to be executed for this request.
     async fn handle_recursive_request(
@@ -142,7 +141,8 @@ pub trait Scheduler: Send + Sync + 'static {
         };
 
         let result = self.generate_proof(task).await?;
-        self.post_proof_gen_processing(request_id, circuit_id.as_str(), &result).await?;
+        self.post_proof_gen_processing(request_id, circuit_id.as_str(), &result)
+            .await?;
         Ok(result.proof)
     }
 
