@@ -68,6 +68,45 @@
   },
   {
     "type": "function",
+    "name": "MINIMUM_SNARK_LENGTH",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "OUTPUT_HASH_HI_OFFSET",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "OUTPUT_HASH_LO_OFFSET",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "PROVER",
     "inputs": [],
     "outputs": [
@@ -146,14 +185,14 @@
         "internalType": "uint256"
       },
       {
-        "name": "grantId",
+        "name": "root",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "root",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "grantIds",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
       },
       {
         "name": "receivers",
@@ -214,11 +253,6 @@
   },
   {
     "type": "error",
-    "name": "InsufficientBalance",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "InvalidMaxNumClaims",
     "inputs": []
   },
@@ -229,7 +263,17 @@
   },
   {
     "type": "error",
+    "name": "InvalidReceiver",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "InvalidVkeyHash",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NullifierHashAlreadyUsed",
     "inputs": []
   },
   {
