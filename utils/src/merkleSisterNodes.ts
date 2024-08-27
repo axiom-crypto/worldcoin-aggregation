@@ -159,7 +159,7 @@ function main() {
   console.log(`isLeftBytes is: ${boolArrayToByte32(isLeftBytes)}`);
 
   const claim = {
-    grantId: `0x${BigInt(grantIds[claimIdx]).toString(16)}`,
+    grantId: grantIds[claimIdx],
     isLeftBytes: `${boolArrayToByte32(isLeftBytes)}`,
     nullifierHash: `0x${BigInt(nullifierHashes[claimIdx]).toString(16)}`,
     receiver: receivers[claimIdx],
