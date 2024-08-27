@@ -36,7 +36,7 @@ pub struct AsyncScheduler {
     pub execution_summary_path: Arc<PathBuf>,
     // the client to interact with the smart contract
     pub contract_client: Arc<ContractClient>,
-    // the ndoe params of the final aggregation circuit
+    // the node params of the final aggregation circuit
     pub final_circuit_params: Arc<NodeParams>,
 }
 
