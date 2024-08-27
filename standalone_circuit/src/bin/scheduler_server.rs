@@ -33,14 +33,23 @@ async fn serve(
     scheduler: &State<Arc<AsyncScheduler>>,
 ) -> Result<Json<SchedulerTaskResponse>> {
     let SchedulerTaskRequest {
-        num_proofs,
-        max_proofs,
         root,
         claims,
-        initial_depth,
     } = task.into_inner();
 
-    let initial_depth = initial_depth.unwrap_or(INITIAL_DEPTH);
+
+    let num_proofs = claims.len();
+
+    let final_circuit_params = (*scheduler.final_circuit_params).clone();
+    let NodeParams{ node_type: _, depth, initial_depth} = final_circuit_params;
+
+    let max_proofs = 1 << depth;
+
+    if num_proofs == 0 {
+         return Err(anyhow!("Zero proofs!")
+            .context(InvalidInputContext)
+            .into());
+    }
 
     if num_proofs > max_proofs {
         return Err(anyhow!("Too many proofs!")
@@ -48,34 +57,18 @@ async fn serve(
             .into());
     }
 
-    if !max_proofs.is_power_of_two() {
-        return Err(anyhow!("max proofs must be power of two")
-            .context(InvalidInputContext)
-            .into());
-    }
-
-    if num_proofs != claims.len() {
-        return Err(anyhow!("max proofs and claims must have the same length")
-            .context(InvalidInputContext)
-            .into());
-    }
-
-    let depth = max_proofs.trailing_zeros();
-
-    let params = NodeParams::new(NodeType::Evm(EXTRA_ROUNDS), depth as usize, initial_depth);
 
     let req = RecursiveRequest {
         start: 0,
         end: num_proofs as u32,
         root,
         claims,
-        params,
+        params: final_circuit_params,
     };
 
     // Actually run the thing
     log::info!("Running task: {req:?}");
 
-    //task_tracker.create_task(request_id.clone())?;
     let scheduler = Arc::clone(&scheduler.inner());
 
     let request_id = Uuid::new_v4().to_string();
@@ -167,6 +160,11 @@ fn rocket() -> Rocket<Build> {
     let cids: Vec<(String, String)> =
         serde_json::from_reader(cids_file).expect("Failed to parse cids file");
 
+    assert!(cids.len() > 0);
+    let final_circuit_params = cids.last().unwrap().clone().0;
+    let final_circuit_params: NodeParams = serde_json::from_str(&final_circuit_params)
+            .unwrap_or_else(|e| panic!("Failed to parse {}. {:?}", final_circuit_params, e));
+
     let mut cids_repo: HashMap<NodeParams, String> = HashMap::new();
     let mut cid_to_params: HashMap<String, NodeParams> = HashMap::new();
     for (params, circuit_id) in cids {
@@ -200,6 +198,7 @@ fn rocket() -> Rocket<Build> {
         task_tracker,
         cli.execution_summary_path,
         contract_client,
+        final_circuit_params
     );
 
     rocket::build()

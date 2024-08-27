@@ -36,6 +36,8 @@ pub struct AsyncScheduler {
     pub execution_summary_path: Arc<PathBuf>,
     // the client to interact with the smart contract
     pub contract_client: Arc<ContractClient>,
+    // the ndoe params of the final aggregation circuit
+    pub final_circuit_params: Arc<NodeParams>,
 }
 
 #[async_trait]
@@ -106,6 +108,7 @@ impl AsyncScheduler {
         task_tracker: SchedulerTaskTracker,
         execution_summary_path: PathBuf,
         contract_client: ContractClient,
+        final_circuit_param: NodeParams
     ) -> Self {
         // query task status from dispatcher every 5000 ms
         const DISPATCHER_POLL_INTERVAL: u64 = 5000;
@@ -129,6 +132,7 @@ impl AsyncScheduler {
             task_tracker: Arc::new(task_tracker),
             execution_summary_path: Arc::new(execution_summary_path),
             contract_client: Arc::new(contract_client),
+            final_circuit_params: Arc::new(final_circuit_param)
         }
     }
 }

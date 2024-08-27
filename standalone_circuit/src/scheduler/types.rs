@@ -27,9 +27,6 @@ pub struct SchedulerTaskRequest {
     pub root: String,
     // the claims vector has [start, end) claims
     pub claims: Vec<ClaimNative>,
-    pub num_proofs: usize,
-    pub max_proofs: usize,
-    pub initial_depth: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
