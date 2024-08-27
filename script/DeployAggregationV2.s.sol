@@ -13,21 +13,20 @@ contract DeployAggregationV2 is AggregationDeployBase {
     function run(uint256 logMaxNumClaims) external {
         vm.startBroadcast();
 
-        // uint64 sourceChainId = 11_155_111;
-        // bytes32 vKeyHash = 0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec;
+        bytes32 vKeyHash = 0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec;
 
-        // uint256 maxNumClaims = 2 ** logMaxNumClaims;
+        uint256 maxNumClaims = 2 ** logMaxNumClaims;
 
-        // bytes32 querySchema = _getQuerySchema("v2", maxNumClaims);
+        (address wldToken, address rootValidator, address grant) = _getDeployedAddresses();
 
-        // (address queryAddress, address wldToken, address rootValidator, address grant) = _getDeployedAddresses();
+        address verifier = _deployVerifier("v2", maxNumClaims);
 
-        // WorldcoinAggregationV2 worldcoinAggV2 =
-        //     new WorldcoinAggregationV2(vKeyHash, logMaxNumClaims, wldToken, rootValidator, grant);
+        WorldcoinAggregationV2 worldcoinAggV2 =
+            new WorldcoinAggregationV2(vKeyHash, logMaxNumClaims, wldToken, rootValidator, grant, verifier, address(0));
 
-        // IERC20 wldTokenContract = IERC20(wldToken);
-        // uint256 transferAmount = 100_000 * 10 ** 18;
-        // wldTokenContract.transfer(address(worldcoinAggV2), transferAmount);
+        IERC20 wldTokenContract = IERC20(wldToken);
+        uint256 transferAmount = 100_000 * 10 ** 18;
+        wldTokenContract.transfer(address(worldcoinAggV2), transferAmount);
 
         vm.stopBroadcast();
     }

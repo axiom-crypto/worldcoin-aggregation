@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity 0.8.19;
 
-contract Claim128Verifier {
+contract V1Claim128Verifier {
     fallback(bytes calldata) external returns (bytes memory) {
         assembly ("memory-safe") {
             // Enforce that Solidity memory layout is respected
@@ -42,7 +43,7 @@ contract Claim128Verifier {
             mstore(0x200, mod(calldataload(0x160), f_q))
             mstore(0x220, mod(calldataload(0x180), f_q))
             mstore(0x240, mod(calldataload(0x1a0), f_q))
-            mstore(0x80, 1334342444677392067732471422449095960068262945487405663728914590857770165751)
+            mstore(0x80, 12539156402519065942152929369317526928626503019059017840615728598672903251921)
 
             {
                 let x := calldataload(0x1c0)
@@ -1224,8 +1225,8 @@ contract Claim128Verifier {
             mstore(0x4100, mload(0x4060))
             mstore(0x4120, mload(0x4080))
             success := and(eq(staticcall(gas(), 0x6, 0x40c0, 0x80, 0x40c0, 0x40), 1), success)
-            mstore(0x4140, 0x2865bab005504af145aa7158d50f8a3d11707f3ea6e2c30a59c7ad4ee11e7d5d)
-            mstore(0x4160, 0x28f288f7f51311aca9ab1e22b598ae6040daf6994ebd3907997973858c048f04)
+            mstore(0x4140, 0x2e2c62958327624f1e912d84cbcf289ef1b4827837d2770a2050d58805ff0ba5)
+            mstore(0x4160, 0x003f7e15335234a3c73cad4c8b72d3feaf4c22d3cf79e489a6cf294a13d09002)
             mstore(0x4180, mload(0x3b00))
             success := and(eq(staticcall(gas(), 0x7, 0x4140, 0x60, 0x4140, 0x40), 1), success)
             mstore(0x41a0, mload(0x40c0))
@@ -1260,8 +1261,8 @@ contract Claim128Verifier {
             mstore(0x4480, mload(0x43e0))
             mstore(0x44a0, mload(0x4400))
             success := and(eq(staticcall(gas(), 0x6, 0x4440, 0x80, 0x4440, 0x40), 1), success)
-            mstore(0x44c0, 0x24ef979492ed8193576e6d81eb216a669f207696c86216e9fdcb5fd786a7459e)
-            mstore(0x44e0, 0x27a677245c5454ceb99a18c54b98c0130a5f74987c865328058873489f532a0f)
+            mstore(0x44c0, 0x0023cf36ddddf5a021fe5ea2e28331c829d80e8b5ba4d4b8caacdced7ebbc7b2)
+            mstore(0x44e0, 0x1fc3721cef42bc6a7f47c43ed3a133f4bb9a9222dbf0e699806e49a43b74d4ab)
             mstore(0x4500, mload(0x3b80))
             success := and(eq(staticcall(gas(), 0x7, 0x44c0, 0x60, 0x44c0, 0x40), 1), success)
             mstore(0x4520, mload(0x4440))
@@ -1269,8 +1270,8 @@ contract Claim128Verifier {
             mstore(0x4560, mload(0x44c0))
             mstore(0x4580, mload(0x44e0))
             success := and(eq(staticcall(gas(), 0x6, 0x4520, 0x80, 0x4520, 0x40), 1), success)
-            mstore(0x45a0, 0x1351124068de36907f08f5499e8c8fc2d7edbbb2b4b7eb3a2e18e4798a3f20ed)
-            mstore(0x45c0, 0x0609506de6dc5f790c73a06291c55019b758000d23b7f5097c557fd82835d0e5)
+            mstore(0x45a0, 0x1b51ee2038735da053903a18c32e3bd3150d289f6b95fb0d2a22b510ee4426a8)
+            mstore(0x45c0, 0x27bfd563a8a95f1aefa028638fa0eb9a14cc3303cba0867808e6017707cc4ebc)
             mstore(0x45e0, mload(0x3ba0))
             success := and(eq(staticcall(gas(), 0x7, 0x45a0, 0x60, 0x45a0, 0x40), 1), success)
             mstore(0x4600, mload(0x4520))

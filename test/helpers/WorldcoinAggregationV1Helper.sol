@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { WorldcoinAggregationV1 } from "../../src/WorldcoinAggregationV1.sol";
-import { V1Claim2Verifier } from "../../src/verifiers/V1Claim2Verifier.sol";
+import { V1Claim2Verifier } from "../../src/verifiers/v1/V1Claim2Verifier.sol";
 import { WLDGrant } from "./WLDGrant.sol";
 
 import { Test } from "forge-std/Test.sol";

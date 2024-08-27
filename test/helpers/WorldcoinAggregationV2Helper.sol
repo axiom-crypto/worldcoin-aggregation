@@ -5,7 +5,7 @@ import { toString } from "./Utils.sol";
 import { WLDGrant } from "./WLDGrant.sol";
 
 import { WorldcoinAggregationV2 } from "../../src/WorldcoinAggregationV2.sol";
-import { V2Claim2Verifier } from "../../src/verifiers/V2Claim2Verifier.sol";
+import { V2Claim2Verifier } from "../../src/verifiers/v2/V2Claim2Verifier.sol";
 
 import { Test } from "forge-std/Test.sol";
 
