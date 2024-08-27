@@ -13,7 +13,6 @@ import { V1Claim64Verifier } from "../src/verifiers/v1/V1Claim64Verifier.sol";
 import { V1Claim128Verifier } from "../src/verifiers/v1/V1Claim128Verifier.sol";
 import { V1Claim256Verifier } from "../src/verifiers/v1/V1Claim256Verifier.sol";
 
-
 import { V2Claim2Verifier } from "../src/verifiers/v2/V2Claim2Verifier.sol";
 import { V2Claim16Verifier } from "../src/verifiers/v2/V2Claim16Verifier.sol";
 import { V2Claim32Verifier } from "../src/verifiers/v2/V2Claim32Verifier.sol";
@@ -21,15 +20,10 @@ import { V2Claim64Verifier } from "../src/verifiers/v2/V2Claim64Verifier.sol";
 import { V2Claim128Verifier } from "../src/verifiers/v2/V2Claim128Verifier.sol";
 import { V2Claim8192Verifier } from "../src/verifiers/v2/V2Claim8192Verifier.sol";
 
-
 string constant DEPLOYED_ADDRESS_FILE = "script/config/deployed.json";
 
 abstract contract AggregationDeployBase is Script {
-    function _getDeployedAddresses()
-        internal
-        view
-        returns (address wldToken, address rootValidator, address grant)
-    {
+    function _getDeployedAddresses() internal view returns (address wldToken, address rootValidator, address grant) {
         string memory deployedAddressesFile = vm.readFile(DEPLOYED_ADDRESS_FILE);
         wldToken = abi.decode(vm.parseJson(deployedAddressesFile, ".wldToken"), (address));
         rootValidator = abi.decode(vm.parseJson(deployedAddressesFile, ".rootValidator"), (address));

@@ -19,9 +19,8 @@ contract DeployAggregationV1 is AggregationDeployBase {
 
         address verifier = _deployVerifier("v1", maxNumClaims);
 
-        WorldcoinAggregationV1 worldcoinAggV1 = new WorldcoinAggregationV1(
-            vKeyHash, maxNumClaims, wldToken, rootValidator, grant, verifier, address(0)
-        );
+        WorldcoinAggregationV1 worldcoinAggV1 =
+            new WorldcoinAggregationV1(vKeyHash, maxNumClaims, wldToken, rootValidator, grant, verifier, address(0));
 
         IERC20 wldTokenContract = IERC20(wldToken);
         uint256 transferAmount = 100_000 * 10 ** 18;
