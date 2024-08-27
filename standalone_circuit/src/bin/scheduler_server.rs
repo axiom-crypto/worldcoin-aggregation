@@ -115,7 +115,7 @@ async fn serve(
                     "0x46e72119ce99272ddff09e0780b472fdc612ca799c245eea223b27e57a5f9cec";
 
                 #[cfg(feature = "v1")]
-                let params = V1FulfillParams::new(VK_HASH, &req.root, &req.claims, final_proof);
+                let params = V1ClaimParams::new(VK_HASH, &req.root, &req.claims, final_proof);
                 #[cfg(feature = "v2")]
                 let params = final_proof;
 
