@@ -10,6 +10,6 @@ This command will create a file named `claim.json` which can be used to create a
 ```
 export PROVIDER_URI={$OP_PROVIDER_URI}
 npm/pnpm/yarn install
-npx ts-node src/merkleSisterNodes.ts {max_proofs}
+npx ts-node src/crawlProofData.ts {max_proofs}
 ```
 This command will crawl up to `max_proofs` for a certain `grantId` and `root`, generating a file named `real_proofs_{max_proofs}.json`.
