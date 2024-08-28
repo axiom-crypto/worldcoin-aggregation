@@ -126,17 +126,18 @@ Test data was generated using [semaphore-rs](https://github.com/worldcoin/semaph
 
 ### WLD Grant Protocol V1 (Standalone)
 
-We deployed Grant Protocol V1 in a standalone way on Sepolia for batch size 128 at the address below and also made a [sample fulfill transaction](https://sepolia.etherscan.io/tx/0x3d7488e27ba42f02bc15a2228364fa202b50d94e9fdeffbfcd9fb0b0b950b3c1).
+We deployed Grant Protocol V1 in a standalone way on Sepolia for different sizes and made sample fulfill transactions.
 
-| Batch Size | Sepolia Address                                                                                                               |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 128        | [0x39521692fd1e29a397f347d8ee171b9ae2394be6](https://sepolia.etherscan.io/address/0x39521692fd1e29a397f347d8ee171b9ae2394be6) |
+We measured gas usage, calldata usage and off-chain costs, shown in the table below. We also show gas attributed to proof verification, which excludes gas used for WLD token transfers and other business logic. On-chain \$ includes L1 and L2 gas. Our dollar cost estimates are based on an L2 gas cost of 0.06 gwei, L1 blob base fee of 1wei, and \$3000 ETH. Off-chain \$ is conservative benchmarking using AWS compute costs. We utilized `m6a.4xlarge` instances for all the circuits.
 
-We measured gas and calldata usage, shown in the table below. We also show gas attributed to proof verification, which excludes gas used for WLD token transfers and other business logic. On-chain \$ includes L1 and L2 gas. Our dollar cost estimates are based on an L2 gas cost of 0.06 gwei, L1 blob base fee of 1wei, and \$3000 ETH.
 
-| # Claims | L2 Gas/Claim | Proof Gas/Claim | Calldata/Claim | On-chain \$/Claim |
-| -------- | ------------ | --------------- | -------------- | ----------------- |
-| 128      | 54K          | 4K              | 80             | \$0.0099          |
+| # Claims | Sepolia Address                                                                                                               | Fulfill Tx                                                                                  | L2 Gas/Claim | Proof Gas/Claim | Calldata/Claim | On-chain \$/Claim | Off-chain \$/Claim |
+| -------- |  ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------ | --------------- | -------------- | ----------------- | ------------------ |
+| 16       | [0x3689d27A428543100E7CeB663F55616cdE896F07](https://sepolia.etherscan.io/address/0x3689d27A428543100E7CeB663F55616cdE896F07) | [Fulfill Tx](https://sepolia.etherscan.io/tx/0xe2ac0e66a91765656e8b88d21479b03506fe246ae7d2d8ccc8ad7ce2b9f626f2) | 75K          | 23K             | 232            | \$0.0148         | \$0.0208        |
+| 32       | [0xF2EF0b7300BF2B0F0a7a310BABde640b3E74997B](https://sepolia.etherscan.io/address/0xF2EF0b7300BF2B0F0a7a310BABde640b3E74997B) | [Fulfill Tx](https://sepolia.etherscan.io/tx/0x80ccfd91b6121f5471f74c1f90dc10f3364478703be25c56f10683bcb8f4a163) | 64K          | 11K             | 164            | \$0.0134          | \$0.0181           |
+| 64       | [0xe515583983388956147277Ec7a4347964D77bFbc](https://sepolia.etherscan.io/address/0xe515583983388956147277Ec7a4347964D77bFbc) | [Fulfill Tx](https://sepolia.etherscan.io/tx/0x69b7c8fc5d09e9c989960a271105b7adf0d291174b669042732342c98a2fcde2) | 58K          | 6K              | 130            | \$0.0129          | \$0.0170           |
+| 128       | [0x0cd9558c9f3BB010F8A0ec3Fd301178e1fc925F8](https://sepolia.etherscan.io/address/0x0cd9558c9f3BB010F8A0ec3Fd301178e1fc925F8) | [Fulfill Tx](https://sepolia.etherscan.io/tx/0xc3af5876a5482edb2e348d0aa84546cf983afd6f1393954c4ce4dbc44b357e93) | 56K          | 3K              | 113            | \$0.0128          | \$0.0158           |
+| 256       | [0xa5fac0910068B7a570B0De0c2411A4185A3c3b03](https://sepolia.etherscan.io/address/0xa5fac0910068B7a570B0De0c2411A4185A3c3b03) | [Fulfill Tx](https://sepolia.etherscan.io/tx/0x70927cab3b7bed3f01958261cdcb27ef5e495394e5989ce8c4eb8d9ed1c19ebd) | 54K          | 1.4K            | 105            | \$0.0128          | \$0.0156           |
 
 We recommend this standalone configuration setting for the best cost and UX.
 
@@ -162,6 +163,20 @@ We measured gas and calldata usage, shown in the table below. We also show gas a
 | 32       | 65K          | 15K             | 182            | \$0.0121          |
 | 64       | 58K          | 8K              | 123            | \$0.0107          |
 | 128      | 54K          | 4K              | 96             | \$0.0099          |
+
+### WLD Grant Protocol V2 (Standalone)
+We deployed Grant Protocol V2 in a standalone way on Sepolia for different sizes and made sample fulfill/claim transactions.
+
+We measured gas usage, calldata usage and off-chain costs, shown in the table below. We also show gas attributed to proof verification, which excludes gas used for WLD token transfers and other business logic. On-chain \$ includes L1 and L2 gas. Our dollar cost estimates are based on an L2 gas cost of 0.06 gwei, L1 blob base fee of 1wei, and \$3000 ETH. Off-chain \$ is conservative benchmarking using AWS compute costs. We utilized `m6a.4xlarge` instances for all the circuits.
+
+| # Claims | Sepolia Address                                                                                                               | Fulfill/Claim Tx                                                                                  | L2 Gas/Claim | Proof Gas/Claim | Calldata/Claim | On-chain \$/Claim | Off-chain \$/Claim |
+| -------- |  ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------ | --------------- | -------------- | ----------------- | --------------- |
+| 16       | [0x0725a6d62f7d9eC34197c57Bbc34B6657e251bf9](https://sepolia.etherscan.io/address/0x0725a6d62f7d9eC34197c57Bbc34B6657e251bf9) | [Fulfill](https://sepolia.etherscan.io/tx/0x72ddab5605dfbc0277719f3920fff9ba3440a4cde0753451af85beb2b45e545f) [Claim](https://sepolia.etherscan.io/tx/0x6b04354dd7e48a32771390a481f460bfad023f0476ff397e979a810c6611c9c6) | 113K         | 23K             | 482            | \$0.0213          | \$0.0207        |
+| 32       | [0xDbef001fF19867075F02bB6Ee3D490235885AABA](https://sepolia.etherscan.io/address/0xDbef001fF19867075F02bB6Ee3D490235885AABA) | [Fulfill](https://sepolia.etherscan.io/tx/0x3e95143a9a3e590da7817067a5901a525e4c67163f062c0a29e880996f4224d5) [Claim](https://sepolia.etherscan.io/tx/0x3e95143a9a3e590da7817067a5901a525e4c67163f062c0a29e880996f4224d5) | 102K         | 11K             | 451            | \$0.0192          | \$0.0225        |
+| 64       | [0x15C11FA9f87819020ec63997e7f1FcDeb71E2420](https://sepolia.etherscan.io/address/0x15C11FA9f87819020ec63997e7f1FcDeb71E2420) | [Fulfill](https://sepolia.etherscan.io/tx/0x9363144513e4071cd542bc00bb5d9f777fe214a342ddc7d55a4eab57798ab03c) [Claim](https://sepolia.etherscan.io/tx/0x4ed1ef65afbd75e44b07655fb98aabf6c8a446b7d774a267423ba444bf0e9e39) | 97K          | 6K              | 452            | \$0.0182          | \$0.0218        |
+| 128       | [0xE43aB117477b9976fE02198299D933fdaC80E319](https://sepolia.etherscan.io/address/0xE43aB117477b9976fE02198299D933fdaC80E319) | [Fulfill](https://sepolia.etherscan.io/tx/0xfe918e2ab6adc86e2ccc3c7ba4f92c822766327cda3bc0de6269f674d3967a3a) [Claim](https://sepolia.etherscan.io/tx/0x1f999dc716bedc93c9cfc117ae09928d9771e7f57614565e5d7d2739ac664fc2) | 96K          | 3K              | 468            | \$0.0180          | \$0.0217        |
+| 8192      | [0x708151E55a73bf359A1E0cC87Ff7D88c87Db9859](https://sepolia.etherscan.io/address/0x708151E55a73bf359A1E0cC87Ff7D88c87Db9859) | [Fulfill](https://sepolia.etherscan.io/tx/0x752e89c1bc1788306aa70a5582415a9f91c76d2a0ef8b46c4ef68ab9700744de) [Claim](https://sepolia.etherscan.io/tx/0xf9c1ac7f899f2a5d3553d4e677aa91cdc805377ed649fd249191dbd3c9d6315f) | 97K          | 1.4K            | 644            | \$0.0179          | \$0.214         |
+
 
 ### WLD Grant Protocol V2 (Integrated with Axiom)
 
