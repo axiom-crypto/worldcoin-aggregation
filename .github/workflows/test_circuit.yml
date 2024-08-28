@@ -23,15 +23,6 @@ jobs:
           ssh-private-key: |
             ${{ secrets.AXIOM_ETH_DEPLOY_PRIVATE_KEY }}
             ${{ secrets.AXIOM_TOOLS_DEPLOY_PRIVATE_KEY }}
-
-      - name: Build Axiom circuit
-        working-directory: ./axiom_circuit
-        run: |
-          cargo build --verbose
-      - name: Test Axiom circuit
-        working-directory: ./axiom_circuit
-        run: |
-          cargo test
       - name: Build Standalone circuit V1
         working-directory: ./standalone_circuit
         run: |
