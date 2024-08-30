@@ -98,12 +98,12 @@ async fn serve(task: Json<Request>, scheduler: &State<LocalScheduler>) -> Result
     let request_id = Uuid::new_v4();
 
     let evm_proof = if for_evm {
-        let prover_proof  = scheduler
+        let prover_proof = scheduler
             .recursive_gen_proof(request_id.to_string().as_str(), req, true)
             .await?;
         match prover_proof {
             ProverProof::EvmProof(proof) => proof,
-            ProverProof::Snark(_) => unreachable!()
+            ProverProof::Snark(_) => unreachable!(),
         }
     } else {
         scheduler

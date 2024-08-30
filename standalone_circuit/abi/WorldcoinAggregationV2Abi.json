@@ -8,7 +8,7 @@
         "internalType": "bytes32"
       },
       {
-        "name": "maxNumClaims",
+        "name": "logMaxNumClaims",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -42,6 +42,32 @@
   },
   {
     "type": "function",
+    "name": "CLAIMS_ROOT_HI_OFFSET",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "CLAIMS_ROOT_LO_OFFSET",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "GRANT",
     "inputs": [],
     "outputs": [
@@ -55,46 +81,7 @@
   },
   {
     "type": "function",
-    "name": "MAX_NUM_CLAIMS",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "MINIMUM_SNARK_LENGTH",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "OUTPUT_HASH_HI_OFFSET",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "OUTPUT_HASH_LO_OFFSET",
+    "name": "NUM_CLAIMS_OFFSET",
     "inputs": [],
     "outputs": [
       {
@@ -114,6 +101,19 @@
         "name": "",
         "type": "address",
         "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "ROOT_OFFSET",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -146,13 +146,26 @@
   },
   {
     "type": "function",
-    "name": "VKEY_HASH",
+    "name": "VKEY_HASH_HI_OFFSET",
     "inputs": [],
     "outputs": [
       {
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "VKEY_HASH_LO_OFFSET",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -172,15 +185,10 @@
   },
   {
     "type": "function",
-    "name": "distributeGrants",
+    "name": "claim",
     "inputs": [
       {
-        "name": "vkeyHash",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "numClaims",
+        "name": "grantId",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -190,24 +198,24 @@
         "internalType": "uint256"
       },
       {
-        "name": "grantIds",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        "name": "receiver",
+        "type": "address",
+        "internalType": "address"
       },
       {
-        "name": "receivers",
-        "type": "address[]",
-        "internalType": "address[]"
+        "name": "nullifierHash",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
-        "name": "_nullifierHashes",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        "name": "sisterNodes",
+        "type": "bytes32[]",
+        "internalType": "bytes32[]"
       },
       {
-        "name": "proof",
-        "type": "bytes",
-        "internalType": "bytes"
+        "name": "isLeftBytes",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [],
@@ -233,19 +241,56 @@
     "stateMutability": "view"
   },
   {
+    "type": "function",
+    "name": "validClaimsRoots",
+    "inputs": [
+      {
+        "name": "root",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "claimsRoot",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "validateClaimsRoot",
+    "inputs": [
+      {
+        "name": "proof",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
     "type": "event",
     "name": "GrantClaimed",
     "inputs": [
       {
         "name": "grantId",
         "type": "uint256",
-        "indexed": true,
+        "indexed": false,
         "internalType": "uint256"
       },
       {
         "name": "receiver",
         "type": "address",
-        "indexed": true,
+        "indexed": false,
         "internalType": "address"
       }
     ],
@@ -253,7 +298,22 @@
   },
   {
     "type": "error",
-    "name": "InvalidMaxNumClaims",
+    "name": "InvalidLogMaxNumClaims",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidMerkleProof",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidMerkleProofLength",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidNumberOfClaims",
     "inputs": []
   },
   {
@@ -279,11 +339,6 @@
   {
     "type": "error",
     "name": "OnlyProver",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "TooManyClaims",
     "inputs": []
   }
 ]

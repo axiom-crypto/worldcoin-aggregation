@@ -197,15 +197,13 @@ To send sample request:
 curl -X POST http://localhost:8000/tasks -H "Content-Type: application/json" -d  @data/generated_proofs_128.json
 ```
 
-Each request should have `root`, `num_proofs`, `max_proofs` and the list of `claims`, where each claim contains `grant_id`, `receiver` address, `nullifier_hash` and `proof`. In the request, `num_proofs = num_claims` is the number of claims and `max_proofs = MAX_NUM_CLAIMS` is the maximum number of claims allowed. The scheduler will reject the request if `max_proofs` does not match the circuit configurations that it was started with.
+Each request should have `root`, and the list of `claims`, where each claim contains `grant_id`, `receiver` address, `nullifier_hash` and `proof`. The scheduler will reject the request if `claims` is empty or if `num_claims` exceeds the `MAX_NUM_CLAIMS` set in the circuit configurations that it was started with.
 
 An example request looks like:
 
 ```
 {
   "root": "12439333144543028190433995054436939846410560778857819700795779720142743070295",
-  "num_proofs": 2,
-  "max_proofs": 16,
   "claims": [
     {
       "receiver": "0xff9db18c23be01D48DCF1fE182f4807055ae8cA2",

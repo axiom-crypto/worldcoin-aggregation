@@ -7,8 +7,11 @@ use axiom_eth::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{WorldcoinIntermediateAggregationInput, WorldcoinIntermediateAggregationCircuit};
-use crate::{keygen::node_params::{PinningIntermediate, PinningIntermediateV2}, prover::ProofRequest};
+use crate::{
+    keygen::node_params::{PinningIntermediate, PinningIntermediateV2},
+    prover::ProofRequest,
+};
+use crate::{WorldcoinIntermediateAggregationCircuit, WorldcoinIntermediateAggregationInput};
 
 use axiom_eth::utils::snark_verifier::Base64Bytes;
 use serde_with::serde_as;

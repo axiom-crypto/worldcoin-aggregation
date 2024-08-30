@@ -40,8 +40,12 @@ use axiom_eth::{
 use itertools::Itertools;
 
 use crate::{
-    circuits::{v1::intermediate::WorldcoinIntermediateAggregationInput, v2::root::WorldcoinRootAggregationInputV2},
-    constants::DUMMY_CLAIM_ROOTS, utils::compute_keccak_for_branch_nodes,
+    circuits::{
+        v1::intermediate::WorldcoinIntermediateAggregationInput,
+        v2::root::WorldcoinRootAggregationInputV2,
+    },
+    constants::DUMMY_CLAIM_ROOTS,
+    utils::compute_keccak_for_branch_nodes,
 };
 
 pub type WorldcoinIntermediateAggregationCircuitV2 =
@@ -144,12 +148,18 @@ impl WorldcoinIntermediateAggregationInputV2 {
             assigned_instances.extend_from_slice(&new_instances[2..5]);
             assigned_instances.push(num_proofs);
             assigned_instances.extend_from_slice(&new_instances[5..7]);
-            assert_eq!(assigned_instances.len(), NUM_FE_ACCUMULATOR + WorldcoinRootAggregationInputV2::get_num_instance());
+            assert_eq!(
+                assigned_instances.len(),
+                NUM_FE_ACCUMULATOR + WorldcoinRootAggregationInputV2::get_num_instance()
+            );
         } else {
             // intermediate circuit
             // [start, end, vk_hash_hi, vk_hash_lo, root, claim_root_hi, claim_root_lo]
             assigned_instances.extend_from_slice(&new_instances[0..7]);
-            assert_eq!(assigned_instances.len(), NUM_FE_ACCUMULATOR + WorldcoinIntermediateAggregationInputV2::get_num_instance());
+            assert_eq!(
+                assigned_instances.len(),
+                NUM_FE_ACCUMULATOR + WorldcoinIntermediateAggregationInputV2::get_num_instance()
+            );
         }
     }
 

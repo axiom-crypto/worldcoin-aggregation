@@ -74,7 +74,11 @@ impl ContractClient {
             .with_chain_id(chain_id);
 
         let contract_address: Address = contract_address.parse()?;
+        #[cfg(feature = "v1")]
         let abi = include_str!("../../abi/WorldcoinAggregationV1Abi.json");
+        #[cfg(feature = "v2")]
+        let abi = include_str!("../../abi/WorldcoinAggregationV2Abi.json");
+
         let abi: Abi = serde_json::from_str(&abi)?;
         let client = SignerMiddleware::new(provider.clone(), wallet.clone());
 
@@ -84,7 +88,8 @@ impl ContractClient {
     }
 
     // example tx: https://sepolia.etherscan.io/tx/0x3d7488e27ba42f02bc15a2228364fa202b50d94e9fdeffbfcd9fb0b0b950b3c1
-    pub async fn distribute_grants(&self, params: V1ClaimParams) -> anyhow::Result<H256> {
+    #[cfg(feature = "v1")]
+    pub async fn fulfill(&self, params: V1ClaimParams) -> anyhow::Result<H256> {
         let receipt = self
             .contract_client
             .method::<_, ()>(
@@ -99,6 +104,21 @@ impl ContractClient {
                     params.proof,
                 ),
             )?
+            .send()
+            .await?
+            .await?
+            .unwrap();
+
+        Ok(receipt.transaction_hash)
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn fulfill(&self, proof: String) -> anyhow::Result<H256> {
+        let proof = Vec::from_hex(proof).expect("Invalid hex string");
+        let proof = Bytes::from(proof);
+        let receipt = self
+            .contract_client
+            .method::<_, ()>("validateClaimsRoot", proof)?
             .send()
             .await?
             .await?
