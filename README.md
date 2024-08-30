@@ -132,7 +132,7 @@ We deployed the following other contracts to mock different aspects of the World
 
 ### Repository Overview
 
-- `standalone_circuit/`: Circuits and prover backend for standalone batch WorldID aggregation.
+- `circuit/`: Circuits and prover backend for standalone batch WorldID aggregation.
   - `README.md`: Documentation for the standalone WorldID aggregation circuits for WLD grants can be found in their own README.
 - `src/`
   - `WorldcoinAggregationV1.sol`: The smart contract for the `WorldcoinAggregationV1` version.

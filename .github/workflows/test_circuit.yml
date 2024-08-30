@@ -23,11 +23,11 @@ jobs:
           ssh-private-key: |
             ${{ secrets.AXIOM_ETH_DEPLOY_PRIVATE_KEY }}
             ${{ secrets.AXIOM_TOOLS_DEPLOY_PRIVATE_KEY }}
-      - name: Build Standalone circuit V1
-        working-directory: ./standalone_circuit
+      - name: Build circuit V1
+        working-directory: ./circuit
         run: |
           cargo build --features "v1, keygen" --verbose
-      - name: Build Standalone circuit V2
-        working-directory: ./standalone_circuit
+      - name: Build circuit V2
+        working-directory: ./circuit
         run: |
           cargo build --features "v2, keygen" --verbose
