@@ -46,13 +46,13 @@ async fn serve(
     let max_proofs = 1 << depth;
 
     if num_proofs == 0 {
-         return Err(anyhow!("Zero proofs!")
+         return Err(anyhow!("Zero claims!")
             .context(InvalidInputContext)
             .into());
     }
 
     if num_proofs > max_proofs {
-        return Err(anyhow!("Too many proofs!")
+        return Err(anyhow!("Too many claims!")
             .context(InvalidInputContext)
             .into());
     }
