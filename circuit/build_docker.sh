@@ -2,7 +2,7 @@
 
 # usage: bash build_docker.sh <version - v1 or v2>
 REPO_ROOT=$(git rev-parse --show-toplevel)
-WORKDIR=$REPO_ROOT/standalone_circuit
+WORKDIR=$REPO_ROOT/circuit
 export CARGO_HOME=$WORKDIR/.cargo
 cd $WORKDIR
 
