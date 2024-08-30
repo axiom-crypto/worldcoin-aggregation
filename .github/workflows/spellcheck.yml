@@ -20,4 +20,4 @@ jobs:
             with:
               check_filenames: true
               ignore_words_list: crate
-              skip: ./.git,./lib,./axiom_circuit/Cargo.lock,./standalone_circuit/Cargo.lock
+              skip: ./.git,./lib,./circuit/Cargo.lock
