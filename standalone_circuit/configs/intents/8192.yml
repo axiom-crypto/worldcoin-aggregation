@@ -1,0 +1,6 @@
+k_at_depth: [23, 23, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 20]
+params:
+  node_type:
+    Evm: 1
+  depth: 13
+  initial_depth: 3

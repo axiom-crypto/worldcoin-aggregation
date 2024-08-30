@@ -139,6 +139,8 @@ params:
 
   The length of `k_at_depth` must equal `depth - initial_depth + num_extra_rounds + 2`.
 
+The intent YAML files used for benchmarking are located in the `configs/intents` directory, named as `{MAX_NUM_CLAIMS}.yml`.
+
 3. Run keygen.
 
 We assume the KZG trusted setup files are located in `${SRS_DIR}` and named `kzg_bn254_{k}.srs` for circuit degree `k`. You can now run keygen using the following command:
