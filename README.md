@@ -29,7 +29,7 @@ The V1 grant contract supports at most `MAX_NUM_CLAIMS` at once, and receives as
 ```
 - vkeyHash - the Keccak hash of the flattened Groth16 vkey
 - numClaims - the number of claims, which should satisfy 1 <= numClaims <= MAX_NUM_CLAIMS
-- root - the WorldID root the proofs are relative to
+- root - the World ID root the proofs are relative to
 - grantIds_i for i = 1, ..., MAX_NUM_CLAIMS
 - receivers_i for i = 1, ..., MAX_NUM_CLAIMS
 - nullifierHashes_i for i = 1, ..., MAX_NUM_CLAIMS
@@ -56,7 +56,7 @@ The V2 grant contract supports at most `MAX_NUM_CLAIMS` at once, where `MAX_NUM_
 
 ```
 - vkeyHash - the Keccak hash of the flattened Groth16 vkey
-- root - the WorldID root the proofs are relative to
+- root - the World ID root the proofs are relative to
 - claimsRoot - the Keccak Merkle root of the tree with `MAX_NUM_CLAIMS` leaves
 ```
 
