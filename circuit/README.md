@@ -1,10 +1,10 @@
-# WorldID Proof Aggregation
+# World ID Proof Aggregation
 
-This subdirectory implements ZK circuits and backend prover endpoints for batch WorldID proof verification.
+This subdirectory implements ZK circuits and backend prover endpoints for batch World ID proof verification.
 
 ## Summary
 
-- [Batch WorldID Verification Circuits](#batch-worldid-verification-circuits)
+- [Batch World ID Verification Circuits](#batch-worldid-verification-circuits)
 - [Prover Backend Architecture](#prover-backend-architecture)
 
 ## Folder structure
@@ -33,7 +33,7 @@ This subdirectory implements ZK circuits and backend prover endpoints for batch 
 └── README.md
 ```
 
-## Batch WorldID Verification Circuits
+## Batch World ID Verification Circuits
 
 The architecture for the SNARK circuits used in the V1 and V2 designs follow the same MapReduce
 structure which uses SNARK aggregation.
@@ -48,7 +48,7 @@ We now proceed to discuss the details of the V1 and V2 circuits within this fram
 
 ### V1 Circuit Design
 
-The V1 circuit verifies the WorldID Groth16 proofs in batch, and exposes as a public output the Keccak hash of the following quantities.
+The V1 circuit verifies the World ID Groth16 proofs in batch, and exposes as a public output the Keccak hash of the following quantities.
 
 - `vkey_hash` - the Keccak hash of the flattened vk
 - `num_claims` - the number of claims, which should satisfy `1 <= num_claims <= MAX_NUM_CLAIMS`
@@ -172,7 +172,7 @@ We now describe the architecture of these components in more detail.
 
 ### Scheduler
 
-The scheduler provides the highest level API for interacting with the backend. It receives the request for an entire proving workload, whose final output is the serialized bytes of a SNARK proof proving `MAX_NUM_CLAIMS` WLD grant claims. To achieve this, the scheduler must schedule proving tasks according to a computation DAG, namely the aggregation tree structure depicted in [Batch WorldID Verification Circuits](#batch-worldid-verification-circuits).
+The scheduler provides the highest level API for interacting with the backend. It receives the request for an entire proving workload, whose final output is the serialized bytes of a SNARK proof proving `MAX_NUM_CLAIMS` WLD grant claims. To achieve this, the scheduler must schedule proving tasks according to a computation DAG, namely the aggregation tree structure depicted in [Batch World ID Verification Circuits](#batch-worldid-verification-circuits).
 
 We provide two implementations of the scheduler:
 
