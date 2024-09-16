@@ -1,10 +1,10 @@
-# WorldID Proof Aggregation
+# World ID Proof Aggregation
 
-This subdirectory implements ZK circuits and backend prover endpoints for batch WorldID proof verification.
+This subdirectory implements ZK circuits and backend prover endpoints for batch World ID proof verification.
 
 ## Summary
 
-- [Batch WorldID Verification Circuits](#batch-worldid-verification-circuits)
+- [Batch World ID Verification Circuits](#batch-worldid-verification-circuits)
 - [Prover Backend Architecture](#prover-backend-architecture)
 
 ## Folder structure
@@ -33,7 +33,7 @@ This subdirectory implements ZK circuits and backend prover endpoints for batch 
 └── README.md
 ```
 
-## Batch WorldID Verification Circuits
+## Batch World ID Verification Circuits
 
 The architecture for the SNARK circuits used in the V1 and V2 designs follow the same MapReduce
 structure which uses SNARK aggregation.
@@ -48,7 +48,7 @@ We now proceed to discuss the details of the V1 and V2 circuits within this fram
 
 ### V1 Circuit Design
 
-The V1 circuit verifies the WorldID Groth16 proofs in batch, and exposes as a public output the Keccak hash of the following quantities.
+The V1 circuit verifies the World ID Groth16 proofs in batch, and exposes as a public output the Keccak hash of the following quantities.
 
 - `vkey_hash` - the Keccak hash of the flattened vk
 - `num_claims` - the number of claims, which should satisfy `1 <= num_claims <= MAX_NUM_CLAIMS`
@@ -151,7 +151,7 @@ cargo run --release --bin keygen --features "keygen, v1(or v2)" -- --srs-dir ${S
 
 where the feature `v1` or `v2` should be specified based on whether V1 or V2 circuits should be used.
 
-The resulting proving keys, verification keys, and on-chain verification contract will be written to `${CIRCUIT_DATA_DIR}`, together with a `${CIDS_NAME}.cids` JSON file which encodes the aggregation tree as a list of the circuit IDs at each depth of the tree. The `.cids` file extension is an acronym standing for Circuit IDs -- the file type is JSON, and the extension is used to emphasize this is a special file containing the circuit IDs of an aggregation tree. The `${CIDS_NAME}` can be any string. It is meant to be an operator specified identifier to distinguish between different aggregation trees (e.g., which have different tree structures or circuit configurations). All nodes at the same depth in the aggregation tree use the same circuit, so they all have the same circuit ID. The `*.cids` file is context-dependent: it only works for the WorldID verification circuits in this repository. The file is not meant to be interoperable with other generic Halo2 circuits.
+The resulting proving keys, verification keys, and on-chain verification contract will be written to `${CIRCUIT_DATA_DIR}`, together with a `${CIDS_NAME}.cids` JSON file which encodes the aggregation tree as a list of the circuit IDs at each depth of the tree. The `.cids` file extension is an acronym standing for Circuit IDs -- the file type is JSON, and the extension is used to emphasize this is a special file containing the circuit IDs of an aggregation tree. The `${CIDS_NAME}` can be any string. It is meant to be an operator specified identifier to distinguish between different aggregation trees (e.g., which have different tree structures or circuit configurations). All nodes at the same depth in the aggregation tree use the same circuit, so they all have the same circuit ID. The `*.cids` file is context-dependent: it only works for the World ID verification circuits in this repository. The file is not meant to be interoperable with other generic Halo2 circuits.
 
 ## Prover Backend Architecture
 
@@ -172,7 +172,7 @@ We now describe the architecture of these components in more detail.
 
 ### Scheduler
 
-The scheduler provides the highest level API for interacting with the backend. It receives the request for an entire proving workload, whose final output is the serialized bytes of a SNARK proof proving `MAX_NUM_CLAIMS` WLD grant claims. To achieve this, the scheduler must schedule proving tasks according to a computation DAG, namely the aggregation tree structure depicted in [Batch WorldID Verification Circuits](#batch-worldid-verification-circuits).
+The scheduler provides the highest level API for interacting with the backend. It receives the request for an entire proving workload, whose final output is the serialized bytes of a SNARK proof proving `MAX_NUM_CLAIMS` WLD grant claims. To achieve this, the scheduler must schedule proving tasks according to a computation DAG, namely the aggregation tree structure depicted in [Batch World ID Verification Circuits](#batch-worldid-verification-circuits).
 
 We provide two implementations of the scheduler:
 
@@ -283,7 +283,7 @@ For integration with the scheduler, the dispatcher must be implemented as a web 
 ### Prover
 
 The prover is the most computation intensive component of the system. It is responsible for generating the SNARK proof for a given circuit. We implement the prover as a REST API server
-which can generate proofs for any of the circuits described in [Batch WorldID Verification Circuits](#batch-worldid-verification-circuits). The prover accepts a typeless request consisting of the circuit ID and the proof input. The proving server infers the circuit type from the circuit ID and proof input to determine which circuit to prove for.
+which can generate proofs for any of the circuits described in [Batch World ID Verification Circuits](#batch-worldid-verification-circuits). The prover accepts a typeless request consisting of the circuit ID and the proof input. The proving server infers the circuit type from the circuit ID and proof input to determine which circuit to prove for.
 
 The prover first loads configuration files and the proving key from `${CIRCUIT_DATA_DIR}` directory, using the circuit ID to determine which files to load. The prover will store the proving key in memory after the first load, keeping it in memory for future proof requests until it is told via API request to reset the memory. Because we expect the proving time of a single circuit to not exceed typical connection disconnect thresholds, the proving server keeps the HTTP connection open for the duration of the proving process. Once proving is complete, the prover returns the proof in the response. The prover does not cache any proof results.
 
