@@ -1,11 +1,11 @@
-# Batch WorldID proof verification with Axiom
+# Batch World ID proof verification with Axiom
 
-This repo implements batch verification of [WorldID](https://worldcoin.org/world-id) proofs to enable cheaper batch claims of WLD grants.
+This repo implements batch verification of [World ID](https://worldcoin.org/world-id) proofs to enable cheaper batch claims of WLD grants.
 
 It is implemented via two components:
 
-- ZK circuits for batch WorldID proof verification using Axiom's ZK circuit libraries.
-- Smart contracts implementing WLD grant claims based on batch-verified WorldID proof results.
+- ZK circuits for batch World ID proof verification using Axiom's ZK circuit libraries.
+- Smart contracts implementing WLD grant claims based on batch-verified World ID proof results.
 
 In what follows, we describe two different flows for WLD grants using this integration.
 
@@ -13,7 +13,7 @@ In what follows, we describe two different flows for WLD grants using this integ
 
 ## Worldcoin Grant Protocol
 
-We implement two versions of WLD grants based on batch verification of WorldID proofs.
+We implement two versions of WLD grants based on batch verification of World ID proofs.
 
 - `WorldcoinAggregationV1`: After proof verification, all the receivers in the batch immediately have their grant transferred to them.
 - `WorldcoinAggregationV2`: After proof verification, the receivers (or someone on their behalf) can prove into a Merkle root and transfer the grant to the receiver.
@@ -37,11 +37,11 @@ The V1 grant contract supports at most `MAX_NUM_CLAIMS` at once, and receives as
 
 The ZK proof verifies in ZK that:
 
-1. For `0 <= idx < numClaims`, there are valid WorldID proofs corresponding to `(root, claimedNullifierHashes[idx], receivers[idx], grantIds[idx])` with the given Groth16 `vkeyHash`.
+1. For `0 <= idx < numClaims`, there are valid World ID proofs corresponding to `(root, claimedNullifierHashes[idx], receivers[idx], grantIds[idx])` with the given Groth16 `vkeyHash`.
 
 The V1 grants contract then:
 
-- checks the `vkeyHash` for the WorldID Groth16 proof is valid
+- checks the `vkeyHash` for the World ID Groth16 proof is valid
 - checks that `grantIds[idx]` is valid for `0 <= idx < numClaims`
 - checks for each claiming grantee that the nullifier hash was not previously used
 - sends `WLD` to fulfill the claim
@@ -62,12 +62,12 @@ The V2 grant contract supports at most `MAX_NUM_CLAIMS` at once, where `MAX_NUM_
 
 The ZK proof verifies that
 
-1. There is a value `1 <= numClaims <= MAX_NUM_CLAIMS` and arrays `grantIds`, `receivers` and `claimedNullifierHashes` so that for `0 <= idx < numClaims`, there are valid WorldID proofs corresponding to `(root, claimedNullifierHashes[idx], receivers[idx], grantIds[idx])`.
+1. There is a value `1 <= numClaims <= MAX_NUM_CLAIMS` and arrays `grantIds`, `receivers` and `claimedNullifierHashes` so that for `0 <= idx < numClaims`, there are valid World ID proofs corresponding to `(root, claimedNullifierHashes[idx], receivers[idx], grantIds[idx])`.
 2. The hash `claimsRoot` is the Keccak Merkle root of the tree with `MAX_NUM_CLAIMS` leaves, where the first `numClaims` leaves are given by `abi.encodePacked(grantIds[idx], receivers[idx], claimedNullifierHashes[idx])` and the remaining leaves are `abi.encodePacked(uint256(0), address(0), byte32(0))`.
 
 The V2 grants contract then:
 
-- checks the `vkeyHash` for the WorldID Groth16 proof is valid
+- checks the `vkeyHash` for the World ID Groth16 proof is valid
 - stores `claimsRoot` for grantees to claim WLD against
 
 Grantees can claim `WLD` rewards from the V2 grants contract by passing a Merkle proof into:
@@ -137,8 +137,8 @@ We deployed the following other contracts to mock different aspects of the World
 
 ### Repository Overview
 
-- `circuit/`: Circuits and prover backend for standalone batch WorldID aggregation.
-  - `README.md`: Documentation for the standalone WorldID aggregation circuits for WLD grants can be found in their own README.
+- `circuit/`: Circuits and prover backend for standalone batch World ID aggregation.
+  - `README.md`: Documentation for the standalone World ID aggregation circuits for WLD grants can be found in their own README.
 - `src/`
   - `WorldcoinAggregationV1.sol`: The smart contract for the `WorldcoinAggregationV1` version.
   - `WorldcoinAggregationV2.sol`: The smart contract for the `WorldcoinAggregationV2` version.
